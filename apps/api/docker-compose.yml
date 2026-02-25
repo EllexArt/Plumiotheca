@@ -1,0 +1,44 @@
+services:
+  api:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - KEYCLOAK_AUTH_SERVER_URL=http://keycloak:8080
+      - KEYCLOAK_REALM=plumiotheca
+      - KEYCLOAK_CLIENT_ID=plumiotheca-backend
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USERNAME=plumiotheca
+      - DB_PASSWORD=plumiotheca
+      - DB_NAME=plumiotheca
+    depends_on:
+      - keycloak
+      - db
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=plumiotheca
+      - POSTGRES_PASSWORD=plumiotheca
+      - POSTGRES_DB=plumiotheca
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    command: start-dev --import-realm
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - KC_HOSTNAME_STRICT=false
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import/
+
+volumes:
+  postgres_data:

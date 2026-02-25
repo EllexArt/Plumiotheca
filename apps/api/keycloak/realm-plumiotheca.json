@@ -1,0 +1,34 @@
+{
+  "id": "plumiotheca",
+  "realm": "plumiotheca",
+  "enabled": true,
+  "verifyEmail": false,
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": true,
+  "rememberMe": true,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": true,
+  "clients": [
+    {
+      "clientId": "plumiotheca-backend",
+      "enabled": true,
+      "publicClient": true,
+      "bearerOnly": false,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "webOrigins": ["*"],
+      "attributes": {
+        "post.logout.redirect.uris": "+"
+      }
+    }
+  ],
+  "requiredActions": [
+    { "alias": "CONFIGURE_TOTP", "name": "Configure OTP", "enabled": false, "defaultAction": false },
+    { "alias": "UPDATE_PASSWORD", "name": "Update Password", "enabled": true, "defaultAction": false },
+    { "alias": "UPDATE_PROFILE", "name": "Update Profile", "enabled": true, "defaultAction": false },
+    { "alias": "VERIFY_EMAIL", "name": "Verify Email", "enabled": true, "defaultAction": false },
+    { "alias": "terms_and_conditions", "name": "Terms and Conditions", "enabled": false, "defaultAction": false }
+  ]
+}

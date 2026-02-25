@@ -1,0 +1,44 @@
+{
+  "name": "plumiotheca-backend",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "description": "A platform that allows you to read, write, and share about your favorite universes and stories. Who knows, other features may come later.",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "test": "jest",
+    "prestart": "yarn build",
+    "typeorm": "ts-node ./node_modules/typeorm/cli",
+    "migration:generate": "yarn typeorm migration:generate -d src/data-source.ts",
+    "migration:run": "yarn typeorm migration:run -d src/data-source.ts",
+    "migration:revert": "yarn typeorm migration:revert -d src/data-source.ts"
+  },
+  "repository": "https://github.com/EllexArt/Plumiotheca-backend.git",
+  "author": "ellexart",
+  "license": "MIT",
+  "dependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.3.0",
+    "express": "^5.2.1",
+    "express-session": "^1.19.0",
+    "keycloak-connect": "^26.1.1",
+    "pg": "^8.18.0",
+    "reflect-metadata": "^0.2.2",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
+    "ts-node": "^10.9.2",
+    "typeorm": "^0.3.28",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@types/express-session": "^1.18.2",
+    "@types/jest": "^30.0.0",
+    "@types/supertest": "^6.0.3",
+    "@types/swagger-jsdoc": "^6.0.4",
+    "@types/swagger-ui-express": "^4.1.8",
+    "jest": "^30.2.0",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.6"
+  }
+}
