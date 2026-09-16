@@ -4,11 +4,16 @@
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "module": "ESNext",
     "skipLibCheck": true,
+    "types": ["vite/client"],
 
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "@plumiotheca/api-client": ["../../libs/api-client/src/index.ts"]
+    },
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",

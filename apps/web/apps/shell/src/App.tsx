@@ -1,6 +1,8 @@
 import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import Keycloak from 'keycloak-js';
+import type { ApiClient } from '@plumiotheca/api-client';
+import RemoteErrorBoundary from './RemoteErrorBoundary';
 
 // Importations dynamiques des microfrontends
 // @ts-ignore
@@ -10,9 +12,11 @@ const EditorApp = React.lazy(() => import('editor/App'));
 
 interface AppProps {
   keycloak: Keycloak;
+  api: ApiClient;
+  isAuthenticated: boolean;
 }
 
-const App: React.FC<AppProps> = ({ keycloak }) => {
+const App: React.FC<AppProps> = ({ keycloak, api, isAuthenticated }) => {
   return (
     <BrowserRouter>
       <div style={{ fontFamily: 'sans-serif' }}>
@@ -34,12 +38,21 @@ const App: React.FC<AppProps> = ({ keycloak }) => {
           </nav>
           <div>
             <span>Bienvenue, {keycloak.tokenParsed?.preferred_username || 'Invité'}</span>
-            <button 
-              onClick={() => keycloak.logout()}
-              style={{ marginLeft: '10px', padding: '5px 10px', cursor: 'pointer' }}
-            >
-              Déconnexion
-            </button>
+            {isAuthenticated ? (
+              <button 
+                onClick={() => keycloak.logout()}
+                style={{ marginLeft: '10px', padding: '5px 10px', cursor: 'pointer' }}
+              >
+                Déconnexion
+              </button>
+            ) : (
+              <button
+                onClick={() => keycloak.login?.()}
+                style={{ marginLeft: '10px', padding: '5px 10px', cursor: 'pointer' }}
+              >
+                Connexion
+              </button>
+            )}
           </div>
         </header>
 
@@ -52,8 +65,16 @@ const App: React.FC<AppProps> = ({ keycloak }) => {
                   <p>La plateforme pour lire, écrire et partager vos histoires.</p>
                 </div>
               } />
-              <Route path="/reader/*" element={<ReaderApp />} />
-              <Route path="/editor/*" element={<EditorApp />} />
+              <Route path="/reader/*" element={
+                <RemoteErrorBoundary name="Lecture">
+                  <ReaderApp api={api} />
+                </RemoteErrorBoundary>
+              } />
+              <Route path="/editor/*" element={
+                <RemoteErrorBoundary name="Écriture">
+                  <EditorApp api={api} isAuthenticated={isAuthenticated} />
+                </RemoteErrorBoundary>
+              } />
             </Routes>
           </Suspense>
         </main>

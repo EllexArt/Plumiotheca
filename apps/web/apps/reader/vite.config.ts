@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import federation from '@originjs/vite-plugin-federation';
+import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
   plugins: [
@@ -14,6 +15,13 @@ export default defineConfig({
       shared: ['react', 'react-dom']
     })
   ],
+  resolve: {
+    alias: {
+      '@plumiotheca/api-client': fileURLToPath(
+        new URL('../../libs/api-client/src/index.ts', import.meta.url)
+      )
+    }
+  },
   build: {
     target: 'esnext',
     minify: false,
