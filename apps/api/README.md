@@ -33,6 +33,15 @@ docker-compose up --build
 The API will be available at `http://localhost:3000`, Keycloak at `http://localhost:8080`, and PostgreSQL at `localhost:5433` (mapped from 5432).
 The realm `plumiotheca` is automatically created and configured on startup thanks to the import file in `./keycloak`.
 
+If port 3000 is already taken on your machine, set `API_PORT` before starting the stack — the
+container still listens on 3000 internally, only the published port changes:
+
+```bash
+API_PORT=3010 docker-compose up --build
+```
+
+Remember to point the frontend at the same port (`VITE_API_URL`).
+
 ### Connection à la base de données (WebStorm / DBeaver / Client DB)
 
 Pour vous connecter à la base de données depuis un outil externe (comme l'onglet "Database" de WebStorm) :
@@ -111,6 +120,7 @@ The API uses a synchronization mechanism:
 
 ### Environment Variables
 - `PORT`: Port of the API (default: 3000)
+- `CORS_ORIGINS`: Comma-separated list of origins allowed to call the API (default: `http://localhost:5000,http://localhost:5001,http://localhost:5002`, i.e. the three micro-frontends)
 - `KEYCLOAK_REALM`: Keycloak realm name (default: plumiotheca)
 - `KEYCLOAK_AUTH_SERVER_URL`: Keycloak URL (default: http://localhost:8080)
 - `KEYCLOAK_CLIENT_ID`: Keycloak client ID (default: plumiotheca-backend)

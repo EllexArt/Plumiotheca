@@ -1,8 +1,9 @@
 services:
   api:
     build: .
+    # Port hote configurable pour cohabiter avec d'autres stacks locales (defaut: 3000).
     ports:
-      - "3000:3000"
+      - "${API_PORT:-3000}:3000"
     environment:
       - PORT=3000
       - KEYCLOAK_AUTH_SERVER_URL=http://keycloak:8080

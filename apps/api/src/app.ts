@@ -4,10 +4,13 @@ import Keycloak from 'keycloak-connect';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './config/swagger';
 import { authMiddleware } from './middlewares/auth';
+import { corsMiddleware } from './middlewares/cors';
 import userRouter from './routes/users';
 import storyRouter from './routes/stories';
 
 const app = express();
+
+app.use(corsMiddleware);
 
 // Session configuration
 const memoryStore = new session.MemoryStore();
