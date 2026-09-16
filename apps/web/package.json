@@ -1,0 +1,17 @@
+{
+  "name": "plumiotheca-frontend",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w shell\" \"npm run preview -w reader\" \"npm run preview -w editor\"",
+    "build-remotes": "npm run build -w reader && npm run build -w editor",
+    "dev-full": "npm run build-remotes && npm run dev",
+    "build": "npm run build --workspaces --if-present",
+    "preview": "npm run preview --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
