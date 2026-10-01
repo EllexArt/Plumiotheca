@@ -14,6 +14,18 @@ Trois piliers guident les choix techniques :
 | **Lire** | Rendu typographique soigné, réglages de lecture, reprise de lecture, bibliothèque, mobile d'abord. |
 | **Communauté** | Commentaires par paragraphe, abonnements, notifications, **modération dès le départ** (signalements, blocages, avertissements de contenu). |
 
+### Identité et principes d'expérience (validés sur maquettes)
+
+Maquettes de référence : canevas « Plumiotheca — pistes d'identité », page *Concept — bibliothèque vivante*.
+
+- **Identité « Lampe de chevet »** : Young Serif (titres), Literata (lecture), Figtree (interface). Palette par défaut *Lueur* en clair et en sombre ; *Bougie*, *Indigo et lune* et *Encre et rouille* sont des ambiances au choix (#77).
+- **Métaphore de bibliothèque dans le visuel, mots simples dans l'interface** : livres en cours montrés de dos, sélections présentées comme des étagères, mais les libellés restent « Mes lectures », « Explorer », « Univers », « Écrire ».
+- **La lecture d'abord** : aucune annotation dans le texte. Un repère discret en marge (bulle + nombre) indique les passages commentés ; les échanges s'ouvrent dans un panneau ou sont regroupés en fin de chapitre. Les repères peuvent être masqués.
+- **Découverte humaine** : sélections publiques composées par des membres et par l'équipe, recommandations écrites. Pas de fil algorithmique en page d'accueil.
+- **Compteurs publics conservés, dans notre vocabulaire** : lecteurs (uniques), « en cours de lecture », recommandations.
+- **Avertissements toujours visibles**, exclusions possibles par recherche ou de façon permanente (« Mes limites ») ; ce qui est masqué est toujours signalé.
+- **Sans divulgâchage** : fiches personnages et chronologie d'un univers ne montrent que ce que la personne a déjà lu.
+
 ## 2. Vue d'ensemble
 
 ```
@@ -43,7 +55,7 @@ Plumiotheca/
 │   ├── contracts/           Schémas zod partagés (entrées/sorties de l'API) + types TS
 │   └── editor-schema/       Schéma TipTap partagé (rendu côté web, validation côté API)
 ├── infra/
-│   ├── docker-compose.yml   Postgres, Keycloak, MinIO, Mailpit pour le dev
+│   ├── docker-compose.yml   Postgres, Keycloak, Meilisearch, MinIO, Mailpit pour le dev
 │   └── keycloak/            Realm versionné (export valide)
 ├── docs/                    Architecture, décisions (ADR), maquettes
 └── .github/workflows/       CI
@@ -71,6 +83,8 @@ Plumiotheca/
 | `moderation` | Signalements, blocages, masquage, journal d'actions des modérateurs. |
 | `media` | Upload d'images vers S3 via URL pré-signée. |
 | `stats` | Lectures uniques, temps de lecture, statistiques auteur. |
+| `tags` | Tags libres, tags canoniques, synonymes et hiérarchie ; outils des « jardiniers des tags ». |
+| `search` | Indexation et recherche à facettes (Meilisearch), recherches enregistrées et alertes. |
 
 ### Règles transverses
 
@@ -119,6 +133,31 @@ Conséquences sur le modèle :
 - Une histoire a un `canon_status` : `canon` (écrite par l'auteur ou un co-auteur) ou `fanfiction` (dérivée, affichée séparément, avec l'auteur d'origine crédité).
 - L'auteur peut **révoquer** l'ouverture aux fanfictions : les fanfictions existantes restent en ligne mais ne sont plus rattachées visiblement à l'univers (choix à affiner).
 - Toutes les permissions passent par une seule *policy* `UniversePolicy`, testée en profondeur.
+
+## 5 ter. Recherche, tags et avertissements
+
+Pensée pour les lectrices et lecteurs de fanfiction (référence : AO3).
+
+**Métadonnées structurées d'une histoire**
+- Univers (ou « histoire originale »), **personnages** et **relations** sont des entités, pas du texte libre. Les personnages sont ceux des fiches de l'univers.
+- Relation = ensemble de personnages + type : **romantique `/`** ou **platonique / familiale `&`**.
+- Classement : Tout public, Ado, Mature, Explicite.
+- Statut (en cours / terminée), langue, nombre de mots, nombre de chapitres (publiés / prévus).
+
+**Avertissements : modèle mixte**
+- Avertissements **majeurs obligatoires** à renseigner : mort de personnage, violence explicite, non-consentement, contenu sexuel impliquant des mineurs (interdit, donc refusé), ou « je préfère ne pas préciser ».
+- Liste **fine et facultative** : deuil, automutilation, troubles alimentaires, etc.
+- Les lecteurs excluent par recherche ou de façon permanente (« Mes limites »). « Non précisé » est excluable comme un avertissement.
+
+**Tags et synonymes**
+- Tags libres saisis par les auteurs. Normalisation automatique (casse, accents, tirets, espaces) vers un tag existant.
+- Les **tags canoniques** regroupent les synonymes (« slowburn », « Slow Burn » → *slow burn*), y compris d'une langue à l'autre. Un sous-tag hérite de son parent.
+- Les **jardiniers des tags** (rôle bénévole) fusionnent, renomment et rattachent, avec un journal des opérations. La recherche porte toujours sur le tag canonique.
+
+**Moteur**
+- **Meilisearch** auto-hébergé : facettes avec comptes, inclusion et exclusion, tolérance aux fautes, accents. PostgreSQL reste la source de vérité ; un indexeur synchronise à chaque changement.
+- Saisie intelligente : la barre reconnaît personnages, relations (`Ilse/Tomas`, `Ilse & Tomas`), tags et exclusions (`-angst`) et les transforme en filtres.
+- Recherches enregistrées et alertes « nouvelle histoire correspondant à ma recherche ».
 
 ## 6. Frontend — `apps/web`
 
@@ -189,3 +228,9 @@ Le code actuel est petit : on **reconstruit au bon endroit** plutôt que de tout
 | 7 | Stockage S3 (MinIO en dev) pour les images | proposé |
 | 8 | CSS Modules + tokens + Radix (pas de Tailwind) | ✅ validé |
 | 9 | Univers : solo, collaboratif, ouvert sur invitation, fanfictions — au choix du propriétaire | ✅ validé |
+| 10 | Identité « Lampe de chevet », palette Lueur + 3 ambiances au choix | ✅ validé |
+| 11 | Concept « bibliothèque vivante » avec vocabulaire simple ; notes de lecture en marge discrètes | ✅ validé |
+| 12 | Compteurs publics : lecteurs, en cours de lecture, recommandations | ✅ validé |
+| 13 | Recherche à facettes avec Meilisearch, personnages et relations structurés | proposé |
+| 14 | Avertissements : modèle mixte (majeurs obligatoires + liste fine facultative) | ✅ validé |
+| 15 | Tags : normalisation automatique + jardiniers des tags bénévoles | ✅ validé |
