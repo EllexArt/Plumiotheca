@@ -1,0 +1,59 @@
+{
+  "id": "plumiotheca",
+  "realm": "plumiotheca",
+  "enabled": true,
+  "verifyEmail": false,
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": true,
+  "rememberMe": true,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": true,
+  "clients": [
+    {
+      "clientId": "frontend-shell",
+      "enabled": true,
+      "publicClient": true,
+      "bearerOnly": false,
+      "directAccessGrantsEnabled": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect",
+      "redirectUris": [
+        "http://localhost:5000/*",
+        "http://localhost:5001/*",
+        "http://localhost:5002/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5000",
+        "http://localhost:5001",
+        "http://localhost:5002"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "+"
+      }
+    },
+    {
+      "clientId": "plumiotheca-backend",
+      "enabled": true,
+      "publicClient": true,
+      "bearerOnly": false,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "webOrigins": ["*"],
+      "attributes": {
+        "post.logout.redirect.uris": "+"
+      }
+    }
+  ],
+  "requiredActions": [
+    { "alias": "CONFIGURE_TOTP", "name": "Configure OTP", "enabled": false, "defaultAction": false },
+    { "alias": "UPDATE_PASSWORD", "name": "Update Password", "enabled": true, "defaultAction": false },
+    { "alias": "UPDATE_PROFILE", "name": "Update Profile", "enabled": true, "defaultAction": false },
+    { "alias": "VERIFY_EMAIL", "name": "Verify Email", "enabled": true, "defaultAction": false },
+    { "alias": "terms_and_conditions", "name": "Terms and Conditions", "enabled": false, "defaultAction": false }
+  ]
+}

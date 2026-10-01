@@ -1,0 +1,90 @@
+{
+  "info": {
+    "name": "Plumiotheca API",
+    "_postman_id": "5f3b7f8e-5a12-4d35-9c2a-9c4b1c7c0abc",
+    "description": "Collection Postman pour Plumiotheca: récupération de token Keycloak et appels API.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{access_token}}", "type": "string" }
+    ]
+  },
+  "item": [
+    {
+      "name": "Auth - Get Token (Keycloak)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+        ],
+        "url": {
+          "raw": "{{keycloak_base_url}}/realms/{{realm}}/protocol/openid-connect/token"
+        },
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            { "key": "grant_type", "value": "password" },
+            { "key": "client_id", "value": "{{client_id}}" },
+            { "key": "username", "value": "{{username}}" },
+            { "key": "password", "value": "{{password}}" }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "let json;",
+              "try { json = pm.response.json(); } catch (e) { json = null; }",
+              "if (json && json.access_token) {",
+              "  pm.environment.set('access_token', json.access_token);",
+              "}",
+              "if (json && json.refresh_token) {",
+              "  pm.environment.set('refresh_token', json.refresh_token);",
+              "}",
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users - Get My Profile",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/api/users/profile"
+        }
+      }
+    },
+    {
+      "name": "Stories - List",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/api/stories"
+        }
+      }
+    },
+    {
+      "name": "Stories - Create",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/stories"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Ma première histoire\",\n  \"description\": \"Une description...\",\n  \"coverUrl\": \"https://example.com/cover.jpg\",\n  \"status\": \"draft\",\n  \"tags\": [\"fantasy\", \"aventure\"]\n}"
+        }
+      }
+    }
+  ]
+}
