@@ -18,6 +18,7 @@ Trois piliers guident les choix techniques :
 
 Maquettes de référence : canevas « Plumiotheca — pistes d'identité », page *Concept — bibliothèque vivante*.
 
+- **Web d'abord** : Plumiotheca est un site web *responsive* (ordinateur, tablette, téléphone), conçu en priorité pour l'ordinateur. Pas d'application native à installer depuis un magasin ; une PWA (installable depuis le navigateur, lecture hors ligne) viendra plus tard.
 - **Identité « Lampe de chevet »** : Young Serif (titres), Literata (lecture), Figtree (interface). Palette par défaut *Lueur* en clair et en sombre ; *Bougie*, *Indigo et lune* et *Encre et rouille* sont des ambiances au choix (#77).
 - **Métaphore de bibliothèque dans le visuel, mots simples dans l'interface** : livres en cours montrés de dos, sélections présentées comme des étagères, mais les libellés restent « Mes lectures », « Explorer », « Univers », « Écrire ».
 - **La lecture d'abord** : aucune annotation dans le texte. Un repère discret en marge (bulle + nombre) indique les passages commentés ; les échanges s'ouvrent dans un panneau ou sont regroupés en fin de chapitre. Les repères peuvent être masqués.
@@ -249,3 +250,4 @@ Le code actuel est petit : on **reconstruit au bon endroit** plutôt que de tout
 | 14 | Avertissements : modèle mixte (majeurs obligatoires + liste fine facultative) | ✅ validé |
 | 15 | Tags : normalisation automatique + jardiniers des tags bénévoles | ✅ validé |
 | 16 | Accessibilité RGAA 4 / WCAG 2.2 AA, incluse dans la définition de « terminé » | ✅ validé |
+| 17 | Web d’abord : site responsive, ordinateur prioritaire, pas d’application native (PWA plus tard) | ✅ validé |
