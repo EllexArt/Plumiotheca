@@ -25,6 +25,20 @@ Maquettes de référence : canevas « Plumiotheca — pistes d'identité », pag
 - **Compteurs publics conservés, dans notre vocabulaire** : lecteurs (uniques), « en cours de lecture », recommandations.
 - **Avertissements toujours visibles**, exclusions possibles par recherche ou de façon permanente (« Mes limites ») ; ce qui est masqué est toujours signalé.
 - **Sans divulgâchage** : fiches personnages et chronologie d'un univers ne montrent que ce que la personne a déjà lu.
+- **Accessible à toutes et tous, par défaut** : objectif **RGAA 4 / WCAG 2.2 niveau AA** sur tout le site (voir §1 bis).
+
+## 1 bis. Accessibilité
+
+L'accessibilité fait partie de la définition de « terminé » de chaque issue, au même titre que les tests.
+
+- **Lecteurs d'écran** (NVDA, JAWS, VoiceOver, TalkBack) : HTML sémantique d'abord (titres hiérarchisés, `nav`, `main`, `article`, listes, vrais `button` et `a`), ARIA seulement en complément. Composants Radix pour les menus, dialogues et onglets (focus et annonces gérés).
+- **Lecture** : chaque chapitre est un `article` avec titre ; les repères de notes sont des boutons annoncés (« 7 notes sur ce passage ») et ne coupent jamais la lecture vocale du texte ; le panneau de notes est un dialogue qui piège et restitue le focus ; la progression est annoncée.
+- **Clavier** : tout est utilisable sans souris, ordre de tabulation logique, focus toujours visible, raccourcis de lecture (chapitre suivant, réglages) documentés et désactivables.
+- **Vision** : contrastes AA vérifiés automatiquement pour les 8 thèmes ; zoom à 200 % et texte agrandi sans perte ; aucune information portée par la seule couleur (ex. tag exclu = barré et préfixé « − ») ; polices adaptées (Atkinson Hyperlegible, Lexend) et interligne réglable.
+- **Mouvement et cognition** : respect de `prefers-reduced-motion`, pas de délai imposé, libellés en clair (vocabulaire simple validé), messages d'erreur explicites.
+- **Cibles tactiles** de 44 × 44 px minimum.
+- **Contenus des auteurs** : texte alternatif demandé pour les couvertures et images ; l'éditeur produit une structure propre (vrais titres, citations, séparateurs de scène annoncés).
+- **Outillage** : `eslint-plugin-jsx-a11y`, tests `axe-core` dans les tests de composants et Playwright, audit manuel au lecteur d'écran avant chaque jalon, page « Déclaration d'accessibilité » publiée.
 
 ## 2. Vue d'ensemble
 
@@ -234,3 +248,4 @@ Le code actuel est petit : on **reconstruit au bon endroit** plutôt que de tout
 | 13 | Recherche à facettes avec Meilisearch, personnages et relations structurés | proposé |
 | 14 | Avertissements : modèle mixte (majeurs obligatoires + liste fine facultative) | ✅ validé |
 | 15 | Tags : normalisation automatique + jardiniers des tags bénévoles | ✅ validé |
+| 16 | Accessibilité RGAA 4 / WCAG 2.2 AA, incluse dans la définition de « terminé » | ✅ validé |
