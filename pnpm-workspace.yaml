@@ -3,15 +3,18 @@ packages:
   - apps/web
   - apps/web/apps/*
   - apps/web/libs/*
+  - packages/*
 
 # Scripts d'installation des dépendances : refusés par défaut (sécurité).
-# Seul esbuild (Vite) est autorisé. chromedriver (tiré par keycloak-connect)
-# et @scarf/scarf (télémétrie de swagger-ui) sont volontairement bloqués.
+# Seul esbuild (Vite) est autorisé. @scarf/scarf (télémétrie de swagger-ui)
+# est volontairement bloqué.
+# @swc/core (tests de l'API) n'en a pas besoin : son binaire arrive par une
+# dépendance optionnelle propre à chaque plateforme.
 allowBuilds:
   esbuild: true
   '@parcel/watcher': false
   '@scarf/scarf': false
-  chromedriver: false
+  '@swc/core': false
   unrs-resolver: false
   # Les hooks Git sont installés par le script « prepare » de la racine.
   simple-git-hooks: false
@@ -19,7 +22,3 @@ allowBuilds:
 # Délai de 7 jours avant d'accepter une version publiée (aussi pour pnpm add) :
 # les paquets compromis sont souvent retirés dans ce délai.
 minimumReleaseAge: 10080
-
-# Dépendance optionnelle inutile de keycloak-connect, jamais installée.
-ignoredOptionalDependencies:
-  - chromedriver

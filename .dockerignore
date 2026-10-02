@@ -9,7 +9,5 @@
 .claude
 docs
 apps/web
-apps/api/tests
-apps/api/postman
-apps/api/keycloak
-apps/api/docker-compose.yml
+apps/api/test
+**/*.test.ts

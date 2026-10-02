@@ -1,0 +1,23 @@
+{
+  // Réglages communs aux paquets Node (API, contracts) : ESM natif, strict.
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    // Les paquets du monorepo sont lus depuis leurs sources (pas besoin de les compiler
+    // pour vérifier les types ou lancer les tests).
+    "customConditions": ["@plumiotheca/source"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": false,
+    "declaration": true,
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true
+  }
+}

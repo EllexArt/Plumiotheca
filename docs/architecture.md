@@ -144,10 +144,11 @@ Plumiotheca/
 
 ### Règles transverses
 
-- **Validation** : chaque entrée passe par un DTO issu de `packages/contracts` (via `nestjs-zod`). Liste blanche stricte.
+- **Validation** : chaque entrée est déclarée avec un schéma de `packages/contracts` (`@Body({ schema })`, validation native « Standard Schema » de NestJS 12, sans classe DTO). Liste blanche stricte : `z.strictObject`, un champ inconnu est refusé (400). Les erreurs indiquent le champ en cause, jamais la valeur reçue.
 - **Sérialisation** : chaque sortie a un schéma « public ». Aucune entité TypeORM n'est renvoyée telle quelle.
 - **Autorisation** : vérification de la propriété dans un guard / une policy, pas dans chaque route.
-- **Erreurs** : filtre global → format d'erreur unique, jamais de détails internes au client.
+- **Erreurs** : filtre global → format unique `application/problem+json` (RFC 9457, schéma `Problem` des contrats), jamais de détails internes au client ; l'identifiant de requête permet de retrouver l'erreur dans les journaux.
+- **Journaux** : pino en JSON ; requêtes journalisées en liste blanche (méthode, chemin sans paramètres, statut, durée) ; e-mails, mots de passe, jetons, cookies, contenus et paramètres SQL masqués.
 - **Sécurité HTTP dès le squelette** : Helmet, politique CSP stricte (le contenu TipTap est rendu sans HTML arbitraire), CORS restreint, limitation de débit globale et par route sensible. L'audit OWASP reste en M6, pas la mise en place.
 - **Comptes** : e-mail vérifié, protection contre la force brute et politique de mot de passe côté Keycloak, MFA obligatoire pour les rôles de modération.
 - **Écriture concurrente** : chaque brouillon porte un numéro de version ; une sauvegarde sur une version dépassée renvoie 409 et l'éditeur propose de fusionner ou de comparer (aucune perte silencieuse entre co-autrices).
@@ -156,7 +157,7 @@ Plumiotheca/
 - **Pagination** par curseur sur toutes les listes.
 - **Migrations TypeORM** versionnées ; `synchronize` désactivé partout.
 - **Comptage des lectures** : une lecture unique par compte connecté et par fenêtre de temps ; pour les visiteurs non connectés, un hachage quotidien salé (adresse + jour) jamais conservé au-delà de la journée. Aucune empreinte de navigateur (traceur au sens de la CNIL).
-- **OpenAPI** générée depuis les contrats et publiée à chaque build.
+- **OpenAPI** générée depuis les contrats (conversion JSON Schema de zod), servie sur `/api/docs` hors production uniquement.
 
 ### Authentification
 
@@ -259,7 +260,7 @@ apps/web/src/
 ## 7. Qualité et outillage
 
 - **TypeScript strict** partout, ESLint + Prettier communs.
-- **Tests** : Vitest (web, packages), Jest (unitaire Nest), tests e2e API avec Postgres via Testcontainers, Playwright pour les parcours clés.
+- **Tests** : Vitest partout (l'API passe par SWC pour les métadonnées de décorateurs), tests e2e API avec Postgres via Testcontainers, Playwright pour les parcours clés.
 - **Commits conventionnels** (déjà en usage) ; changelog généré.
 - **Renovate** ou Dependabot pour les mises à jour.
 
@@ -322,3 +323,4 @@ Le code actuel est petit : on **reconstruit au bon endroit** plutôt que de tout
 | 34  | Tranche d'âge déclarée à la première visite dans l'application, pas à l'inscription Keycloak                                | ✅ validé |
 | 35  | MFA de la modération : codes de secours à l'activation + réinitialisation par un administrateur                             | ✅ validé |
 | 36  | Suppression de compte depuis l'application (choix effacer / anonymiser), qui supprime ensuite le compte Keycloak            | ✅ validé |
+| 37  | NestJS 12 (ESM natif), validation zod native (Standard Schema) sans `nestjs-zod`, Vitest au lieu de Jest                    | ✅ fait   |

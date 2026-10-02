@@ -1,104 +1,53 @@
-# Plumiotheca Backend
+# API Plumiotheca
 
-A platform that allows you to read, write, and share about your favorite universes and stories. Who knows, other features may come later.
+NestJS 12 (ESM), Node 24. Architecture cible : [docs/architecture.md](../../docs/architecture.md).
 
-## Installation
+> Squelette en construction (jalon M1) : santé, erreurs, journaux et sécurité HTTP. Ne pas déployer.
 
-> Prototype Express en cours de réécriture (NestJS, jalon M1). Ne pas déployer.
+## Lancer
 
-```bash
-pnpm infra:setup && pnpm infra:up   # depuis la racine : base, Keycloak, etc. (voir infra/README.md)
-pnpm dev:api                        # lit apps/api/.env créé par infra:setup
-```
-
-Base de données (outils comme DBeaver ou WebStorm) : `localhost:5433`, base `plumiotheca`, utilisateur `plumiotheca`, mot de passe `POSTGRES_PASSWORD` dans `infra/.env`.
-
-## Testing
-
-The project uses Jest for unit testing.
+Depuis la racine du dépôt :
 
 ```bash
-pnpm test
+pnpm infra:setup && pnpm infra:up   # une fois : base, Keycloak, etc. (voir infra/README.md)
+pnpm dev:api                        # http://localhost:3000, lit apps/api/.env
 ```
 
-## Documentation API (Swagger)
+- Santé : `GET http://localhost:3000/api/health`
+- Documentation OpenAPI (hors production uniquement) : `http://localhost:3000/api/docs`, JSON sur `/api/docs-json`
 
-La documentation interactive de l'API est disponible à l'adresse suivante lorsque le serveur est lancé :
+## Tester
 
-- `http://localhost:3000/api-docs`
+```bash
+pnpm --filter @plumiotheca/api test        # Vitest (SWC pour les décorateurs)
+pnpm --filter @plumiotheca/api typecheck
+```
 
-### Authentification dans Swagger
+## Conventions
 
-Pour tester les routes protégées (`Users`, `Stories` (POST/PATCH/DELETE)), vous devez :
+- **Entrées** : chaque corps, paramètre ou requête est déclaré avec un schéma zod de `@plumiotheca/contracts`, par exemple `@Body({ schema: NewStory })`. Un champ inconnu est refusé (400).
+- **Erreurs** : format `application/problem+json` (schéma `Problem`). Pour un message destiné à la personne, lever `ApiProblem` ; toute autre erreur renvoie un titre générique, sans détail interne.
+- **Journaux** : JSON (pino), lisibles en développement. Les requêtes sont journalisées en liste blanche (méthode, chemin sans paramètres, statut) ; e-mails, mots de passe, jetons, cookies, contenus et paramètres SQL sont masqués. `X-Request-Id` relie une erreur à ses journaux.
+- **Sécurité HTTP** : Helmet (CSP `default-src 'none'`), CORS limité à `CORS_ORIGINS`, sans cookie ; corps JSON limité à 1 Mo ; limitation de débit par adresse IP (`RATE_LIMIT_PER_MINUTE`).
 
-1. **Obtenir un Token** : Connectez-vous via votre application front-end ou récupérez un jeton d'accès directement depuis Keycloak.
-2. **Utiliser le bouton Authorize** : Dans l'interface Swagger, cliquez sur le bouton vert **"Authorize"** en haut à droite.
-3. **Coller le Jeton** : Entrez votre jeton JWT dans le champ `Value` (sans le préfixe "Bearer", Swagger l'ajoute automatiquement car il est configuré en type `http` scheme `bearer`).
-4. **Valider** : Cliquez sur `Authorize` puis `Close`. Les cadenas sur les routes protégées devraient maintenant être fermés.
+## Configuration
 
-### Postman (Collection prête à l'emploi)
+Validée au démarrage par `src/config/env.ts` : l'API s'arrête avec la liste des variables en cause (sans leur valeur).
 
-Deux fichiers sont fournis dans le dossier `postman/` pour faciliter les tests et la récupération du token Keycloak :
+| Variable                | Défaut                  | Rôle                                                      |
+| ----------------------- | ----------------------- | --------------------------------------------------------- |
+| `NODE_ENV`              | `development`           | `production` désactive la documentation OpenAPI           |
+| `HOST`                  | `127.0.0.1`             | `0.0.0.0` dans l'image Docker                             |
+| `PORT`                  | `3000`                  |                                                           |
+| `LOG_LEVEL`             | `info`                  | niveau pino                                               |
+| `CORS_ORIGINS`          | origines locales de dev | liste séparée par des virgules, obligatoire en production |
+| `TRUST_PROXY`           | `0`                     | nombre de proxys inverses devant l'API                    |
+| `RATE_LIMIT_PER_MINUTE` | `120`                   | requêtes par minute et par adresse IP                     |
 
-- `postman/Plumiotheca.postman_collection.json`
-- `postman/Plumiotheca.postman_environment.json`
+Les autres variables de `.env.example` (base, Keycloak, Meilisearch, S3, SMTP) seront lues par les prochaines étapes de la M1. Toutes sont générées par `pnpm infra:setup` dans `apps/api/.env` (jamais commité).
 
-Procédure d'utilisation :
+Base de données (outils comme DBeaver) : `localhost:5433`, base `plumiotheca`, utilisateur `plumiotheca`, mot de passe `POSTGRES_PASSWORD` dans `infra/.env`.
 
-1. Ouvrez Postman > Import > sélectionnez les deux fichiers ci-dessus.
-2. Sélectionnez l'environnement `Plumiotheca Local` importé.
-3. Renseignez `username` et `password` dans l'environnement (vos identifiants Keycloak).
-4. Exécutez la requête `Auth - Get Token (Keycloak)` : le script stocke automatiquement `access_token` et `refresh_token` dans l'environnement.
-5. Lancez les requêtes d'API (ex.: `Users - Get My Profile`, `Stories - List`, `Stories - Create`). L'authentification Bearer est appliquée automatiquement via la variable `{{access_token}}` au niveau de la collection.
+## Image Docker
 
-Remarques :
-
-- URL Keycloak par défaut: `http://localhost:8080`, realm: `plumiotheca`, client: `plumiotheca-backend` (modifiables dans l'environnement).
-- L'API est accessible via `{{base_url}}` (par défaut `http://localhost:3000`).
-
-## Security & User Management
-
-### Authentication (Keycloak)
-
-Authentication is handled by Keycloak. Protected routes are secured using the `keycloak.protect()` middleware.
-
-### User Synchronization
-
-The API uses a synchronization mechanism:
-
-- When a user authenticates via Keycloak and calls a protected route, the `authMiddleware` checks if the user exists in the local PostgreSQL database (using the Keycloak `sub` as a unique identifier).
-- If the user doesn't exist, it is automatically created in the local database with information from the Keycloak token (`email`, `username`).
-- The local user object is then attached to the request (`req.user`), allowing you to handle application-specific logic (profiles, stories, follows) while keeping identity management in Keycloak.
-
-### User API Endpoints
-
-- `GET /api/users/profile`: Returns the authenticated user's profile (requires authentication).
-- `PATCH /api/users/profile`: Updates the authenticated user's profile (`displayName`, `bio`, `avatarUrl`).
-- `GET /api/users/:username`: Publicly retrieves a user's profile by their username.
-
-### Stories & Chapters API Endpoints
-
-- `GET /api/stories`: Returns all stories (query params: `published=true/false`, `tag=name`).
-- `GET /api/stories/:id`: Returns a specific story with its chapters and author.
-- `POST /api/stories`: Creates a new story (requires authentication). Body: `{ title, description, coverUrl, tags: ["tag1", "tag2"], status: "draft/published" }`.
-- `PATCH /api/stories/:id`: Updates a story (requires ownership).
-- `DELETE /api/stories/:id`: Deletes a story (requires ownership).
-- `GET /api/stories/:id/chapters`: Returns all chapters for a story.
-- `POST /api/stories/:id/chapters`: Adds a chapter to a story (requires ownership). Body: `{ title, content, order }`.
-
-### Environment Variables
-
-- `PORT`: Port of the API (default: 3000)
-- `CORS_ORIGINS`: Comma-separated list of origins allowed to call the API (default: `http://localhost:5000,http://localhost:5001,http://localhost:5002`, i.e. the three micro-frontends)
-- `KEYCLOAK_REALM`: Keycloak realm name (default: plumiotheca)
-- `KEYCLOAK_AUTH_SERVER_URL`: Keycloak URL (default: http://localhost:8080)
-- `KEYCLOAK_CLIENT_ID`: Keycloak client ID (`api`)
-- `DB_HOST`: Database host (default: localhost)
-- `DB_PORT`: Database port (`5433` avec l'infra de dev)
-- `DB_USERNAME`: Database username (default: plumiotheca)
-- `DB_PASSWORD`: Database password (default: plumiotheca)
-- `DB_NAME`: Database name (default: plumiotheca)
-
-### Identifiants de développement
-
-Tous générés aléatoirement par `pnpm infra:setup` dans `infra/.env` et `apps/api/.env` (jamais commités).
+Construite depuis la racine : `docker build -f apps/api/Dockerfile .` (aucune image publiée pour l'instant).

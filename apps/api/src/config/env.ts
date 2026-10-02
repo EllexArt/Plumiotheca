@@ -1,0 +1,70 @@
+import { z } from 'zod';
+
+const DEV_ORIGINS = [
+  'http://localhost:5000',
+  'http://localhost:5001',
+  'http://localhost:5002',
+  'http://localhost:5173',
+];
+
+/** Liste d'origines séparées par des virgules, chacune réduite à « schéma://hôte[:port] ». */
+const origins = z
+  .string()
+  .transform((s) =>
+    s
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean),
+  )
+  .pipe(
+    z.array(
+      z.url({ protocol: /^https?$/ }).refine((o) => new URL(o).origin === o, {
+        message: 'Origine attendue, sans chemin ni barre finale (ex. https://plumiotheca.fr)',
+      }),
+    ),
+  );
+
+export const Env = z
+  .object({
+    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+    /** Interface d'écoute : 127.0.0.1 par défaut, 0.0.0.0 dans un conteneur. */
+    HOST: z.string().min(1).default('127.0.0.1'),
+    PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+    LOG_LEVEL: z
+      .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
+      .default('info'),
+    /** Origines autorisées à appeler l'API depuis un navigateur. */
+    CORS_ORIGINS: origins.optional(),
+    /** Nombre de proxys inverses devant l'API (pour l'adresse IP réelle du client). */
+    TRUST_PROXY: z.coerce.number().int().min(0).max(10).default(0),
+    /** Requêtes autorisées par minute et par adresse IP. */
+    RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).default(120),
+  })
+  .superRefine((env, ctx) => {
+    if (env.NODE_ENV === 'production' && !env.CORS_ORIGINS?.length) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['CORS_ORIGINS'],
+        message: 'Obligatoire en production',
+      });
+    }
+  })
+  .transform((env) => ({
+    ...env,
+    CORS_ORIGINS: env.CORS_ORIGINS ?? DEV_ORIGINS,
+  }));
+
+export type Config = z.output<typeof Env>;
+
+/**
+ * Lit et valide la configuration. En cas d'erreur, le message liste les variables
+ * concernées sans jamais afficher leur valeur (elles peuvent contenir des secrets).
+ */
+export function loadConfig(env: NodeJS.ProcessEnv): Config {
+  const result = Env.safeParse(env);
+  if (!result.success) {
+    const lines = result.error.issues.map((i) => `  - ${i.path.join('.')} : ${i.message}`);
+    throw new Error(`Configuration invalide :\n${lines.join('\n')}`);
+  }
+  return result.data;
+}
