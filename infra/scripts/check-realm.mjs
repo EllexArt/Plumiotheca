@@ -1,118 +1,96 @@
 // Vérifie le realm importé de bout en bout, comme le ferait un navigateur :
 // émetteur, connexion par code d'autorisation + PKCE, audience du jeton,
-// refus du mot de passe direct, et MFA exigée pour la modération.
+// refus du mot de passe direct, MFA exigée pour la modération et preuve de MFA
+// (claim « amr ») vérifiée par l'API.
 // Usage : node infra/scripts/check-realm.mjs (infrastructure démarrée).
-import { createHash, createHmac, randomBytes } from 'node:crypto';
+// Avec l'API lancée sur le port 3000, ses réponses sont vérifiées aussi ;
+// API_REQUIRED=1 rend ces vérifications obligatoires (CI).
+import { createHash, randomBytes } from 'node:crypto';
 import { adminClient, KC, REALM } from './keycloak-admin.mjs';
+import {
+  browser,
+  decode,
+  exchange,
+  follow,
+  formAction,
+  ISSUER,
+  login,
+  REDIRECT,
+} from './oidc-test.mjs';
 
-const ISSUER = `${KC}/realms/${REALM}`;
-const REDIRECT = 'http://localhost:5173/callback';
+const API = process.env.API_URL ?? 'http://localhost:3000';
+const API_REQUIRED = process.env.API_REQUIRED === '1';
 let failures = 0;
 const check = (ok, label) => {
   console.log(`${ok ? '✓' : '✗'} ${label}`);
   if (!ok) failures++;
 };
 
-// Navigation minimale avec cookies, sans suivre les redirections automatiquement.
-function browser() {
-  const jar = new Map();
-  return async (url, init = {}) => {
-    const res = await fetch(url, {
-      ...init,
-      redirect: 'manual',
-      headers: {
-        ...(init.headers ?? {}),
-        Cookie: [...jar].map(([k, v]) => `${k}=${v}`).join('; '),
-      },
-    });
-    for (const c of res.headers.getSetCookie()) {
-      const [pair] = c.split(';');
-      const i = pair.indexOf('=');
-      jar.set(pair.slice(0, i), pair.slice(i + 1));
-    }
-    return res;
-  };
+/** Session vue par l'API (GET /api/moi), ou null si l'API n'est pas lancée. */
+async function apiSession(accessToken) {
+  const res = await fetch(`${API}/api/moi`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  }).catch(() => null);
+  if (!res) {
+    if (API_REQUIRED) check(false, `API joignable sur ${API}`);
+    return null;
+  }
+  return { status: res.status, body: res.ok ? await res.json() : null };
 }
 
-// Code TOTP (RFC 6238) calculé comme Keycloak : clé = octets UTF-8 du secret.
-function totp(secret) {
-  const counter = Buffer.alloc(8);
-  counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30000)));
-  const h = createHmac('sha1', Buffer.from(secret, 'utf8')).update(counter).digest();
-  const o = h[h.length - 1] & 0xf;
-  return String((h.readUInt32BE(o) & 0x7fffffff) % 1_000_000).padStart(6, '0');
+async function mailTo(address) {
+  for (let i = 0; i < 20; i++) {
+    const box = await (
+      await fetch(
+        `http://localhost:8025/api/v1/search?query=${encodeURIComponent(`to:${address}`)}`,
+      )
+    ).json();
+    const mail = box.messages?.[0];
+    if (mail) return (await fetch(`http://localhost:8025/api/v1/message/${mail.ID}`)).json();
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  return null;
 }
 
-const formAction = (html, id) =>
-  html
-    .match(new RegExp(`<form[^>]*id="${id}"[^>]*action="([^"]+)"`))?.[1]
-    ?.replaceAll('&amp;', '&');
-
-async function login(username, password, { otpSecret, scope = 'openid' } = {}) {
+/** Parcours « mot de passe oublié » complet dans un navigateur, jusqu'au retour à l'application. */
+async function forgotPassword(username, email) {
   const nav = browser();
   const verifier = randomBytes(32).toString('base64url');
-  const challenge = createHash('sha256').update(verifier).digest('base64url');
   const auth = new URL(`${ISSUER}/protocol/openid-connect/auth`);
   auth.search = new URLSearchParams({
     client_id: 'web',
     response_type: 'code',
-    scope,
+    scope: 'openid',
     redirect_uri: REDIRECT,
-    code_challenge: challenge,
+    code_challenge: createHash('sha256').update(verifier).digest('base64url'),
     code_challenge_method: 'S256',
     state: randomBytes(8).toString('hex'),
   });
-  const first = await nav(auth);
-  const early = first.headers.get('location');
-  // Demande refusée d'emblée (ex. scope non autorisé) : retour direct avec une erreur.
-  if (early?.startsWith(REDIRECT)) return { error: new URL(early).searchParams.get('error') };
-  const page = await first.text();
-  const action = page
-    .match(/<form[^>]*id="kc-form-login"[^>]*action="([^"]+)"/)?.[1]
+  const page = await (await nav(auth)).text();
+  const resetLink = page
+    .match(/href="([^"]*reset-credentials[^"]*)"/)?.[1]
     ?.replaceAll('&amp;', '&');
-  if (!action) throw new Error('Formulaire de connexion introuvable');
-  const res = await nav(action, {
+  const resetPage = await (await nav(new URL(resetLink, ISSUER))).text();
+  await nav(formAction(resetPage, 'kc-reset-password-form'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ username, password }),
+    body: new URLSearchParams({ username }),
   });
-  let current = res;
-  let location = current.headers.get('location');
-  let otpPrompts = 0;
-  // Formulaire de code TOTP : rempli autant de fois qu'il est demandé (on en attend un seul).
-  while (otpSecret && !location && otpPrompts < 3) {
-    const html = await current.text();
-    const otpAction = formAction(html, 'kc-otp-login-form');
-    if (!otpAction) return { page: html, otpPrompts };
-    otpPrompts++;
-    current = await nav(otpAction, {
+  const mail = await mailTo(email);
+  const link = mail?.Text.match(/https?:\/\/\S+action-token\S+/)?.[0];
+  const { current } = await follow(nav, await nav(link));
+  const update = formAction(await current.text(), 'kc-passwd-update-form');
+  const fresh = `Nouveau-${randomBytes(9).toString('base64url')}`;
+  const { location } = await follow(
+    nav,
+    await nav(update, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ otp: totp(otpSecret) }),
-    });
-    location = current.headers.get('location');
-  }
-  // Suit les étapes intermédiaires (actions requises) jusqu'au retour vers l'application.
-  for (let i = 0; i < 5 && location && !location.startsWith(REDIRECT); i++) {
-    current = await nav(new URL(location, ISSUER));
-    location = current.headers.get('location');
-  }
-  if (!location?.startsWith(REDIRECT)) return { page: await current.text(), otpPrompts };
-  const code = new URL(location).searchParams.get('code');
-  const tokenRes = await fetch(`${ISSUER}/protocol/openid-connect/token`, {
-    method: 'POST',
-    body: new URLSearchParams({
-      grant_type: 'authorization_code',
-      client_id: 'web',
-      code,
-      redirect_uri: REDIRECT,
-      code_verifier: verifier,
+      body: new URLSearchParams({ 'password-new': fresh, 'password-confirm': fresh }),
     }),
-  });
-  return { tokens: await tokenRes.json(), otpPrompts };
+  );
+  return location?.startsWith(REDIRECT) ? exchange(location, verifier) : {};
 }
-
-const decode = (jwt) => JSON.parse(Buffer.from(jwt.split('.')[1], 'base64url').toString());
 
 const kc = await adminClient();
 const R = `/${REALM}`;
@@ -172,14 +150,18 @@ try {
       "Le nom d'utilisateur n'est pas l'e-mail",
     );
     check(at.email === undefined, "Pas d'e-mail dans le jeton d'accès");
-    // Si l'API tourne en local et expose déjà une route protégée (#11), elle doit accepter ce jeton.
-    const api = await fetch('http://localhost:3000/api/moi', {
-      headers: { Authorization: `Bearer ${tokens.access_token}` },
-    }).catch(() => null);
-    if (api && api.status !== 404) {
-      check(api.status === 200, `L'API accepte le jeton (statut ${api.status})`);
+    check(
+      JSON.stringify(at.amr) === '["pwd"]',
+      `Mot de passe seul : « amr » = ${JSON.stringify(at.amr)}`,
+    );
+    const session = await apiSession(tokens.access_token);
+    if (session) {
+      check(
+        session.status === 200 && session.body?.mfa === false,
+        `L'API accepte le jeton du navigateur (statut ${session.status}, sans MFA)`,
+      );
     } else {
-      console.log('• API non démarrée ou sans route protégée : acceptation du jeton non vérifiée');
+      console.log("• API non démarrée : acceptation du jeton par l'API non vérifiée");
     }
   }
 
@@ -224,6 +206,17 @@ try {
     Boolean(equipped.tokens?.access_token) && equipped.otpPrompts === 1,
     `Modération équipée : un seul code TOTP demandé (${equipped.otpPrompts ?? 0})`,
   );
+  if (equipped.tokens?.access_token) {
+    const amr = decode(equipped.tokens.access_token).amr ?? [];
+    check(amr.includes('otp'), `Modération : preuve du code TOTP dans « amr » (${amr})`);
+    const session = await apiSession(equipped.tokens.access_token);
+    if (session) {
+      check(
+        session.body?.mfa === true && session.body.roles.includes('moderation'),
+        "L'API reconnaît la modération avec double authentification",
+      );
+    }
+  }
 
   // admin-cli du realm : pas de mot de passe direct (contournement de la MFA).
   const cli = await fetch(`${ISSUER}/protocol/openid-connect/token`, {
@@ -244,22 +237,32 @@ try {
     'Modération : configuration de la double authentification exigée',
   );
 
+  // « Mot de passe oublié » : Keycloak ouvre une session sans passer par le code TOTP.
+  // Le jeton ne doit alors porter aucune preuve de MFA, et l'API la refuser (#120).
+  await createUser(`moderatrice-oubli-${suffix}`, ['moderation']);
+  const forgot = await forgotPassword(
+    `moderatrice-oubli-${suffix}`,
+    `moderatrice-oubli-${suffix}@exemple.localhost`,
+  );
+  if (forgot.tokens?.access_token) {
+    const amr = decode(forgot.tokens.access_token).amr ?? [];
+    check(!amr.includes('otp'), `Mot de passe oublié : aucune preuve de MFA (« amr » = [${amr}])`);
+    const session = await apiSession(forgot.tokens.access_token);
+    if (session) {
+      check(session.body?.mfa === false, "Mot de passe oublié : l'API ne voit pas de MFA");
+    }
+  } else {
+    // Si Keycloak bloque un jour ce parcours, c'est mieux : adapter alors cette vérification.
+    check(false, 'Mot de passe oublié : parcours non abouti (à examiner)');
+  }
+
   // E-mails : Keycloak envoie via Mailpit (vérification d'adresse, mot de passe oublié).
   const [lectrice] = await kc.get(`${R}/users?username=lectrice-${suffix}&exact=true`);
   await kc.put(
     `${R}/users/${lectrice.id}/execute-actions-email?client_id=web&redirect_uri=${encodeURIComponent(REDIRECT)}`,
     ['UPDATE_PASSWORD'],
   );
-  let mail;
-  for (let i = 0; i < 20 && !mail; i++) {
-    const box = await (
-      await fetch(
-        `http://localhost:8025/api/v1/search?query=${encodeURIComponent(`to:lectrice-${suffix}@exemple.localhost`)}`,
-      )
-    ).json();
-    mail = box.messages?.[0];
-    if (!mail) await new Promise((r) => setTimeout(r, 500));
-  }
+  const mail = await mailTo(`lectrice-${suffix}@exemple.localhost`);
   check(Boolean(mail), 'E-mail envoyé par Keycloak et reçu dans Mailpit');
 
   const weak = await fetch(`${KC}/admin/realms${R}/users`, { method: 'HEAD' });

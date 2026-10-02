@@ -39,6 +39,8 @@ export class ApiProblem extends HttpException {
     status: HttpStatus,
     readonly detail: string,
     readonly problemType?: string,
+    /** En-têtes de réponse, ex. WWW-Authenticate pour un 401. */
+    readonly headers: Record<string, string> = {},
   ) {
     super(detail, status);
   }
@@ -117,6 +119,7 @@ export class ProblemFilter implements ExceptionFilter {
     if (exception instanceof ApiProblem) {
       body.detail = exception.detail;
       if (exception.problemType) body.type = exception.problemType;
+      if (!res.headersSent) res.set(exception.headers);
     }
     if (exception instanceof ValidationFailed) {
       body.type = 'validation';

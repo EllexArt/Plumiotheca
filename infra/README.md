@@ -36,6 +36,7 @@ Choix de configuration :
 - client `web` : public, code d'autorisation + **PKCE obligatoire**, pas de mot de passe direct ;
 - client `api` : cible d'audience des jetons, sans flux de connexion ;
 - rôles `moderation`, `administration` (**double authentification obligatoire**, un seul code demandé) et `jardinage-tags` ;
+- claim **`amr`** dans le jeton d'accès (`pwd`, `otp`) : l'API exige `otp` pour la modération et l'administration, ce qui ferme le contournement par « mot de passe oublié » et les sessions ouvertes avant l'attribution du rôle ;
 - `admin-cli` du realm sans connexion par mot de passe direct (l'administration passe par le realm `master`) ;
 - français par défaut ; e-mails envoyés vers Mailpit.
 
@@ -44,6 +45,17 @@ Choix de configuration :
 Pour modifier le realm : changer `keycloak-realm.mjs`, puis
 `pnpm infra:reset`, retirer temporairement le JSON de `infra/keycloak/`, `pnpm infra:up`,
 `node infra/scripts/keycloak-realm.mjs` (réécrit le JSON), et `check-realm.mjs`.
+L'export est normalisé (listes triées, identifiants techniques retirés, valeurs masquées par Keycloak restaurées) : deux générations donnent le même fichier, le diff ne montre que les vrais changements.
+
+`check-realm.mjs` vérifie aussi l'API si elle tourne sur le port 3000 (`API_REQUIRED=1` pour l'exiger, comme en CI). Pour tester l'image Docker de l'API contre ce Keycloak :
+
+```bash
+docker build -f apps/api/Dockerfile -t plumiotheca-api:local .
+docker run --rm --network plumiotheca_default -p 127.0.0.1:3000:3000 -e TRUST_PROXY=0 \
+  -e CORS_ORIGINS=http://localhost:5173 -e KEYCLOAK_ISSUER=http://localhost:8080/realms/plumiotheca \
+  -e KEYCLOAK_JWKS_URL=http://keycloak:8080/realms/plumiotheca/protocol/openid-connect/certs \
+  plumiotheca-api:local
+```
 
 ## Garage
 
