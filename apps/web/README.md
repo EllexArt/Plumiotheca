@@ -4,7 +4,7 @@ Architecture Micro-Frontend pour une plateforme de lecture et d'écriture (style
 
 ## Structure du Projet
 
-Le projet utilise un Monorepo avec les **npm workspaces** et **Vite Module Federation**.
+Le projet utilise un Monorepo avec les **workspaces pnpm** (racine du dépôt) et **Vite Module Federation**.
 
 - **apps/shell** (Port 5000) : L'application hôte qui gère le layout, l'authentification (Keycloak) et le routage.
 - **apps/reader** (Port 5001) : Micro-frontend dédié à la lecture des histoires.
@@ -21,23 +21,23 @@ Le projet utilise un Monorepo avec les **npm workspaces** et **Vite Module Feder
 
 À la racine du projet :
 ```bash
-npm install
+pnpm install
 ```
 
 ## Lancement
 
 Pour lancer tous les micro-frontends en même temps :
 ```bash
-npm run dev
+pnpm dev
 ```
 
 L'application sera disponible sur [http://localhost:5000](http://localhost:5000).
 
-Attention : `npm run dev` sert `reader` et `editor` depuis leur build (`vite preview`). Après une
+Attention : `pnpm dev` sert `reader` et `editor` depuis leur build (`vite preview`). Après une
 modification dans un remote, il faut le reconstruire — ou lancer directement :
 
 ```bash
-npm run dev-full
+pnpm dev-full
 ```
 
 ## Connexion à l'API

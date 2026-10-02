@@ -1,15 +1,10 @@
 {
-  "name": "plumiotheca-frontend",
+  "name": "@plumiotheca/web",
   "private": true,
-  "workspaces": [
-    "apps/*"
-  ],
   "scripts": {
-    "dev": "concurrently \"npm run dev -w shell\" \"npm run preview -w reader\" \"npm run preview -w editor\"",
-    "build-remotes": "npm run build -w reader && npm run build -w editor",
-    "dev-full": "npm run build-remotes && npm run dev",
-    "build": "npm run build --workspaces --if-present",
-    "preview": "npm run preview --workspaces --if-present"
+    "dev": "concurrently \"pnpm --filter shell dev\" \"pnpm --filter reader preview\" \"pnpm --filter editor preview\"",
+    "build-remotes": "pnpm --filter reader --filter editor build",
+    "dev-full": "pnpm build-remotes && pnpm dev"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

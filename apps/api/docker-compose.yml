@@ -1,6 +1,8 @@
 services:
   api:
-    build: .
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
     # Port hote configurable pour cohabiter avec d'autres stacks locales (defaut: 3000).
     ports:
       - "${API_PORT:-3000}:3000"
