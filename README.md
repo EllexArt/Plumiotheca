@@ -18,7 +18,8 @@ pnpm test           # lance les tests
 pnpm build          # construit toutes les applications
 pnpm lint           # lint, dont les règles d'accessibilité (jsx-a11y)
 pnpm format         # formate le code (Prettier)
-pnpm dev:api        # API (nécessite Postgres et Keycloak : voir apps/api/README.md)
+pnpm dev            # API et application web ensemble
+pnpm dev:api        # API seule (nécessite Postgres et Keycloak : voir apps/api/README.md)
 pnpm dev:web        # application web
 ```
 

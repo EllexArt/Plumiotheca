@@ -1,4 +1,6 @@
 // @ts-check
+// eslint-plugin-jsx-a11y ne déclare pas encore ESLint 10 dans ses peerDependencies :
+// ses règles ont été vérifiées sous ESLint 10 (avertissement de pair attendu).
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import jsxA11y from 'eslint-plugin-jsx-a11y';

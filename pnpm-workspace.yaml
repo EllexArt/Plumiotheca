@@ -15,3 +15,11 @@ allowBuilds:
   unrs-resolver: false
   # Les hooks Git sont installés par le script « prepare » de la racine.
   simple-git-hooks: false
+
+# Délai de 7 jours avant d'accepter une version publiée (aussi pour pnpm add) :
+# les paquets compromis sont souvent retirés dans ce délai.
+minimumReleaseAge: 10080
+
+# Dépendance optionnelle inutile de keycloak-connect, jamais installée.
+ignoredOptionalDependencies:
+  - chromedriver
