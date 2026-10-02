@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "24"
+
+jobs:
+  api:
+    name: API (build et tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Activer Yarn (corepack)
+        run: corepack enable
+
+      - name: Récupérer le cache Yarn
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/yarn
+          key: yarn-${{ runner.os }}-${{ hashFiles('apps/api/yarn.lock') }}
+          restore-keys: yarn-${{ runner.os }}-
+
+      - name: Installer les dépendances
+        run: yarn install --frozen-lockfile
+
+      - name: Compiler (vérifie aussi les types)
+        run: yarn build
+
+      - name: Tests
+        run: yarn test --ci
+
+  web:
+    name: Web (types et build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Vérifier les types
+        run: |
+          for app in shell reader editor; do
+            echo "::group::tsc $app"
+            npx tsc -p "apps/$app/tsconfig.json" --noEmit
+            echo "::endgroup::"
+          done
+
+      - name: Build
+        run: npm run build
