@@ -7,21 +7,21 @@ name: Images Docker
 on:
   pull_request:
     paths:
-      - "apps/api/**"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
-      - ".dockerignore"
-      - ".github/workflows/docker.yml"
+      - 'apps/api/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.dockerignore'
+      - '.github/workflows/docker.yml'
   push:
     branches: [main]
     paths:
-      - "apps/api/**"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
-      - ".dockerignore"
-      - ".github/workflows/docker.yml"
+      - 'apps/api/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.dockerignore'
+      - '.github/workflows/docker.yml'
 
 permissions:
   contents: read

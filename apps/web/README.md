@@ -20,6 +20,7 @@ Le projet utilise un Monorepo avec les **workspaces pnpm** (racine du dépôt) e
 ## Installation
 
 À la racine du projet :
+
 ```bash
 pnpm install
 ```
@@ -27,6 +28,7 @@ pnpm install
 ## Lancement
 
 Pour lancer tous les micro-frontends en même temps :
+
 ```bash
 pnpm dev
 ```
@@ -46,10 +48,10 @@ Le client d'API vit dans `libs/api-client` et est résolu par un alias Vite (`@p
 dans les trois applications. Le shell est le seul à connaître Keycloak : il construit le client avec
 le jeton courant et le transmet aux remotes via une prop `api`.
 
-| Variable | Défaut | Rôle |
-| --- | --- | --- |
-| `VITE_API_URL` | `http://localhost:3000` | URL du backend |
-| `VITE_ENABLE_KEYCLOAK` | `false` | Active l'authentification Keycloak |
+| Variable               | Défaut                  | Rôle                               |
+| ---------------------- | ----------------------- | ---------------------------------- |
+| `VITE_API_URL`         | `http://localhost:3000` | URL du backend                     |
+| `VITE_ENABLE_KEYCLOAK` | `false`                 | Active l'authentification Keycloak |
 
 Sans Keycloak, l'application reste utilisable en lecture seule : les requêtes partent sans jeton,
 donc la création d'histoire renvoie `401`. Le backend doit autoriser les origines `5000`, `5001` et
@@ -58,6 +60,7 @@ donc la création d'histoire renvoie `401`. Le backend doit autoriser les origin
 ## Configuration Keycloak
 
 Le fichier de configuration se trouve dans `apps/shell/src/keycloak.ts`. Par défaut, il tente de se connecter à :
+
 - URL : `http://localhost:8080`
 - Realm : `plumiotheca`
 - Client ID : `frontend-shell`

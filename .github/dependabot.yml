@@ -17,8 +17,8 @@ updates:
     open-pull-requests-limit: 3
     ignore:
       # Les types de Node suivent la version réellement utilisée (.nvmrc).
-      - dependency-name: "@types/node"
-        update-types: ["version-update:semver-major"]
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
 
   # Met à jour les SHA des actions épinglées dans .github/workflows.
   - package-ecosystem: github-actions
@@ -29,7 +29,7 @@ updates:
       default-days: 7
     groups:
       actions:
-        patterns: ["*"]
+        patterns: ['*']
 
   - package-ecosystem: docker
     directory: /apps/api
@@ -40,4 +40,4 @@ updates:
     ignore:
       # Montée de version majeure de Node planifiée à part (LTS uniquement, voir l'issue dédiée).
       - dependency-name: node
-        update-types: ["version-update:semver-major"]
+        update-types: ['version-update:semver-major']

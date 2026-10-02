@@ -10,15 +10,14 @@ interface AppProps {
 const cardStyle: React.CSSProperties = {
   padding: '20px',
   border: '2px solid #2ecc71',
-  borderRadius: '8px'
+  borderRadius: '8px',
 };
 
 const App: React.FC<AppProps> = ({ api }) => {
   const client = useMemo(
     () =>
-      api ??
-      createApiClient({ baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:3000' }),
-    [api]
+      api ?? createApiClient({ baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:3000' }),
+    [api],
   );
 
   const [stories, setStories] = useState<Story[]>([]);
@@ -40,6 +39,8 @@ const App: React.FC<AppProps> = ({ api }) => {
   }, [client]);
 
   useEffect(() => {
+    // Chargement initial depuis l'API (prototype ; remplacé par TanStack Query, #19).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadStories();
   }, [loadStories]);
 
@@ -67,7 +68,10 @@ const App: React.FC<AppProps> = ({ api }) => {
       <div style={cardStyle}>
         <h2>📚 Module Lecture (Reader)</h2>
         <p style={{ color: '#c0392b' }}>Impossible de charger les histoires : {error}</p>
-        <button onClick={() => void loadStories()} style={{ padding: '8px 12px', cursor: 'pointer' }}>
+        <button
+          onClick={() => void loadStories()}
+          style={{ padding: '8px 12px', cursor: 'pointer' }}
+        >
           Réessayer
         </button>
       </div>
@@ -115,7 +119,7 @@ const App: React.FC<AppProps> = ({ api }) => {
                       backgroundColor: openChapter?.id === chapter.id ? '#2ecc71' : 'white',
                       color: openChapter?.id === chapter.id ? 'white' : 'inherit',
                       border: '1px solid #2ecc71',
-                      borderRadius: '4px'
+                      borderRadius: '4px',
                     }}
                   >
                     {chapter.order}. {chapter.title}
@@ -150,12 +154,13 @@ const App: React.FC<AppProps> = ({ api }) => {
                   textAlign: 'left',
                   border: '1px solid #ddd',
                   borderRadius: '4px',
-                  backgroundColor: 'white'
+                  backgroundColor: 'white',
                 }}
               >
                 <strong>{story.title}</strong>
                 <span style={{ color: '#7f8c8d' }}>
-                  {' '}— {story.author?.displayName || story.author?.username || 'Auteur inconnu'}
+                  {' '}
+                  — {story.author?.displayName || story.author?.username || 'Auteur inconnu'}
                 </span>
                 {story.description && (
                   <div style={{ color: '#7f8c8d', marginTop: '4px' }}>{story.description}</div>
@@ -170,7 +175,7 @@ const App: React.FC<AppProps> = ({ api }) => {
                           padding: '2px 8px',
                           backgroundColor: '#ecf0f1',
                           borderRadius: '10px',
-                          fontSize: '12px'
+                          fontSize: '12px',
                         }}
                       >
                         {tag.name}
