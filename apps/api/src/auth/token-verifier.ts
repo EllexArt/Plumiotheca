@@ -1,5 +1,5 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
-import { Role } from '@plumiotheca/contracts';
+import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
+import { Role, ROLES_WITH_MFA } from '@plumiotheca/contracts';
 import { errors, jwtVerify, type JWTPayload, type JWTVerifyGetKey } from 'jose';
 import { ApiProblem } from '../common/problem.js';
 import { CONFIG } from '../config/config.module.js';
@@ -22,6 +22,26 @@ export const invalidToken = () =>
     { 'WWW-Authenticate': WWW_AUTHENTICATE },
   );
 
+/** Erreurs qui tiennent au jeton lui-même : la personne doit se reconnecter. */
+const TOKEN_ERRORS = [
+  errors.JWSInvalid,
+  errors.JWTInvalid,
+  errors.JWTClaimValidationFailed,
+  errors.JWSSignatureVerificationFailed,
+  errors.JWKSNoMatchingKey,
+  errors.JOSEAlgNotAllowed,
+  errors.JOSENotSupported,
+  errors.JWEInvalid,
+];
+
+const keysUnavailable = () =>
+  new ApiProblem(
+    HttpStatus.SERVICE_UNAVAILABLE,
+    'La connexion est momentanément indisponible. Réessayez dans un instant.',
+    'indisponible',
+    { 'Retry-After': '30' },
+  );
+
 const expiredToken = () =>
   new ApiProblem(HttpStatus.UNAUTHORIZED, 'Votre session a expiré.', 'jeton-expire', {
     'WWW-Authenticate': `${WWW_AUTHENTICATE}, error_description="expired"`,
@@ -33,6 +53,8 @@ const expiredToken = () =>
  */
 @Injectable()
 export class TokenVerifier {
+  private readonly logger = new Logger(TokenVerifier.name);
+
   constructor(
     @Inject(CONFIG) private readonly config: Config,
     @Inject(JWKS) private readonly keys: JWTVerifyGetKey,
@@ -50,11 +72,11 @@ export class TokenVerifier {
       }));
     } catch (error) {
       if (error instanceof errors.JWTExpired) throw expiredToken();
-      // Clés injoignables : panne de notre côté, pas un jeton invalide (500 journalisée).
-      if (error instanceof errors.JWKSTimeout || !(error instanceof errors.JOSEError)) {
-        throw error;
-      }
-      throw invalidToken();
+      if (TOKEN_ERRORS.some((type) => error instanceof type)) throw invalidToken();
+      // Clés de Keycloak illisibles ou injoignables (panne, mauvaise adresse) : ce n'est
+      // pas la faute de la personne, on ne la déconnecte pas et on alerte.
+      this.logger.error({ err: error }, 'Clés publiques de Keycloak indisponibles');
+      throw keysUnavailable();
     }
 
     // Jeton d'accès uniquement (pas un jeton d'identité ou de rafraîchissement),
@@ -65,14 +87,17 @@ export class TokenVerifier {
     }
 
     const realmRoles = (payload.realm_access as { roles?: unknown } | undefined)?.roles;
-    const roles = (Array.isArray(realmRoles) ? realmRoles : []).filter(
+    const held = (Array.isArray(realmRoles) ? realmRoles : []).filter(
       (r): r is Role => Role.safeParse(r).success,
     );
     const amr = Array.isArray(payload.amr) ? (payload.amr as unknown[]) : [];
+    const mfa = amr.some((m) => typeof m === 'string' && SECOND_FACTORS.includes(m));
+    const needsMfa = (role: Role) => !mfa && ROLES_WITH_MFA.includes(role);
     return {
       id: payload.sub!,
-      roles,
-      mfa: amr.some((m) => typeof m === 'string' && SECOND_FACTORS.includes(m)),
+      roles: held.filter((role) => !needsMfa(role)),
+      rolesAwaitingMfa: held.filter(needsMfa),
+      mfa,
     };
   }
 }

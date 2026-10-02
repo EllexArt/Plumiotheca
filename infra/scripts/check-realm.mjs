@@ -16,6 +16,7 @@ import {
   ISSUER,
   login,
   REDIRECT,
+  ssoLogin,
 } from './oidc-test.mjs';
 
 const API = process.env.API_URL ?? 'http://localhost:3000';
@@ -79,9 +80,11 @@ async function forgotPassword(username, email) {
   const mail = await mailTo(email);
   const link = mail?.Text.match(/https?:\/\/\S+action-token\S+/)?.[0];
   const { current } = await follow(nav, await nav(link));
-  const update = formAction(await current.text(), 'kc-passwd-update-form');
+  const html = await current.text();
+  const update = formAction(html, 'kc-passwd-update-form');
+  if (!update) return { page: html };
   const fresh = `Nouveau-${randomBytes(9).toString('base64url')}`;
-  const { location } = await follow(
+  const after = await follow(
     nav,
     await nav(update, {
       method: 'POST',
@@ -89,7 +92,10 @@ async function forgotPassword(username, email) {
       body: new URLSearchParams({ 'password-new': fresh, 'password-confirm': fresh }),
     }),
   );
-  return location?.startsWith(REDIRECT) ? exchange(location, verifier) : {};
+  if (after.location?.startsWith(REDIRECT)) {
+    return { ...(await exchange(after.location, verifier)), password: fresh };
+  }
+  return { page: await after.current.text(), password: fresh };
 }
 
 const kc = await adminClient();
@@ -201,7 +207,11 @@ try {
   // Modération déjà équipée de TOTP : un seul code demandé, connexion réussie.
   const secret = randomBytes(15).toString('hex');
   await createUser(`moderateur-equipe-${suffix}`, ['moderation'], secret);
-  const equipped = await login(`moderateur-equipe-${suffix}`, password, { otpSecret: secret });
+  const equippedNav = browser();
+  const equipped = await login(`moderateur-equipe-${suffix}`, password, {
+    otpSecret: secret,
+    nav: equippedNav,
+  });
   check(
     Boolean(equipped.tokens?.access_token) && equipped.otpPrompts === 1,
     `Modération équipée : un seul code TOTP demandé (${equipped.otpPrompts ?? 0})`,
@@ -216,7 +226,51 @@ try {
         "L'API reconnaît la modération avec double authentification",
       );
     }
+    // La preuve du code doit survivre au renouvellement du jeton et à la reconnexion par
+    // la session existante (sans durée de validité, Keycloak l'oublie en une seconde).
+    await new Promise((r) => setTimeout(r, 2500));
+    const renewed = await (
+      await fetch(`${ISSUER}/protocol/openid-connect/token`, {
+        method: 'POST',
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          client_id: 'web',
+          refresh_token: equipped.tokens.refresh_token,
+        }),
+      })
+    ).json();
+    const renewedAmr = renewed.access_token ? (decode(renewed.access_token).amr ?? []) : [];
+    check(renewedAmr.includes('otp'), `Jeton renouvelé : « otp » conservé (${renewedAmr})`);
+    const sso = await ssoLogin(equippedNav);
+    const ssoAmr = sso.tokens?.access_token ? (decode(sso.tokens.access_token).amr ?? []) : [];
+    check(ssoAmr.includes('otp'), `Reconnexion par la session : « otp » conservé (${ssoAmr})`);
   }
+
+  // « Mot de passe oublié » d'un modérateur équipé : pas de nouveau code TOTP par e-mail
+  // (sinon la boîte mail suffirait à prendre la place du second facteur).
+  const [equippedUser] = await kc.get(`${R}/users?username=moderateur-equipe-${suffix}&exact=true`);
+  const reset = await forgotPassword(
+    `moderateur-equipe-${suffix}`,
+    `moderateur-equipe-${suffix}@exemple.localhost`,
+  );
+  const otpCredentials = (await kc.get(`${R}/users/${equippedUser.id}/credentials`)).filter(
+    (c) => c.type === 'otp',
+  );
+  check(
+    !/kc-totp-settings|totpSecret/i.test(reset.page ?? '') && otpCredentials.length === 1,
+    `Mot de passe oublié (modérateur équipé) : aucun nouveau code TOTP enregistrable (${otpCredentials.length} code)`,
+  );
+  if (reset.tokens?.access_token) {
+    const amr = decode(reset.tokens.access_token).amr ?? [];
+    check(!amr.includes('otp'), `Mot de passe oublié : session sans preuve de MFA ([${amr}])`);
+  }
+  // Un code TOTP ne sert qu'une fois : attendre la fenêtre de 30 s suivante.
+  await new Promise((r) => setTimeout(r, 31_000 - (Date.now() % 30_000)));
+  const again = await login(`moderateur-equipe-${suffix}`, reset.password, { otpSecret: secret });
+  check(
+    Boolean(again.tokens?.access_token) && again.otpPrompts === 1,
+    "Après réinitialisation : l'ancien code TOTP reste exigé",
+  );
 
   // admin-cli du realm : pas de mot de passe direct (contournement de la MFA).
   const cli = await fetch(`${ISSUER}/protocol/openid-connect/token`, {

@@ -165,7 +165,8 @@ Plumiotheca/
 - Le front utilise **Authorization Code + PKCE** (`oidc-client-ts` / `react-oidc-context`).
 - L'API **ne parle plus à Keycloak à chaque requête** : elle valide la signature du JWT via le JWKS mis en cache. `keycloak-connect` (déprécié) et `express-session` disparaissent.
 - Chaque jeton est vérifié : signature RS256, émetteur, audience `api`, client d'origine (`azp` = `web`), type « Bearer » (pas de jeton d'identité ou de rafraîchissement). Toute route exige un jeton, sauf celles marquées `@Public()` (refus par défaut).
-- **Modération et administration** : le rôle ne suffit pas, le jeton doit prouver un code TOTP validé **pendant cette connexion** (claim `amr` contenant `otp`). Une session ouverte par « mot de passe oublié » ou avant l'attribution du rôle n'y donne donc pas accès, sans avoir à fermer les sessions côté Keycloak.
+- **Modération et administration** : le rôle ne suffit pas, le jeton doit prouver un code TOTP validé **pendant cette connexion** (claim `amr` contenant `otp`). Une session ouverte par « mot de passe oublié » ou avant l'attribution du rôle n'y donne donc pas accès, sans avoir à fermer les sessions côté Keycloak. Sans cette preuve, ces rôles sont retirés des rôles effectifs de la requête (`rolesAwaitingMfa`) : aucun traitement ne peut s'y fier par erreur. « Mot de passe oublié » ne réinitialise jamais le code TOTP.
+- Clés de Keycloak indisponibles : 503 journalisée (la personne n'est pas déconnectée), jamais 401.
 - `KC_HOSTNAME` est fixé pour que l'émetteur (`iss`) soit identique depuis le navigateur et depuis l'API.
 - Keycloak stocke ses données dans Postgres (base dédiée), version épinglée.
 

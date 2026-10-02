@@ -35,7 +35,8 @@ pnpm --filter @plumiotheca/api typecheck
 - Toute route exige un jeton d'accès Keycloak (`Authorization: Bearer …`), sauf celles marquées `@Public()` (refus par défaut).
 - Le jeton est vérifié localement : signature (clés publiques en cache), émetteur, audience `api`, client `web`, type « Bearer ». Réponses : `401` (`non-authentifie`, `jeton-invalide`, `jeton-expire` — le web renouvelle alors le jeton).
 - `@RequireRoles('moderation')` : rôle requis (`403 interdit`) et, pour la modération et l'administration, code TOTP validé pendant cette connexion (`403 mfa-requise`).
-- `@CurrentUser()` donne la personne connectée ; son identifiant Keycloak reste privé.
+- `@CurrentUser()` donne la personne connectée ; son identifiant Keycloak reste privé. `user.roles` ne contient que les rôles **effectifs** : sans second facteur, la modération et l'administration sont dans `user.rolesAwaitingMfa`.
+- Clés de Keycloak injoignables ou illisibles : `503 indisponible` journalisée (avec `Retry-After`), jamais un 401 qui déconnecterait tout le monde.
 - `GET /api/moi` : rôles et double authentification de la session en cours.
 
 ## Configuration

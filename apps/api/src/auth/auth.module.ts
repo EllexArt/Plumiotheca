@@ -4,7 +4,10 @@ import { CONFIG } from '../config/config.module.js';
 import type { Config } from '../config/env.js';
 import { JWKS, TokenVerifier } from './token-verifier.js';
 
-/** Clés de Keycloak, mises en cache ; nouvelle lecture au plus toutes les 30 s (clé inconnue). */
+/**
+ * Clés de Keycloak, mises en cache une heure ; une clé inconnue (rotation) déclenche une
+ * nouvelle lecture, au plus toutes les 30 s.
+ */
 const remoteJwks: Provider = {
   provide: JWKS,
   inject: [CONFIG],
@@ -12,7 +15,7 @@ const remoteJwks: Provider = {
     createRemoteJWKSet(new URL(config.KEYCLOAK_JWKS_URL), {
       timeoutDuration: 5_000,
       cooldownDuration: 30_000,
-      cacheMaxAge: 10 * 60_000,
+      cacheMaxAge: 60 * 60_000,
     }),
 };
 

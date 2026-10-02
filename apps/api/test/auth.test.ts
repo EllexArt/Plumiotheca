@@ -1,7 +1,10 @@
 import { Controller, Get } from '@nestjs/common';
 import { MySession } from '@plumiotheca/contracts';
+import { errors } from 'jose';
 import { describe, expect, it } from 'vitest';
 import { RequireRoles } from '../src/auth/decorators.js';
+import { CurrentUser } from '../src/auth/decorators.js';
+import type { AuthUser } from '../src/auth/auth-user.js';
 import { expectProblem, foreignKey, start as startApp, token } from './support.js';
 
 /** Routes d'essai protégées, déclarées seulement dans les tests. */
@@ -15,8 +18,8 @@ class RolesController {
 
   @Get('tags')
   @RequireRoles('jardinage-tags', 'moderation')
-  tags() {
-    return { ok: true };
+  tags(@CurrentUser() user: AuthUser) {
+    return { roles: user.roles };
   }
 }
 
@@ -31,7 +34,7 @@ describe('authentification', () => {
       .get('/api/moi')
       .set(...bearer(await token()))
       .expect(200);
-    expect(MySession.parse(res.body)).toEqual({ roles: [], mfa: false });
+    expect(MySession.parse(res.body)).toEqual({ roles: [], rolesAwaitingMfa: [], mfa: false });
   });
 
   it('les routes publiques restent accessibles sans jeton', async () => {
@@ -102,7 +105,7 @@ describe('authentification', () => {
       .get('/api/moi')
       .set(...bearer(jwt))
       .expect(200);
-    expect(res.body).toEqual({ roles: ['moderation'], mfa: false });
+    expect(res.body).toEqual({ roles: [], rolesAwaitingMfa: ['moderation'], mfa: false });
   });
 });
 
@@ -144,6 +147,25 @@ describe('rôles et double authentification', () => {
       .expect(200);
   });
 
+  it('sans second facteur, la modération ne figure pas dans les rôles effectifs', async () => {
+    const { http } = await start();
+    const jwt = await token({ realm_access: { roles: ['jardinage-tags', 'moderation'] } });
+    const res = await http
+      .get('/api/essai-roles/tags')
+      .set(...bearer(jwt))
+      .expect(200);
+    expect(res.body).toEqual({ roles: ['jardinage-tags'] });
+  });
+
+  it('avec second facteur, la modération est active', async () => {
+    const { http } = await start();
+    const res = await http
+      .get('/api/moi')
+      .set(...bearer(await moderator(['pwd', 'otp'])))
+      .expect(200);
+    expect(res.body).toEqual({ roles: ['moderation'], rolesAwaitingMfa: [], mfa: true });
+  });
+
   it('les jardiniers des tags n’ont pas besoin de second facteur', async () => {
     const { http } = await start();
     const jwt = await token({ realm_access: { roles: ['jardinage-tags'] } });
@@ -151,5 +173,27 @@ describe('rôles et double authentification', () => {
       .get('/api/essai-roles/tags')
       .set(...bearer(jwt))
       .expect(200);
+  });
+});
+
+describe('clés de Keycloak indisponibles', () => {
+  const failing = (error: Error) => () => Promise.reject(error);
+
+  it.each([
+    [
+      'réponse inattendue (404, 502…)',
+      new errors.JOSEError('Expected 200 OK from the JSON Web Key Set HTTP response'),
+    ],
+    ['délai dépassé', new errors.JWKSTimeout()],
+    ['Keycloak injoignable', new TypeError('fetch failed')],
+  ])('%s : 503 journalisée, pas de déconnexion', async (_, error) => {
+    const { http, logs } = await startApp({}, [], failing(error));
+    const res = await http
+      .get('/api/moi')
+      .set(...bearer(await token()))
+      .expect(503);
+    expect(expectProblem(res.body, 503).type).toBe('indisponible');
+    expect(res.headers['retry-after']).toBe('30');
+    expect(logs()).toContain('Clés publiques de Keycloak indisponibles');
   });
 });

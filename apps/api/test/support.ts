@@ -4,6 +4,7 @@ import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Problem } from '@plumiotheca/contracts';
 import {
+  type JWTVerifyGetKey,
   createLocalJWKSet,
   exportJWK,
   generateKeyPair,
@@ -63,10 +64,14 @@ afterEach(async () => {
 });
 
 /** Démarre l'application complète (avec des routes d'essai propres au test). */
-export async function start(env: Record<string, string> = {}, controllers: Type[] = []) {
+export async function start(
+  env: Record<string, string> = {},
+  controllers: Type[] = [],
+  keys: JWTVerifyGetKey = jwks,
+) {
   const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'info', ...env });
 
-  @Module({ imports: [AppModule.forRoot(config, { logDestination, jwks })], controllers })
+  @Module({ imports: [AppModule.forRoot(config, { logDestination, jwks: keys })], controllers })
   class TestModule {}
 
   app = await NestFactory.create<NestExpressApplication>(TestModule, {

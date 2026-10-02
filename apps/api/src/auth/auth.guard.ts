@@ -1,6 +1,6 @@
 import { type CanActivate, type ExecutionContext, HttpStatus, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { type Role, ROLES_WITH_MFA } from '@plumiotheca/contracts';
+import type { Role } from '@plumiotheca/contracts';
 import type { Request } from 'express';
 import { ApiProblem } from '../common/problem.js';
 import type { AuthUser } from './auth-user.js';
@@ -33,14 +33,12 @@ export class AuthGuard implements CanActivate {
 
     const required = this.reflector.getAllAndOverride<Role[]>(REQUIRED_ROLES, targets);
     if (required?.length) {
-      const granted = required.filter((role) => user.roles.includes(role));
-      if (!granted.length) {
-        throw new ApiProblem(HttpStatus.FORBIDDEN, 'Cette action est réservée à l’équipe.');
-      }
-      // Un rôle sans exigence de MFA suffit ; sinon, le second facteur doit avoir été
-      // validé pendant cette connexion (une session plus ancienne ne suffit pas).
-      const needsMfa = granted.every((role) => ROLES_WITH_MFA.includes(role));
-      if (needsMfa && !user.mfa) {
+      // Les rôles effectifs excluent déjà la modération et l'administration sans second
+      // facteur validé pendant cette connexion (une session plus ancienne ne suffit pas).
+      if (!required.some((role) => user.roles.includes(role))) {
+        if (!required.some((role) => user.rolesAwaitingMfa.includes(role))) {
+          throw new ApiProblem(HttpStatus.FORBIDDEN, 'Cette action est réservée à l’équipe.');
+        }
         throw new ApiProblem(
           HttpStatus.FORBIDDEN,
           'Reconnectez-vous avec la double authentification pour accéder à cet espace.',

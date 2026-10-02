@@ -210,18 +210,38 @@ for (const role of ['moderation', 'administration']) {
 }
 // 5 bis. Valeurs AMR (RFC 8176) : chaque étape réussie s'inscrit dans le claim « amr »
 //        du jeton. Seuls les formulaires de mot de passe et de code TOTP en ont une.
+//        Durée de validité de chaque valeur : celle de la session (sans elle, Keycloak la
+//        tient pour expirée dès la seconde suivante et « otp » disparaît des jetons).
 const AMR = { 'auth-username-password-form': 'pwd', 'auth-otp-form': 'otp' };
+const AMR_MAX_AGE = '36000'; // = ssoSessionMaxLifespan
 execs = await kc.get(`${R}/authentication/flows/${enc(FLOW)}/executions`);
 for (const [i, e] of execs.entries()) {
   const ref = AMR[e.providerId];
   if (ref && !e.authenticationConfig) {
     await kc.post(`${R}/authentication/executions/${e.id}/config`, {
       alias: `amr-${ref}-${i}`,
-      config: { 'default.reference.value': ref },
+      config: { 'default.reference.value': ref, 'default.reference.maxAge': AMR_MAX_AGE },
     });
   }
 }
 await kc.put(R, { browserFlow: FLOW });
+
+// 5 ter. « Mot de passe oublié » : jamais de réinitialisation du code TOTP par e-mail.
+//        Sinon, qui contrôle la boîte mail d'un modérateur enregistre son propre code.
+//        Une personne qui perd son appareil passe par un administrateur (décision 35).
+const RESET = 'reinitialisation-plumiotheca';
+if (!(await kc.get(`${R}/authentication/flows`)).some((f) => f.alias === RESET)) {
+  await kc.post(`${R}/authentication/flows/${enc('reset credentials')}/copy`, { newName: RESET });
+}
+for (const e of await kc.get(`${R}/authentication/flows/${enc(RESET)}/executions`)) {
+  if (e.level === 0 && /Conditional OTP/i.test(e.displayName)) {
+    await kc.put(`${R}/authentication/flows/${enc(RESET)}/executions`, {
+      ...e,
+      requirement: 'DISABLED',
+    });
+  }
+}
+await kc.put(R, { resetCredentialsFlow: RESET });
 
 // 6. Fermer les accès qui contourneraient la MFA ou dureraient trop longtemps.
 const clients = await kc.get(`${R}/clients`);
@@ -252,7 +272,10 @@ delete exported.id;
 // connues, et on retire les secrets de client pour que Keycloak en génère à l'import.
 for (const cfg of exported.authenticatorConfig ?? []) {
   const ref = /^amr-(\w+)-\d+$/.exec(cfg.alias)?.[1];
-  if (ref) cfg.config['default.reference.value'] = ref;
+  if (ref) {
+    cfg.config['default.reference.value'] = ref;
+    cfg.config['default.reference.maxAge'] = AMR_MAX_AGE;
+  }
 }
 for (const client of exported.clients ?? []) delete client.secret;
 const masked = JSON.stringify(exported).match(/"([^"]+)":"\*{10}"/);

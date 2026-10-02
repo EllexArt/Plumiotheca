@@ -2598,6 +2598,72 @@
       ]
     },
     {
+      "alias": "reinitialisation-plumiotheca",
+      "description": "Reset credentials for a user if they forgot their password or something",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "reset-credentials-choose-user",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "reset-credential-email",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "reset-password",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 30,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "DISABLED",
+          "priority": 40,
+          "autheticatorFlow": true,
+          "flowAlias": "reinitialisation-plumiotheca Reset - Conditional OTP",
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "alias": "reinitialisation-plumiotheca Reset - Conditional OTP",
+      "description": "Flow to determine if the OTP should be reset or not. Set to REQUIRED to force.",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "conditional-user-configured",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "reset-otp",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
       "alias": "reset credentials",
       "description": "Reset credentials for a user if they forgot their password or something",
       "providerId": "basic-flow",
@@ -2660,24 +2726,28 @@
     {
       "alias": "amr-otp-12",
       "config": {
+        "default.reference.maxAge": "36000",
         "default.reference.value": "otp"
       }
     },
     {
       "alias": "amr-otp-18",
       "config": {
+        "default.reference.maxAge": "36000",
         "default.reference.value": "otp"
       }
     },
     {
       "alias": "amr-otp-22",
       "config": {
+        "default.reference.maxAge": "36000",
         "default.reference.value": "otp"
       }
     },
     {
       "alias": "amr-pwd-8",
       "config": {
+        "default.reference.maxAge": "36000",
         "default.reference.value": "pwd"
       }
     },
@@ -2871,7 +2941,7 @@
   "browserFlow": "navigateur-plumiotheca",
   "registrationFlow": "registration",
   "directGrantFlow": "direct grant",
-  "resetCredentialsFlow": "reset credentials",
+  "resetCredentialsFlow": "reinitialisation-plumiotheca",
   "clientAuthenticationFlow": "clients",
   "dockerAuthenticationFlow": "docker auth",
   "firstBrokerLoginFlow": "first broker login",

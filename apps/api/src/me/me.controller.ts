@@ -12,6 +12,6 @@ export class MeController {
   @Get()
   @ApiOkResponse({ description: 'Session en cours', standardSchema: MySession })
   session(@CurrentUser() user: AuthUser): MySession {
-    return { roles: user.roles, mfa: user.mfa };
+    return { roles: user.roles, rolesAwaitingMfa: user.rolesAwaitingMfa, mfa: user.mfa };
   }
 }
