@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # Annule les exécutions dépassées d'une PR, jamais celles de main.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NODE_VERSION: "24"
+
+jobs:
+  api:
+    name: API (build et tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Activer Yarn (corepack)
+        run: corepack enable
+
+      - name: Récupérer le cache Yarn
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/yarn
+          key: yarn-${{ runner.os }}-${{ hashFiles('apps/api/yarn.lock') }}
+          restore-keys: yarn-${{ runner.os }}-
+
+      - name: Installer les dépendances
+        run: yarn install --frozen-lockfile
+
+      - name: Compiler (vérifie aussi les types)
+        run: yarn build
+
+      - name: Tests
+        run: yarn test --ci
+
+  web:
+    name: Web (types et build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Vérifier les types
+        run: |
+          for app in shell reader editor; do
+            echo "::group::tsc $app"
+            npx tsc -p "apps/$app/tsconfig.json" --noEmit
+            echo "::endgroup::"
+          done
+
+      - name: Build
+        run: npm run build
+
+  dependances:
+    name: Dépendances (vulnérabilités connues)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - name: Bloquer les dépendances ajoutées avec une vulnérabilité élevée
+        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: never
