@@ -1,0 +1,99 @@
+import { randomUUID } from 'node:crypto';
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { NextFunction, Request, Response } from 'express';
+import type { Params } from 'nestjs-pino';
+import type { DestinationStream } from 'pino';
+import type { Config } from '../config/env.js';
+
+/** Identifiant de requête fourni par un proxy, accepté seulement s'il est inoffensif. */
+const REQUEST_ID = /^[A-Za-z0-9-]{8,64}$/;
+
+/** Clés jamais écrites dans les journaux : e-mails, secrets, contenus, données SQL. */
+const SENSITIVE_KEYS = [
+  'email',
+  'Email',
+  'mail',
+  'password',
+  'secret',
+  'token',
+  'accessToken',
+  'access_token',
+  'refreshToken',
+  'refresh_token',
+  'idToken',
+  'id_token',
+  'apiKey',
+  'authorization',
+  'cookie',
+  'content',
+  'body',
+  'text',
+  'html',
+  // Paramètres et détails des requêtes SQL joints aux erreurs de la base.
+  'parameters',
+  'detail',
+];
+
+/** Chaque clé sensible est masquée jusqu'à trois niveaux de profondeur. */
+export const REDACTED_PATHS = SENSITIVE_KEYS.flatMap((key) => [key, `*.${key}`, `*.*.${key}`]);
+
+type WithId = IncomingMessage & { id?: string };
+
+/**
+ * Premier middleware de l'application : attribue l'identifiant de requête avant toute
+ * lecture du corps, pour que même un JSON illisible ou trop volumineux soit traçable.
+ * L'en-tête X-Request-Id entrant n'est repris que derrière un proxy de confiance.
+ */
+export function requestId(config: Config) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const header = req.headers['x-request-id'];
+    const fromProxy =
+      config.TRUST_PROXY > 0 && typeof header === 'string' && REQUEST_ID.test(header);
+    const id = fromProxy ? header : randomUUID();
+    (req as WithId).id = id;
+    res.setHeader('X-Request-Id', id);
+    next();
+  };
+}
+
+const genReqId = (req: WithId, res: ServerResponse) => {
+  if (req.id) return req.id;
+  const id = randomUUID();
+  res.setHeader('X-Request-Id', id);
+  return id;
+};
+
+/** Chemin sans paramètres de requête (ils peuvent contenir des données personnelles). */
+export const pathOnly = (url: string | undefined) => (url ?? '').split('?')[0];
+
+export function loggerParams(config: Config, destination?: DestinationStream): Params {
+  const pretty = config.NODE_ENV === 'development' && !destination;
+  return {
+    pinoHttp: [
+      {
+        level: config.LOG_LEVEL,
+        genReqId,
+        redact: { paths: REDACTED_PATHS, censor: '[masqué]' },
+        // Listes blanches : ni en-têtes, ni corps, ni adresse IP, ni détail d'erreur
+        // de la base (valeurs en double, paramètres) dans les journaux.
+        serializers: {
+          req: (req: { id: string; method: string; url?: string }) => ({
+            id: req.id,
+            method: req.method,
+            path: pathOnly(req.url),
+          }),
+          res: (res: { statusCode: number }) => ({ statusCode: res.statusCode }),
+          err: (err: { name?: string; message?: string; code?: unknown; stack?: string }) => ({
+            type: err.name,
+            message: err.message,
+            code: err.code,
+            stack: err.stack,
+          }),
+        },
+        autoLogging: { ignore: (req) => pathOnly(req.url) === '/api/health' },
+        ...(pretty ? { transport: { target: 'pino-pretty', options: { singleLine: true } } } : {}),
+      },
+      ...(destination ? [destination] : []),
+    ] as Params['pinoHttp'],
+  };
+}

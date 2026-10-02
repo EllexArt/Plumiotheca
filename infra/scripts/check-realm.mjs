@@ -172,12 +172,15 @@ try {
       "Le nom d'utilisateur n'est pas l'e-mail",
     );
     check(at.email === undefined, "Pas d'e-mail dans le jeton d'accès");
-    // Si l'API tourne en local, elle doit accepter ce jeton.
-    const api = await fetch('http://localhost:3000/api/users/profile', {
+    // Si l'API tourne en local et expose déjà une route protégée (#11), elle doit accepter ce jeton.
+    const api = await fetch('http://localhost:3000/api/moi', {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     }).catch(() => null);
-    if (api) check(api.status === 200, `L'API accepte le jeton (statut ${api.status})`);
-    else console.log("• API non démarrée : vérification de l'acceptation du jeton ignorée");
+    if (api && api.status !== 404) {
+      check(api.status === 200, `L'API accepte le jeton (statut ${api.status})`);
+    } else {
+      console.log('• API non démarrée ou sans route protégée : acceptation du jeton non vérifiée');
+    }
   }
 
   const direct = await fetch(`${ISSUER}/protocol/openid-connect/token`, {

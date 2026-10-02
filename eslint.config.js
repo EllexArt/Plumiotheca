@@ -10,15 +10,20 @@ import globals from 'globals';
 
 export default tseslint.config(
   {
-    ignores: ['**/dist/**', '**/coverage/**', '**/node_modules/**', 'apps/api/postman/**'],
+    ignores: ['**/dist/**', '**/coverage/**', '**/node_modules/**'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
 
-  // API (Node)
+  // API et paquets partagés (Node) : règles s'appuyant sur les types (promesses
+  // oubliées, valeurs `any` qui se propagent…).
   {
-    files: ['apps/api/**/*.{ts,js}'],
-    languageOptions: { globals: { ...globals.node, ...globals.jest } },
+    files: ['apps/api/**/*.ts', 'packages/**/*.ts'],
+    extends: [tseslint.configs.recommendedTypeChecked],
+    languageOptions: {
+      globals: globals.node,
+      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
+    },
   },
 
   // Scripts Node (infrastructure, configuration)
@@ -69,7 +74,7 @@ export default tseslint.config(
 
   // Fichiers de configuration en CommonJS
   {
-    files: ['**/*.cjs', 'apps/api/jest.config.js'],
+    files: ['**/*.cjs'],
     languageOptions: { sourceType: 'commonjs', globals: globals.node },
     rules: { '@typescript-eslint/no-require-imports': 'off' },
   },

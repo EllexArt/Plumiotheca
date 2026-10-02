@@ -32,17 +32,18 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
 
+      # « @plumiotheca/api... » : l'API et les paquets partagés dont elle dépend (contracts).
       - name: Installer les dépendances
-        run: pnpm install --frozen-lockfile --filter @plumiotheca/api
+        run: pnpm install --frozen-lockfile --filter "@plumiotheca/api..."
 
       - name: Vérifier les types
-        run: pnpm --filter @plumiotheca/api typecheck
+        run: pnpm --filter "@plumiotheca/api..." typecheck
 
       - name: Compiler
-        run: pnpm --filter @plumiotheca/api build
+        run: pnpm --filter "@plumiotheca/api..." build
 
       - name: Tests
-        run: pnpm --filter @plumiotheca/api test --ci
+        run: pnpm --filter "@plumiotheca/api..." test
 
   web:
     name: Web (types et build)

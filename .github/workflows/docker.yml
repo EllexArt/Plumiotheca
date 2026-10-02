@@ -1,13 +1,14 @@
 name: Images Docker
 
 # Vérifie que l'image de l'API se construit, sur chaque PR qui la touche et sur main.
-# Aucune image n'est publiée tant que l'API n'a pas été réécrite (jalon M1) :
-# la publication sur GitHub Container Registry, déclenchée par les tags de version,
-# sera ajoutée avec l'issue #6.
+# Aucune image n'est publiée pour l'instant : la publication sur GitHub Container
+# Registry, déclenchée par les tags de version, sera ajoutée avec l'issue #6.
 on:
   pull_request:
     paths:
       - 'apps/api/**'
+      - 'packages/**'
+      - 'tsconfig.base.json'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
@@ -17,6 +18,8 @@ on:
     branches: [main]
     paths:
       - 'apps/api/**'
+      - 'packages/**'
+      - 'tsconfig.base.json'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'

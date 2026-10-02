@@ -28,15 +28,16 @@ pnpm dev:api        # API seule (nécessite pnpm infra:up)
 pnpm dev:web        # application web
 ```
 
-| Dossier    | Contenu                                                                |
-| ---------- | ---------------------------------------------------------------------- |
-| `apps/api` | API (prototype Express, en cours de réécriture en NestJS)              |
-| `apps/web` | Application web (prototype en micro-frontends, en cours de réécriture) |
-| `docs/`    | Architecture, décisions, revues                                        |
+| Dossier              | Contenu                                                                |
+| -------------------- | ---------------------------------------------------------------------- |
+| `apps/api`           | API NestJS (squelette : santé, erreurs, journaux, sécurité HTTP)       |
+| `apps/web`           | Application web (prototype en micro-frontends, en cours de réécriture) |
+| `packages/contracts` | Schémas zod partagés entre l'API et le web                             |
+| `docs/`              | Architecture, décisions, revues                                        |
 
 Un hook Git vérifie lint et formatage des fichiers modifiés à chaque commit (`lint-staged`). C'est un confort : la vraie barrière est la CI. Avec un client Git graphique qui ne trouve pas `pnpm`, voir `SIMPLE_GIT_HOOKS_RC` dans la documentation de simple-git-hooks.
 
-Les `any` du prototype de l'API sont tolérés via `eslint-suppressions.json` (suppressions natives d'ESLint) : la règle reste bloquante pour tout nouveau code. Le fichier disparaîtra avec la réécriture.
+L'API et les paquets partagés sont vérifiés avec les règles ESLint qui s'appuient sur les types (promesses oubliées, `any` qui se propagent…).
 
 Les scripts d'installation des dépendances sont bloqués par défaut ; seuls ceux listés dans `pnpm-workspace.yaml` (`allowBuilds`) sont autorisés.
 
