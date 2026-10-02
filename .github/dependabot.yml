@@ -15,6 +15,10 @@ updates:
       mineures:
         update-types: [minor, patch]
     open-pull-requests-limit: 3
+    ignore:
+      # Les types de Node suivent la version réellement utilisée (.nvmrc).
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   # Met à jour les SHA des actions épinglées dans .github/workflows.
   - package-ecosystem: github-actions
@@ -33,3 +37,7 @@ updates:
       interval: monthly
     cooldown:
       default-days: 7
+    ignore:
+      # Montée de version majeure de Node planifiée à part (LTS uniquement, voir l'issue dédiée).
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]

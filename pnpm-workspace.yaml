@@ -13,3 +13,11 @@ allowBuilds:
   "@scarf/scarf": false
   chromedriver: false
   unrs-resolver: false
+
+# Délai de 7 jours avant d'accepter une version publiée (aussi pour pnpm add) :
+# les paquets compromis sont souvent retirés dans ce délai.
+minimumReleaseAge: 10080
+
+# Dépendance optionnelle inutile de keycloak-connect, jamais installée.
+ignoredOptionalDependencies:
+  - chromedriver

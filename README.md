@@ -16,7 +16,8 @@ pnpm install        # installe tout le monorepo
 pnpm typecheck      # vérifie les types de toutes les applications
 pnpm test           # lance les tests
 pnpm build          # construit toutes les applications
-pnpm dev:api        # API (nécessite Postgres et Keycloak : voir apps/api/README.md)
+pnpm dev            # API et application web ensemble
+pnpm dev:api        # API seule (nécessite Postgres et Keycloak : voir apps/api/README.md)
 pnpm dev:web        # application web
 ```
 
