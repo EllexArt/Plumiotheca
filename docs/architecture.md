@@ -11,12 +11,12 @@ Trois piliers guident les choix techniques :
 | Pilier | Ce que ça implique techniquement |
 |---|---|
 | **Écrire** | Éditeur riche, sauvegarde automatique, historique des versions, outils d'univers (personnages, lieux, chronologie), statistiques. |
-| **Lire** | Rendu typographique soigné, réglages de lecture, reprise de lecture, bibliothèque, mobile d'abord. |
-| **Communauté** | Commentaires par paragraphe, abonnements, notifications, **modération dès le départ** (signalements, blocages, avertissements de contenu). |
+| **Lire** | Rendu typographique soigné, réglages de lecture, reprise de lecture, bibliothèque, site responsive pensé d'abord pour l'ordinateur. |
+| **Communauté** | Notes de lecture, recommandations, abonnements, galerie, cercles d'entraide, **modération dès le départ** — et aucune messagerie privée (§1 ter). |
 
 ### Identité et principes d'expérience (validés sur maquettes)
 
-Maquettes de référence : canevas « Plumiotheca — pistes d'identité », page *Concept — bibliothèque vivante*.
+Maquettes de référence : canevas « Plumiotheca — pistes d'identité », pages *Web — ordinateur*, *Web — écrire*, *Web — communauté* et *Web — mobile*.
 
 - **Web d'abord** : Plumiotheca est un site web *responsive* (ordinateur, tablette, téléphone), conçu en priorité pour l'ordinateur. Pas d'application native à installer depuis un magasin ; une PWA (installable depuis le navigateur, lecture hors ligne) viendra plus tard.
 - **Identité « Lampe de chevet »** : Young Serif (titres), Literata (lecture), Figtree (interface). Palette par défaut *Lueur* en clair et en sombre ; *Bougie*, *Indigo et lune* et *Encre et rouille* sont des ambiances au choix (#77).
@@ -40,6 +40,25 @@ L'accessibilité fait partie de la définition de « terminé » de chaque issue
 - **Cibles tactiles** de 44 × 44 px minimum.
 - **Contenus des auteurs** : texte alternatif demandé pour les couvertures et images ; l'éditeur produit une structure propre (vrais titres, citations, séparateurs de scène annoncés).
 - **Outillage** : `eslint-plugin-jsx-a11y`, tests `axe-core` dans les tests de composants et Playwright, audit manuel au lecteur d'écran avant chaque jalon, page « Déclaration d'accessibilité » publiée.
+
+## 1 ter. Communauté, sécurité et contenus
+
+Choix fondateurs, validés en octobre 2026 :
+
+- **Écrire anonymement est une valeur.** Inscription avec un e-mail et un pseudonyme ; aucune donnée d'identité civile, aucune vérification par pièce d'identité. Âge **déclaré**, **15 ans minimum**.
+- **Aucune messagerie privée.** Tous les échanges ont lieu dans des espaces publics ou modérés : notes de lecture, notes de fin de chapitre, recommandations, retours de bêta-lecture. Cela supprime le principal canal de harcèlement et d'emprise, sans avoir à vérifier l'âge de qui que ce soit.
+- **Cercles d'entraide sans discussions** : petits groupes (taille limitée) pour la **bêta-lecture équitable** et les **défis**. Animatrices et animateurs, règles propres au cercle, création réservée aux comptes de plus de 14 jours.
+- **Abonnements** à des personnes et à des univers ; nouveautés dans « Mes lectures ». Pas de fil algorithmique.
+- **Profil** : pronoms, présentation, goûts de lecture ; visibilité réglable par section (public, abonnés, privé) et aperçu « comme un visiteur ».
+- **Galerie** : illustrations des autrices, fan arts (visibles dans la galerie de l'univers après validation de l'autrice), galeries d'artistes. **Description d'image obligatoire** (accessibilité). **Images générées par IA autorisées mais déclarées**, étiquetées et filtrables ; jamais présentées comme fan art.
+- **Classements : Tout public, Ado, Mature.** Au lancement, **Mature est le maximum**. Le classement **Explicite** est reporté : il ne sera ouvert qu'avec une preuve de majorité qui ne transmet que « 18 ans ou plus » (ni identité, ni date de naissance, ni carte bancaire) et après avis juridique. Le design est prêt (masqué par défaut, écran d'avertissement, scènes repliables avec résumé).
+- **Interdits absolus** : contenu sexuel impliquant des personnages mineurs (même fictifs), images explicites, publication d'informations personnelles d'autrui.
+
+### Modération à trois niveaux
+
+1. **Prévention par conception** : pas de messages privés, pas de discussion libre, petits cercles, premiers messages et liens des nouveaux comptes relus, limites de fréquence, masquage automatique provisoire des données personnelles.
+2. **Animatrices de cercle** : signalements du cercle avec contexte, masquer un retour, rappel de règle, sourdine, exclusion, transmission à l'équipe, mise en pause du cercle.
+3. **Équipe Plumiotheca** : file triée par urgence (protection des mineurs et données personnelles d'abord, avec un rôle d'accès restreint), contexte et historique, décision avec **motif obligatoire tiré de la charte** communiqué à la personne, **appel** examiné par une autre personne, journal d'audit et rapport de transparence — conforme à l'esprit du **DSA**.
 
 ## 2. Vue d'ensemble
 
@@ -93,9 +112,11 @@ Plumiotheca/
 | `chapters` | Chapitres, ordre, version publiée vs brouillon, révisions. |
 | `universes` | Univers partagés entre histoires : fiches personnages, lieux, chronologie, notes. Gère les membres et le mode d'ouverture (voir §5 bis). |
 | `reading` | Bibliothèque, listes de lecture, progression (chapitre + position), réglages de lecture synchronisés. |
-| `social` | Abonnements (auteurs, histoires), likes, commentaires (chapitre et paragraphe). |
+| `social` | Abonnements (personnes, univers), « J'ai aimé », recommandations, notes par passage et de fin de chapitre. **Pas de messagerie privée.** |
 | `notifications` | Nouveau chapitre, réponse à un commentaire, nouvel abonné. |
-| `moderation` | Signalements, blocages, masquage, journal d'actions des modérateurs. |
+| `moderation` | Signalements, blocages, file par urgence, décisions motivées, appels, journal, rapport de transparence. |
+| `circles` | Cercles d'entraide : annuaire, adhésion, rôles d'animation, bêta-lecture équitable, défis, outils d'animation. |
+| `gallery` | Images : origine déclarée (dont IA), description obligatoire, liens univers / histoires / personnages, validation des fan arts, droits. |
 | `media` | Upload d'images vers S3 via URL pré-signée. |
 | `stats` | Lectures uniques, temps de lecture, statistiques auteur. |
 | `tags` | Tags libres, tags canoniques, synonymes et hiérarchie ; outils des « jardiniers des tags ». |
@@ -251,3 +272,9 @@ Le code actuel est petit : on **reconstruit au bon endroit** plutôt que de tout
 | 15 | Tags : normalisation automatique + jardiniers des tags bénévoles | ✅ validé |
 | 16 | Accessibilité RGAA 4 / WCAG 2.2 AA, incluse dans la définition de « terminé » | ✅ validé |
 | 17 | Web d’abord : site responsive, ordinateur prioritaire, pas d’application native (PWA plus tard) | ✅ validé |
+| 18 | Aucune messagerie privée ; échanges uniquement publics ou modérés | ✅ validé |
+| 19 | Écriture anonyme, âge déclaré, 15 ans minimum, aucune pièce d'identité | ✅ validé |
+| 20 | Cercles d'entraide : bêta-lecture et défis, sans discussions | ✅ validé |
+| 21 | Galerie avec fan arts validés par l'autrice ; images IA autorisées mais déclarées et filtrables | ✅ validé |
+| 22 | Classement maximum « Mature » au lancement ; « Explicite » reporté (preuve de majorité anonyme + avis juridique) | ✅ validé |
+| 23 | Modération à trois niveaux (conception, animatrices, équipe) avec décisions motivées et appel | ✅ validé |
