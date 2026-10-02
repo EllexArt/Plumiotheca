@@ -74,7 +74,7 @@ Choix fondateurs, validés en octobre 2026 :
 | Décisions de modération | DSA, appels | 3 ans, rattachées à un identifiant interne |
 | Comptage des lectures anonymes | statistiques | hachage effacé chaque jour |
 
-- **Suppression de compte** : au moment de supprimer, la personne **choisit** entre tout effacer ou anonymiser ses contributions (notes, fiches d'univers collaboratifs, fan arts offerts) sous la mention « compte supprimé ». Ses histoires et images sont supprimées dans les deux cas. Délai d'exécution : 30 jours maximum ; export de ses données proposé avant.
+- **Suppression de compte** : au moment de supprimer, la personne **choisit** entre tout effacer ou anonymiser ses contributions (notes, fiches d'univers collaboratifs, fan arts offerts) sous la mention « compte supprimé ». Ses histoires et images sont supprimées dans les deux cas. **Œuvres partagées** (histoire co-écrite, fan art offert à une autrice, fiches d'un univers collaboratif) : les co-autrices ou l'autrice destinataire sont prévenues et **décident** de garder l'œuvre (part de la personne signée « compte supprimé ») ou de la retirer ; sans réponse sous 30 jours, l'œuvre est conservée anonymisée. Délai d'exécution : 30 jours maximum ; export de ses données proposé avant.
 - **Pseudonymes** : un ancien pseudonyme n'est réattribuable qu'après 90 jours (anti-usurpation).
 - **Images** : métadonnées (dont la géolocalisation) **toujours supprimées** par ré-encodage côté serveur, pour ne jamais révéler qui se cache derrière un pseudonyme.
 - **Sous-traitants** : hébergement, sauvegardes, e-mail et suivi d'erreurs dans l'Union européenne ; liste tenue à jour dans la politique de confidentialité.
@@ -313,3 +313,4 @@ Le code actuel est petit : on **reconstruit au bon endroit** plutôt que de tout
 | 29 | Données personnelles conçues dès M1 (inventaire, durées, journaux sans données personnelles, images sans métadonnées) | ✅ validé |
 | 30 | File de tâches pg-boss ; sécurité HTTP, limitation de débit et durcissement des comptes dès le squelette | proposé |
 | 31 | Pas de bêta publique avant M6 ; aucune image Docker publiée avant la réécriture de l'API | ✅ validé |
+| 32 | Suppression de compte : pour les œuvres partagées, les co-autrices décident (garder anonymisé ou retirer) | ✅ validé |
