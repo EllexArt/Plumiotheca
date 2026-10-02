@@ -29,6 +29,8 @@ const TOKEN_ERRORS = [
   errors.JWTClaimValidationFailed,
   errors.JWSSignatureVerificationFailed,
   errors.JWKSNoMatchingKey,
+  // Jeton sans « kid » quand plusieurs clés sont publiées (rotation).
+  errors.JWKSMultipleMatchingKeys,
   errors.JOSEAlgNotAllowed,
   errors.JOSENotSupported,
   errors.JWEInvalid,

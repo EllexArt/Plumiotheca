@@ -2,8 +2,7 @@ import { Controller, Get } from '@nestjs/common';
 import { MySession } from '@plumiotheca/contracts';
 import { errors } from 'jose';
 import { describe, expect, it } from 'vitest';
-import { RequireRoles } from '../src/auth/decorators.js';
-import { CurrentUser } from '../src/auth/decorators.js';
+import { CurrentUser, RequireRoles } from '../src/auth/decorators.js';
 import type { AuthUser } from '../src/auth/auth-user.js';
 import { expectProblem, foreignKey, start as startApp, token } from './support.js';
 
