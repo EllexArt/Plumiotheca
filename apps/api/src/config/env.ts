@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+const DEV_ISSUER = 'http://localhost:8080/realms/plumiotheca';
+
 const DEV_ORIGINS = [
   'http://localhost:5000',
   'http://localhost:5001',
@@ -42,6 +44,25 @@ export const Env = z
     TRUST_PROXY: z.coerce.number().int().min(0).max(10).optional(),
     /** Requêtes autorisées par minute et par adresse IP. */
     RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).default(120),
+    /** Émetteur des jetons (claim « iss »), tel que le voit le navigateur. Obligatoire en production. */
+    KEYCLOAK_ISSUER: z.url({ protocol: /^https?$/ }).optional(),
+    /**
+     * Adresse des clés publiques, si l'API les lit par un autre chemin que le navigateur
+     * (ex. http://keycloak:8080/... dans un conteneur). Par défaut : celle de l'émetteur.
+     */
+    KEYCLOAK_JWKS_URL: z.url({ protocol: /^https?$/ }).optional(),
+    /** Audience exigée dans les jetons (client Keycloak de l'API). */
+    JWT_AUDIENCE: z.string().min(1).default('api'),
+    /** Clients autorisés à appeler l'API (claim « azp »), séparés par des virgules. */
+    JWT_CLIENTS: z
+      .string()
+      .default('web')
+      .transform((s) =>
+        s
+          .split(',')
+          .map((c) => c.trim())
+          .filter(Boolean),
+      ),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== 'production') return;
@@ -49,6 +70,13 @@ export const Env = z
       ctx.addIssue({
         code: 'custom',
         path: ['CORS_ORIGINS'],
+        message: 'Obligatoire en production',
+      });
+    }
+    if (!env.KEYCLOAK_ISSUER) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['KEYCLOAK_ISSUER'],
         message: 'Obligatoire en production',
       });
     }
@@ -60,6 +88,9 @@ export const Env = z
     ...env,
     CORS_ORIGINS: env.CORS_ORIGINS ?? DEV_ORIGINS,
     TRUST_PROXY: env.TRUST_PROXY ?? 0,
+    KEYCLOAK_ISSUER: env.KEYCLOAK_ISSUER ?? DEV_ISSUER,
+    KEYCLOAK_JWKS_URL:
+      env.KEYCLOAK_JWKS_URL ?? `${env.KEYCLOAK_ISSUER ?? DEV_ISSUER}/protocol/openid-connect/certs`,
   }));
 
 export type Config = z.output<typeof Env>;

@@ -12,3 +12,4 @@ z.config(z.locales.fr());
 
 export * from './errors.js';
 export * from './health.js';
+export * from './session.js';

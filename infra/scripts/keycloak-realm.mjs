@@ -136,6 +136,18 @@ await kc.post(`${R}/clients`, {
         'id.token.claim': 'false',
       },
     },
+    {
+      // Méthodes utilisées pendant la connexion (« pwd », « otp ») : l'API exige « otp »
+      // pour la modération, quel que soit le chemin (connexion, mot de passe oublié…).
+      name: 'methodes-authentification',
+      protocol: 'openid-connect',
+      protocolMapper: 'oidc-amr-mapper',
+      config: {
+        'access.token.claim': 'true',
+        'id.token.claim': 'false',
+        'lightweight.claim': 'false',
+      },
+    },
   ],
 });
 
@@ -196,7 +208,40 @@ for (const role of ['moderation', 'administration']) {
     execs = await kc.get(`${R}/authentication/flows/${enc(FLOW)}/executions`);
   }
 }
+// 5 bis. Valeurs AMR (RFC 8176) : chaque étape réussie s'inscrit dans le claim « amr »
+//        du jeton. Seuls les formulaires de mot de passe et de code TOTP en ont une.
+//        Durée de validité de chaque valeur : celle de la session (sans elle, Keycloak la
+//        tient pour expirée dès la seconde suivante et « otp » disparaît des jetons).
+const AMR = { 'auth-username-password-form': 'pwd', 'auth-otp-form': 'otp' };
+const AMR_MAX_AGE = '36000'; // = ssoSessionMaxLifespan
+execs = await kc.get(`${R}/authentication/flows/${enc(FLOW)}/executions`);
+for (const [i, e] of execs.entries()) {
+  const ref = AMR[e.providerId];
+  if (ref && !e.authenticationConfig) {
+    await kc.post(`${R}/authentication/executions/${e.id}/config`, {
+      alias: `amr-${ref}-${i}`,
+      config: { 'default.reference.value': ref, 'default.reference.maxAge': AMR_MAX_AGE },
+    });
+  }
+}
 await kc.put(R, { browserFlow: FLOW });
+
+// 5 ter. « Mot de passe oublié » : jamais de réinitialisation du code TOTP par e-mail.
+//        Sinon, qui contrôle la boîte mail d'un modérateur enregistre son propre code.
+//        Une personne qui perd son appareil passe par un administrateur (décision 35).
+const RESET = 'reinitialisation-plumiotheca';
+if (!(await kc.get(`${R}/authentication/flows`)).some((f) => f.alias === RESET)) {
+  await kc.post(`${R}/authentication/flows/${enc('reset credentials')}/copy`, { newName: RESET });
+}
+for (const e of await kc.get(`${R}/authentication/flows/${enc(RESET)}/executions`)) {
+  if (e.level === 0 && /Conditional OTP/i.test(e.displayName)) {
+    await kc.put(`${R}/authentication/flows/${enc(RESET)}/executions`, {
+      ...e,
+      requirement: 'DISABLED',
+    });
+  }
+}
+await kc.put(R, { resetCredentialsFlow: RESET });
 
 // 6. Fermer les accès qui contourneraient la MFA ou dureraient trop longtemps.
 const clients = await kc.get(`${R}/clients`);
@@ -223,6 +268,72 @@ await kc.put(`${R}/clients/${web.id}/optional-client-scopes/${scopeId('email')}`
 // 7. Export (sans utilisateurs ni secrets) vers le fichier importé au démarrage.
 const exported = await kc.post(`${R}/partial-export?exportClients=true&exportGroupsAndRoles=true`);
 delete exported.id;
+// L'export masque les valeurs de configuration (« ********** ») : on remet les valeurs AMR
+// connues, et on retire les secrets de client pour que Keycloak en génère à l'import.
+for (const cfg of exported.authenticatorConfig ?? []) {
+  const ref = /^amr-(\w+)-\d+$/.exec(cfg.alias)?.[1];
+  if (ref) {
+    cfg.config['default.reference.value'] = ref;
+    cfg.config['default.reference.maxAge'] = AMR_MAX_AGE;
+  }
+}
+for (const client of exported.clients ?? []) delete client.secret;
+const masked = JSON.stringify(exported).match(/"([^"]+)":"\*{10}"/);
+if (masked) throw new Error(`Valeur masquée restante dans l'export : ${masked[1]}`);
+// Ordre stable (Keycloak exporte dans un ordre variable) pour des diffs lisibles. Seules les
+// listes dont l'ordre n'a pas de sens sont triées ; les étapes des flux gardent le leur.
+const by = (key) => (a, b) => String(a[key]).localeCompare(String(b[key]));
+const sortMappers = (o) => o.protocolMappers?.sort(by('name'));
+exported.roles?.realm?.sort(by('name'));
+for (const roles of Object.values(exported.roles?.client ?? {})) roles.sort(by('name'));
+for (const role of [
+  ...(exported.roles?.realm ?? []),
+  ...Object.values(exported.roles?.client ?? {}).flat(),
+]) {
+  role.composites?.realm?.sort();
+  for (const list of Object.values(role.composites?.client ?? {})) list.sort();
+}
+exported.clients?.sort(by('clientId'));
+exported.clientScopes?.sort(by('name'));
+exported.clients?.forEach(sortMappers);
+exported.clientScopes?.forEach(sortMappers);
+for (const client of exported.clients ?? []) {
+  client.defaultClientScopes?.sort();
+  client.optionalClientScopes?.sort();
+}
+for (const list of Object.values(exported.components ?? {})) {
+  list.sort((a, b) => `${a.name}|${a.subType}`.localeCompare(`${b.name}|${b.subType}`));
+  for (const c of list) for (const v of Object.values(c.config ?? {})) v.sort?.();
+}
+exported.defaultDefaultClientScopes?.sort();
+exported.defaultOptionalClientScopes?.sort();
+// Identifiants techniques régénérés à chaque création : Keycloak les recrée à l'import
+// (les références passent par les noms et alias).
+const stripIds = (value) => {
+  if (Array.isArray(value)) return value.forEach(stripIds);
+  if (value && typeof value === 'object') {
+    delete value.id;
+    delete value.containerId;
+    delete value.parentId;
+    delete value['client.secret.creation.time'];
+    Object.values(value).forEach(stripIds);
+  }
+};
+stripIds(exported);
+// Clés des dictionnaires de réglages triées (Keycloak les exporte dans un ordre variable).
+const sortConfigs = (value) => {
+  if (Array.isArray(value)) return value.forEach(sortConfigs);
+  if (!value || typeof value !== 'object') return;
+  for (const key of ['config', 'attributes']) {
+    if (value[key] && typeof value[key] === 'object' && !Array.isArray(value[key])) {
+      value[key] = Object.fromEntries(
+        Object.entries(value[key]).sort(([a], [b]) => a.localeCompare(b)),
+      );
+    }
+  }
+  Object.values(value).forEach(sortConfigs);
+};
+sortConfigs(exported);
 const out = join(root, 'infra', 'keycloak', 'realm-plumiotheca.json');
 writeFileSync(out, JSON.stringify(exported, null, 2) + '\n');
 console.log(`✓ Realm configuré et exporté dans ${out}`);

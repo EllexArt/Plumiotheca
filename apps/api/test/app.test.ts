@@ -1,18 +1,14 @@
-import { Body, Controller, Get, Logger, Module, Post, type Type } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
-import type { NestExpressApplication } from '@nestjs/platform-express';
-import { Problem } from '@plumiotheca/contracts';
-import request from 'supertest';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { Body, Controller, Get, Logger, Post } from '@nestjs/common';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { AppModule } from '../src/app.module.js';
+import { Public } from '../src/auth/decorators.js';
 import { ApiProblem } from '../src/common/problem.js';
-import { loadConfig } from '../src/config/env.js';
-import { configureApp } from '../src/setup.js';
+import { expectProblem, start as startApp } from './support.js';
 
 const NewStory = z.strictObject({ title: z.string().min(1).max(200) });
 
 /** Routes d'essai, déclarées seulement dans les tests. */
+@Public()
 @Controller('essai')
 class EssaiController {
   private readonly logger = new Logger('Essai');
@@ -61,38 +57,7 @@ class EssaiController {
   }
 }
 
-// nestjs-pino crée un seul journal par processus : une seule sortie pour tout le fichier.
-const lines: string[] = [];
-const logDestination = { write: (line: string) => void lines.push(line) };
-
-let app: NestExpressApplication | undefined;
-beforeEach(() => {
-  lines.length = 0;
-});
-afterEach(async () => {
-  await app?.close();
-  app = undefined;
-});
-
-async function start(env: Record<string, string> = {}, controllers: Type[] = [EssaiController]) {
-  const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'info', ...env });
-  @Module({ imports: [AppModule.forRoot(config, { logDestination })], controllers })
-  class TestModule {}
-
-  app = await NestFactory.create<NestExpressApplication>(TestModule, {
-    bodyParser: false,
-    logger: false,
-  });
-  configureApp(app, config);
-  await app.init();
-  return { http: request(app.getHttpServer()), logs: () => lines.join('') };
-}
-
-const expectProblem = (body: unknown, status: number) => {
-  const problem = Problem.parse(body);
-  expect(problem.status).toBe(status);
-  return problem;
-};
+const start = (env: Record<string, string> = {}) => startApp(env, [EssaiController]);
 
 describe('santé', () => {
   it('répond sur /api/health avec les en-têtes de sécurité', async () => {
@@ -228,6 +193,7 @@ describe('documentation OpenAPI', () => {
       NODE_ENV: 'production',
       CORS_ORIGINS: 'https://plumiotheca.example',
       TRUST_PROXY: '1',
+      KEYCLOAK_ISSUER: 'https://compte.plumiotheca.example/realms/plumiotheca',
     });
     await http.get('/api/docs').expect(404);
     await http.get('/api/docs-json').expect(404);

@@ -126,7 +126,7 @@ Plumiotheca/
 
 | Module          | Responsabilité                                                                                                                                                                  |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `auth`          | Vérification des JWT Keycloak (JWKS via `jose`), guard global, décorateur `@Public()`, rattachement de l'utilisateur local.                                                     |
+| `auth`          | Vérification des JWT Keycloak (JWKS via `jose`), guard global, `@Public()`, `@RequireRoles()` avec preuve de MFA (`amr`), rattachement de l'utilisateur local.                  |
 | `users`         | Profil public (pseudonyme unique, bio, avatar), préférences privées. **L'email n'est jamais exposé.**                                                                           |
 | `stories`       | Histoires, statut (brouillon / publiée / archivée), tags, avertissements de contenu, public visé.                                                                               |
 | `chapters`      | Chapitres, ordre, version publiée vs brouillon, révisions.                                                                                                                      |
@@ -164,6 +164,9 @@ Plumiotheca/
 - Keycloak reste le fournisseur d'identité (inscription, connexion, mot de passe oublié, MFA, connexion sociale plus tard).
 - Le front utilise **Authorization Code + PKCE** (`oidc-client-ts` / `react-oidc-context`).
 - L'API **ne parle plus à Keycloak à chaque requête** : elle valide la signature du JWT via le JWKS mis en cache. `keycloak-connect` (déprécié) et `express-session` disparaissent.
+- Chaque jeton est vérifié : signature RS256, émetteur, audience `api`, client d'origine (`azp` = `web`), type « Bearer » (pas de jeton d'identité ou de rafraîchissement). Toute route exige un jeton, sauf celles marquées `@Public()` (refus par défaut).
+- **Modération et administration** : le rôle ne suffit pas, le jeton doit prouver un code TOTP validé **pendant cette connexion** (claim `amr` contenant `otp`). Une session ouverte par « mot de passe oublié » ou avant l'attribution du rôle n'y donne donc pas accès, sans avoir à fermer les sessions côté Keycloak. Sans cette preuve, ces rôles sont retirés des rôles effectifs de la requête (`rolesAwaitingMfa`) : aucun traitement ne peut s'y fier par erreur. « Mot de passe oublié » ne réinitialise jamais le code TOTP.
+- Clés de Keycloak indisponibles : 503 journalisée (la personne n'est pas déconnectée), jamais 401.
 - `KC_HOSTNAME` est fixé pour que l'émetteur (`iss`) soit identique depuis le navigateur et depuis l'API.
 - Keycloak stocke ses données dans Postgres (base dédiée), version épinglée.
 
@@ -323,4 +326,5 @@ Le code actuel est petit : on **reconstruit au bon endroit** plutôt que de tout
 | 34  | Tranche d'âge déclarée à la première visite dans l'application, pas à l'inscription Keycloak                                | ✅ validé |
 | 35  | MFA de la modération : codes de secours à l'activation + réinitialisation par un administrateur                             | ✅ validé |
 | 36  | Suppression de compte depuis l'application (choix effacer / anonymiser), qui supprime ensuite le compte Keycloak            | ✅ validé |
-| 37  | NestJS 12 (ESM natif), validation zod native (Standard Schema) sans `nestjs-zod`, Vitest au lieu de Jest                    | proposé   |
+| 37  | NestJS 12 (ESM natif), validation zod native (Standard Schema) sans `nestjs-zod`, Vitest au lieu de Jest                    | ✅ validé |
+| 38  | Preuve de MFA par le claim `amr` du jeton (pas seulement le rôle) ; messages de validation traduits côté API                | ✅ fait   |

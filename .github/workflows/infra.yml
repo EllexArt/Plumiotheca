@@ -1,17 +1,24 @@
 name: Infra
 
 # Démarre l'infrastructure de développement et vérifie Keycloak de bout en bout
-# (import du realm, connexion navigateur + PKCE, audience, MFA modération, e-mails).
+# (import du realm, connexion navigateur + PKCE, audience, MFA modération, e-mails),
+# avec l'API conteneurisée qui doit accepter les jetons obtenus dans le navigateur.
 on:
   pull_request:
     paths:
       - 'infra/**'
+      - 'apps/api/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
       - 'package.json'
       - '.github/workflows/infra.yml'
   push:
     branches: [main]
     paths:
       - 'infra/**'
+      - 'apps/api/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
       - 'package.json'
       - '.github/workflows/infra.yml'
 
@@ -46,8 +53,28 @@ jobs:
           docker compose -f infra/docker-compose.yml --env-file infra/.env up -d --wait
           node infra/scripts/garage-init.mjs
 
-      - name: Vérifier le realm Keycloak
+      # L'API lit les clés publiques par le réseau interne (keycloak:8080) mais attend
+      # l'émetteur vu par le navigateur (localhost:8080) : le cas d'un vrai déploiement.
+      - name: Démarrer l'API conteneurisée
+        run: |
+          docker build -f apps/api/Dockerfile -t plumiotheca-api:ci .
+          docker run -d --name plumiotheca-api --network plumiotheca_default \
+            -p 127.0.0.1:3000:3000 \
+            -e CORS_ORIGINS=http://localhost:5173 -e TRUST_PROXY=0 \
+            -e KEYCLOAK_ISSUER=http://localhost:8080/realms/plumiotheca \
+            -e KEYCLOAK_JWKS_URL=http://keycloak:8080/realms/plumiotheca/protocol/openid-connect/certs \
+            plumiotheca-api:ci
+          for i in $(seq 1 30); do curl -sf http://localhost:3000/api/health && exit 0; sleep 1; done
+          docker logs plumiotheca-api; exit 1
+
+      - name: Vérifier le realm Keycloak et l'API
+        env:
+          API_REQUIRED: '1'
         run: node infra/scripts/check-realm.mjs
+
+      # Libère le réseau de Compose avant le test de redémarrage.
+      - name: Arrêter l'API
+        run: docker rm -f plumiotheca-api
 
       - name: Les comptes survivent à un redémarrage
         run: |
@@ -65,3 +92,4 @@ jobs:
           if [ -f infra/.env ]; then
             docker compose -f infra/docker-compose.yml --env-file infra/.env logs --no-color --tail 200
           fi
+          docker logs plumiotheca-api 2>&1 | tail -100 || true

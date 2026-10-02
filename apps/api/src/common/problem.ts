@@ -29,6 +29,7 @@ const BY_STATUS: Record<number, { type: string; title: string }> = {
 };
 const CLIENT_ERROR = { type: 'erreur-client', title: 'Requête refusée' };
 const INTERNAL = { type: 'interne', title: 'Erreur interne, réessayez plus tard' };
+const UNAVAILABLE = { type: 'indisponible', title: 'Service momentanément indisponible' };
 
 /**
  * Erreur métier avec un message destiné à la personne (jamais de détail technique).
@@ -39,6 +40,8 @@ export class ApiProblem extends HttpException {
     status: HttpStatus,
     readonly detail: string,
     readonly problemType?: string,
+    /** En-têtes de réponse, ex. WWW-Authenticate pour un 401. */
+    readonly headers: Record<string, string> = {},
   ) {
     super(detail, status);
   }
@@ -101,7 +104,8 @@ export class ProblemFilter implements ExceptionFilter {
         ? exception.getStatus()
         : (bodyError ?? HttpStatus.INTERNAL_SERVER_ERROR);
 
-    if (status >= 500) {
+    // Les ApiProblem de 5xx sont journalisées là où elles naissent, avec leur cause.
+    if (status >= 500 && !(exception instanceof ApiProblem)) {
       this.logger.error({ err: exception }, 'Erreur non gérée');
     } else if ((req as { log?: unknown }).log === undefined) {
       // Requête rejetée avant le journal des requêtes (corps illisible ou trop volumineux) :
@@ -112,11 +116,13 @@ export class ProblemFilter implements ExceptionFilter {
       );
     }
 
-    const known = status < 500 ? (BY_STATUS[status] ?? CLIENT_ERROR) : INTERNAL;
+    const known =
+      status < 500 ? (BY_STATUS[status] ?? CLIENT_ERROR) : status === 503 ? UNAVAILABLE : INTERNAL;
     const body: Problem = { ...known, status };
     if (exception instanceof ApiProblem) {
       body.detail = exception.detail;
       if (exception.problemType) body.type = exception.problemType;
+      if (!res.headersSent) res.set(exception.headers);
     }
     if (exception instanceof ValidationFailed) {
       body.type = 'validation';
