@@ -4,58 +4,14 @@ A platform that allows you to read, write, and share about your favorite univers
 
 ## Installation
 
-### Prerequisites
-
-- Node.js (v20+)
-- Docker and Docker Compose
-
-### Local Setup
-
-1. Install dependencies:
-   ```bash
-   pnpm install
-   ```
-2. Run in development mode:
-   ```bash
-   pnpm dev
-   ```
-3. Build for production:
-   ```bash
-   pnpm build
-   ```
-
-## Docker
-
-You can run the entire stack (API + Keycloak) using Docker Compose:
+> Prototype Express en cours de réécriture (NestJS, jalon M1). Ne pas déployer.
 
 ```bash
-docker-compose up --build
+pnpm infra:setup && pnpm infra:up   # depuis la racine : base, Keycloak, etc. (voir infra/README.md)
+pnpm dev:api                        # lit apps/api/.env créé par infra:setup
 ```
 
-The API will be available at `http://localhost:3000`, Keycloak at `http://localhost:8080`, and PostgreSQL at `localhost:5433` (mapped from 5432).
-The realm `plumiotheca` is automatically created and configured on startup thanks to the import file in `./keycloak`.
-
-If port 3000 is already taken on your machine, set `API_PORT` before starting the stack — the
-container still listens on 3000 internally, only the published port changes:
-
-```bash
-API_PORT=3010 docker-compose up --build
-```
-
-Remember to point the frontend at the same port (`VITE_API_URL`).
-
-### Connection à la base de données (WebStorm / DBeaver / Client DB)
-
-Pour vous connecter à la base de données depuis un outil externe (comme l'onglet "Database" de WebStorm) :
-
-- **Host** : `localhost`
-- **Port** : `5433` (Attention : c'est le port exposé, pas le port interne 5432)
-- **User** : `plumiotheca`
-- **Password** : `plumiotheca`
-- **Database** : `plumiotheca`
-- **Type** : PostgreSQL
-
-Si vous utilisez WebStorm, n'oubliez pas de télécharger les drivers PostgreSQL s'il vous le demande lors de la création de la Data Source.
+Base de données (outils comme DBeaver ou WebStorm) : `localhost:5433`, base `plumiotheca`, utilisateur `plumiotheca`, mot de passe `POSTGRES_PASSWORD` dans `infra/.env`.
 
 ## Testing
 
@@ -136,14 +92,13 @@ The API uses a synchronization mechanism:
 - `CORS_ORIGINS`: Comma-separated list of origins allowed to call the API (default: `http://localhost:5000,http://localhost:5001,http://localhost:5002`, i.e. the three micro-frontends)
 - `KEYCLOAK_REALM`: Keycloak realm name (default: plumiotheca)
 - `KEYCLOAK_AUTH_SERVER_URL`: Keycloak URL (default: http://localhost:8080)
-- `KEYCLOAK_CLIENT_ID`: Keycloak client ID (default: plumiotheca-backend)
+- `KEYCLOAK_CLIENT_ID`: Keycloak client ID (`api`)
 - `DB_HOST`: Database host (default: localhost)
-- `DB_PORT`: Database port (default: 5432)
+- `DB_PORT`: Database port (`5433` avec l'infra de dev)
 - `DB_USERNAME`: Database username (default: plumiotheca)
 - `DB_PASSWORD`: Database password (default: plumiotheca)
 - `DB_NAME`: Database name (default: plumiotheca)
 
-### Default Keycloak Credentials (Docker)
+### Identifiants de développement
 
-- Admin: `admin`
-- Password: `admin`
+Tous générés aléatoirement par `pnpm infra:setup` dans `infra/.env` et `apps/api/.env` (jamais commités).

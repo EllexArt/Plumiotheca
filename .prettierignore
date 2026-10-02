@@ -2,4 +2,4 @@ dist
 coverage
 pnpm-lock.yaml
 apps/api/postman
-apps/api/keycloak
+infra/keycloak

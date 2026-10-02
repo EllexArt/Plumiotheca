@@ -41,3 +41,14 @@ updates:
       # Montée de version majeure de Node planifiée à part (LTS uniquement, voir l'issue dédiée).
       - dependency-name: node
         update-types: ['version-update:semver-major']
+
+  # Images de l'infrastructure de développement (infra/docker-compose.yml).
+  - package-ecosystem: docker-compose
+    directory: /infra
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      infra:
+        patterns: ['*']

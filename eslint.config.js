@@ -21,6 +21,12 @@ export default tseslint.config(
     languageOptions: { globals: { ...globals.node, ...globals.jest } },
   },
 
+  // Scripts Node (infrastructure, configuration)
+  {
+    files: ['infra/**/*.mjs', '*.js', '*.mjs'],
+    languageOptions: { globals: globals.node },
+  },
+
   // Application web (navigateur, React) : accessibilité vérifiée par jsx-a11y.
   {
     files: ['apps/web/**/*.{ts,tsx}'],

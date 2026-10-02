@@ -38,8 +38,9 @@ export class User {
   @Column({ unique: true })
   username!: string;
 
-  @Column()
-  email!: string;
+  // L'e-mail n'est plus transmis dans le jeton d'accès (minimisation) : facultatif ici.
+  @Column({ nullable: true })
+  email?: string;
 
   @Column({ nullable: true })
   displayName?: string;
