@@ -12,6 +12,11 @@ Une plateforme pour lire, écrire et partager des histoires et des univers : des
 Prérequis : Node 24 (`.nvmrc`), [Corepack](https://nodejs.org/api/corepack.html) activé (`corepack enable`), Docker pour l'infrastructure.
 
 ```bash
+pnpm infra:setup    # une fois : secrets de développement (infra/.env, apps/api/.env)
+pnpm infra:up       # Postgres, Keycloak, Meilisearch, Garage, Mailpit (voir infra/README.md)
+```
+
+```bash
 pnpm install        # installe tout le monorepo
 pnpm typecheck      # vérifie les types de toutes les applications
 pnpm test           # lance les tests
@@ -19,7 +24,7 @@ pnpm build          # construit toutes les applications
 pnpm lint           # lint, dont les règles d'accessibilité (jsx-a11y)
 pnpm format         # formate le code (Prettier)
 pnpm dev            # API et application web ensemble
-pnpm dev:api        # API seule (nécessite Postgres et Keycloak : voir apps/api/README.md)
+pnpm dev:api        # API seule (nécessite pnpm infra:up)
 pnpm dev:web        # application web
 ```
 

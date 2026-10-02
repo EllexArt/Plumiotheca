@@ -1,0 +1,52 @@
+name: Infra
+
+# Démarre l'infrastructure de développement et vérifie Keycloak de bout en bout
+# (import du realm, connexion navigateur + PKCE, audience, MFA modération, e-mails).
+on:
+  pull_request:
+    paths:
+      - 'infra/**'
+      - 'package.json'
+      - '.github/workflows/infra.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'infra/**'
+      - 'package.json'
+      - '.github/workflows/infra.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: infra-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  infra:
+    name: Infra (Keycloak, Postgres, Garage, Meilisearch, Mailpit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Secrets de développement aléatoires
+        run: node infra/scripts/setup.mjs
+
+      - name: Démarrer l'infrastructure
+        run: |
+          docker compose -f infra/docker-compose.yml --env-file infra/.env up -d --wait
+          node infra/scripts/garage-init.mjs
+
+      - name: Vérifier le realm Keycloak
+        run: node infra/scripts/check-realm.mjs
+
+      - name: Journaux en cas d'échec
+        if: failure()
+        run: docker compose -f infra/docker-compose.yml --env-file infra/.env logs --no-color --tail 200

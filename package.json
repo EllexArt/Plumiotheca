@@ -19,7 +19,12 @@
     "lint:fix": "eslint . --fix --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "simple-git-hooks"
+    "prepare": "simple-git-hooks",
+    "infra:setup": "node infra/scripts/setup.mjs",
+    "infra:up": "docker compose -f infra/docker-compose.yml --env-file infra/.env up -d --wait && node infra/scripts/garage-init.mjs",
+    "infra:down": "docker compose -f infra/docker-compose.yml --env-file infra/.env down",
+    "infra:logs": "docker compose -f infra/docker-compose.yml --env-file infra/.env logs -f",
+    "infra:reset": "docker compose -f infra/docker-compose.yml --env-file infra/.env down -v"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm exec lint-staged"

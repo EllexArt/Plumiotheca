@@ -1,0 +1,101 @@
+# Infrastructure de développement de Plumiotheca.
+# Démarrage : pnpm infra:setup (une fois), puis pnpm infra:up.
+# Tous les ports sont liés à 127.0.0.1 : rien n'est exposé sur le réseau local.
+name: plumiotheca
+
+services:
+  postgres:
+    image: postgres:18.6-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?à définir dans infra/.env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?à définir dans infra/.env}
+      POSTGRES_DB: ${POSTGRES_DB:?à définir dans infra/.env}
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?à définir dans infra/.env}
+    ports:
+      - '127.0.0.1:5433:5432'
+    volumes:
+      - postgres:/var/lib/postgresql
+      - ./postgres/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.0
+    command: ['start-dev', '--import-realm']
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      # Même émetteur (iss) vu du navigateur et de l'API : http://localhost:8080
+      KC_HOSTNAME: http://localhost:8080
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: 'true'
+      KC_HEALTH_ENABLED: 'true'
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME:?à définir dans infra/.env}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?à définir dans infra/.env}
+    ports:
+      - '127.0.0.1:8080:8080'
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    healthcheck:
+      # L'image ne contient pas curl : requête HTTP sur le port de gestion via bash.
+      test:
+        [
+          'CMD-SHELL',
+          "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q '\"UP\"' <&3",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.54.3
+    environment:
+      MEILI_ENV: development
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?à définir dans infra/.env}
+      MEILI_NO_ANALYTICS: 'true'
+    ports:
+      - '127.0.0.1:7700:7700'
+    volumes:
+      - meilisearch:/meili_data
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q --spider http://127.0.0.1:7700/health']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  garage:
+    # Stockage objet compatible S3 (couvertures, avatars, galerie). Remplace MinIO, archivé.
+    image: dxflrs/garage:v2.4.1
+    environment:
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:?à définir dans infra/.env}
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:?à définir dans infra/.env}
+    ports:
+      - '127.0.0.1:3900:3900'
+      - '127.0.0.1:3903:3903'
+    volumes:
+      - ./garage/garage.toml:/etc/garage.toml:ro
+      - garage-meta:/var/lib/garage/meta
+      - garage-data:/var/lib/garage/data
+
+  mailpit:
+    # Capture tous les e-mails envoyés en développement : http://localhost:8025
+    image: axllent/mailpit:v1.31.3
+    ports:
+      - '127.0.0.1:1025:1025'
+      - '127.0.0.1:8025:8025'
+
+volumes:
+  postgres:
+  meilisearch:
+  garage-meta:
+  garage-data:
