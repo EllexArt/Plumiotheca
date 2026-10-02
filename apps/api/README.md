@@ -11,15 +11,15 @@ A platform that allows you to read, write, and share about your favorite univers
 ### Local Setup
 1. Install dependencies:
    ```bash
-   yarn install
+   pnpm install
    ```
 2. Run in development mode:
    ```bash
-   yarn dev
+   pnpm dev
    ```
 3. Build for production:
    ```bash
-   yarn build
+   pnpm build
    ```
 
 ## Docker
@@ -60,7 +60,7 @@ Si vous utilisez WebStorm, n'oubliez pas de télécharger les drivers PostgreSQL
 The project uses Jest for unit testing.
 
 ```bash
-yarn test
+pnpm test
 ```
 
 ## Documentation API (Swagger)

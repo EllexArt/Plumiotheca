@@ -1,0 +1,17 @@
+{
+  "name": "plumiotheca",
+  "private": true,
+  "description": "Plateforme pour lire, écrire et partager des histoires et des univers.",
+  "license": "MIT",
+  "packageManager": "pnpm@12.8.1",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "test": "pnpm -r --if-present test",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "dev:api": "pnpm --filter @plumiotheca/api dev",
+    "dev:web": "pnpm --filter @plumiotheca/web dev-full"
+  }
+}

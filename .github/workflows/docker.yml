@@ -8,11 +8,19 @@ on:
   pull_request:
     paths:
       - "apps/api/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".dockerignore"
       - ".github/workflows/docker.yml"
   push:
     branches: [main]
     paths:
       - "apps/api/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".dockerignore"
       - ".github/workflows/docker.yml"
 
 permissions:
@@ -37,7 +45,8 @@ jobs:
       - name: Construire l'image (sans la publier)
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
-          context: apps/api
+          context: .
+          file: apps/api/Dockerfile
           push: false
           tags: plumiotheca-api:ci
           cache-from: type=gha

@@ -1,0 +1,15 @@
+**/node_modules
+**/dist
+**/coverage
+**/.env
+**/.env.*
+**/*.log
+.git
+.github
+.claude
+docs
+apps/web
+apps/api/tests
+apps/api/postman
+apps/api/keycloak
+apps/api/docker-compose.yml

@@ -1,0 +1,15 @@
+packages:
+  - apps/api
+  - apps/web
+  - apps/web/apps/*
+  - apps/web/libs/*
+
+# Scripts d'installation des dépendances : refusés par défaut (sécurité).
+# Seul esbuild (Vite) est autorisé. chromedriver (tiré par keycloak-connect)
+# et @scarf/scarf (télémétrie de swagger-ui) sont volontairement bloqués.
+allowBuilds:
+  esbuild: true
+  "@parcel/watcher": false
+  "@scarf/scarf": false
+  chromedriver: false
+  unrs-resolver: false

@@ -3,29 +3,18 @@ updates:
   # Le code de apps/ va être réécrit (jalons M0-M1) : peu de PR à la fois,
   # et un délai de 7 jours avant de proposer une nouvelle version
   # (les paquets compromis sont souvent retirés dans ce délai).
+  # Un seul lockfile pnpm à la racine pour tout le monorepo.
   - package-ecosystem: npm
-    directory: /apps/api
+    directory: /
     schedule:
       interval: weekly
       day: monday
     cooldown:
       default-days: 7
     groups:
-      api-mineures:
+      mineures:
         update-types: [minor, patch]
-    open-pull-requests-limit: 2
-
-  - package-ecosystem: npm
-    directory: /apps/web
-    schedule:
-      interval: weekly
-      day: monday
-    cooldown:
-      default-days: 7
-    groups:
-      web-mineures:
-        update-types: [minor, patch]
-    open-pull-requests-limit: 2
+    open-pull-requests-limit: 3
 
   # Met à jour les SHA des actions épinglées dans .github/workflows.
   - package-ecosystem: github-actions

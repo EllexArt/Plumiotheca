@@ -13,76 +13,61 @@ concurrency:
   # Annule les exécutions dépassées d'une PR, jamais celles de main.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-env:
-  NODE_VERSION: "24"
-
+# Les noms des jobs servent de vérifications obligatoires dans la protection de main :
+# ne pas les renommer sans mettre la protection à jour.
 jobs:
   api:
     name: API (build et tests)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: apps/api
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
 
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Activer Yarn (corepack)
-        run: corepack enable
-
-      - name: Récupérer le cache Yarn
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: ~/.cache/yarn
-          key: yarn-${{ runner.os }}-${{ hashFiles('apps/api/yarn.lock') }}
-          restore-keys: yarn-${{ runner.os }}-
+          node-version-file: .nvmrc
+          cache: pnpm
 
       - name: Installer les dépendances
-        run: yarn install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --filter @plumiotheca/api
 
-      - name: Compiler (vérifie aussi les types)
-        run: yarn build
+      - name: Vérifier les types
+        run: pnpm --filter @plumiotheca/api typecheck
+
+      - name: Compiler
+        run: pnpm --filter @plumiotheca/api build
 
       - name: Tests
-        run: yarn test --ci
+        run: pnpm --filter @plumiotheca/api test --ci
 
   web:
     name: Web (types et build)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: apps/web
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
 
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: apps/web/package-lock.json
+          node-version-file: .nvmrc
+          cache: pnpm
 
       - name: Installer les dépendances
-        run: npm ci
+        run: pnpm install --frozen-lockfile --filter "./apps/web/**"
 
       - name: Vérifier les types
-        run: |
-          for app in shell reader editor; do
-            echo "::group::tsc $app"
-            npx tsc -p "apps/$app/tsconfig.json" --noEmit
-            echo "::endgroup::"
-          done
+        run: pnpm --filter "./apps/web/apps/*" typecheck
 
       - name: Build
-        run: npm run build
+        run: pnpm --filter "./apps/web/apps/*" build
 
   dependances:
     name: Dépendances (vulnérabilités connues)

@@ -1,0 +1,26 @@
+# Dépendances et builds
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.pnpm-store/
+
+# Environnement et secrets
+.env
+.env.*
+!.env.example
+
+# Journaux
+*.log
+logs/
+
+# Éditeurs et systèmes
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+
+# Caches
+.cache/
+.eslintcache
