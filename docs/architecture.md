@@ -45,9 +45,9 @@ L'accessibilité fait partie de la définition de « terminé » de chaque issue
 
 Choix fondateurs, validés en octobre 2026 :
 
-- **Écrire anonymement est une valeur.** Inscription avec un e-mail et un pseudonyme ; aucune donnée d'identité civile, aucune vérification par pièce d'identité. Âge **déclaré**, **15 ans minimum**.
+- **Écrire anonymement est une valeur.** Inscription avec un e-mail et un pseudonyme ; aucune donnée d'identité civile, aucune vérification par pièce d'identité. Âge **déclaré**, **15 ans minimum**. On ne stocke qu'une **tranche déclarée** (« 15-17 » ou « 18+ »), jamais la date de naissance. Les 15-17 ans voient le contenu Mature avec ses avertissements (comme le young adult « pour lecteurs avertis » en édition) et peuvent l'exclure ; la tranche fermera l'accès à un futur classement Explicite.
 - **Aucune messagerie privée.** Tous les échanges ont lieu dans des espaces publics ou modérés : notes de lecture, notes de fin de chapitre, recommandations, retours de bêta-lecture. Cela supprime le principal canal de harcèlement et d'emprise, sans avoir à vérifier l'âge de qui que ce soit.
-- **Cercles d'entraide sans discussions** : petits groupes (taille limitée) pour la **bêta-lecture équitable** et les **défis**. Animatrices et animateurs, règles propres au cercle, création réservée aux comptes de plus de 14 jours.
+- **Cercles d'entraide sans discussions** : petits groupes (taille limitée) pour la **bêta-lecture équitable** et les **défis**. La bêta-lecture se fait **uniquement dans un cercle** : les retours sont visibles de tous ses membres et signalables à l'équipe, ce qui exclut tout échange privé de fait. Animatrices et animateurs, règles propres au cercle, création réservée aux comptes de plus de 14 jours.
 - **Abonnements** à des personnes et à des univers ; nouveautés dans « Mes lectures ». Pas de fil algorithmique.
 - **Profil** : pronoms, présentation, goûts de lecture ; visibilité réglable par section (public, abonnés, privé) et aperçu « comme un visiteur ».
 - **Galerie** : illustrations des autrices, fan arts (visibles dans la galerie de l'univers après validation de l'autrice), galeries d'artistes. **Description d'image obligatoire** (accessibilité). **Images générées par IA autorisées mais déclarées**, étiquetées et filtrables ; jamais présentées comme fan art.
@@ -59,6 +59,26 @@ Choix fondateurs, validés en octobre 2026 :
 1. **Prévention par conception** : pas de messages privés, pas de discussion libre, petits cercles, premiers messages et liens des nouveaux comptes relus, limites de fréquence, masquage automatique provisoire des données personnelles.
 2. **Animatrices de cercle** : signalements du cercle avec contexte, masquer un retour, rappel de règle, sourdine, exclusion, transmission à l'équipe, mise en pause du cercle.
 3. **Équipe Plumiotheca** : file triée par urgence (protection des mineurs et données personnelles d'abord, avec un rôle d'accès restreint), contexte et historique, décision avec **motif obligatoire tiré de la charte** communiqué à la personne, **appel** examiné par une autre personne, journal d'audit et rapport de transparence — conforme à l'esprit du **DSA**.
+
+## 1 quater. Données personnelles (protection dès la conception)
+
+À intégrer au modèle de données dès le jalon M1 (#13), pas en fin de projet.
+
+| Donnée | Pourquoi | Durée de conservation |
+|---|---|---|
+| E-mail | connexion, récupération du compte, notifications choisies | durée du compte |
+| Pseudonyme, profil, pronoms | affichage public choisi par la personne | durée du compte |
+| Tranche d'âge déclarée | protection des mineurs | durée du compte |
+| Contenus (histoires, notes, images, fiches) | service | durée du compte, puis selon le choix de suppression |
+| Journaux techniques | sécurité, débogage | 30 jours, **sans e-mail ni contenu** (masquage automatique) |
+| Décisions de modération | DSA, appels | 3 ans, rattachées à un identifiant interne |
+| Comptage des lectures anonymes | statistiques | hachage effacé chaque jour |
+
+- **Suppression de compte** : au moment de supprimer, la personne **choisit** entre tout effacer ou anonymiser ses contributions (notes, fiches d'univers collaboratifs, fan arts offerts) sous la mention « compte supprimé ». Ses histoires et images sont supprimées dans les deux cas. Délai d'exécution : 30 jours maximum ; export de ses données proposé avant.
+- **Pseudonymes** : un ancien pseudonyme n'est réattribuable qu'après 90 jours (anti-usurpation).
+- **Images** : métadonnées (dont la géolocalisation) **toujours supprimées** par ré-encodage côté serveur, pour ne jamais révéler qui se cache derrière un pseudonyme.
+- **Sous-traitants** : hébergement, sauvegardes, e-mail et suivi d'erreurs dans l'Union européenne ; liste tenue à jour dans la politique de confidentialité.
+- Aucun outil de mesure d'audience tiers, aucun traceur publicitaire.
 
 ## 2. Vue d'ensemble
 
@@ -112,7 +132,7 @@ Plumiotheca/
 | `chapters` | Chapitres, ordre, version publiée vs brouillon, révisions. |
 | `universes` | Univers partagés entre histoires : fiches personnages, lieux, chronologie, notes. Gère les membres et le mode d'ouverture (voir §5 bis). |
 | `reading` | Bibliothèque, listes de lecture, progression (chapitre + position), réglages de lecture synchronisés. |
-| `social` | Abonnements (personnes, univers), « J'ai aimé », recommandations, notes par passage et de fin de chapitre. **Pas de messagerie privée.** |
+| `social` | Abonnements (personnes, univers), « J'ai aimé » (compteur privé, visible de l'autrice), recommandations, notes par passage et de fin de chapitre. **Pas de messagerie privée.** |
 | `notifications` | Nouveau chapitre, réponse à un commentaire, nouvel abonné. |
 | `moderation` | Signalements, blocages, file par urgence, décisions motivées, appels, journal, rapport de transparence. |
 | `circles` | Cercles d'entraide : annuaire, adhésion, rôles d'animation, bêta-lecture équitable, défis, outils d'animation. |
@@ -128,9 +148,14 @@ Plumiotheca/
 - **Sérialisation** : chaque sortie a un schéma « public ». Aucune entité TypeORM n'est renvoyée telle quelle.
 - **Autorisation** : vérification de la propriété dans un guard / une policy, pas dans chaque route.
 - **Erreurs** : filtre global → format d'erreur unique, jamais de détails internes au client.
+- **Sécurité HTTP dès le squelette** : Helmet, politique CSP stricte (le contenu TipTap est rendu sans HTML arbitraire), CORS restreint, limitation de débit globale et par route sensible. L'audit OWASP reste en M6, pas la mise en place.
+- **Comptes** : e-mail vérifié, protection contre la force brute et politique de mot de passe côté Keycloak, MFA obligatoire pour les rôles de modération.
+- **Écriture concurrente** : chaque brouillon porte un numéro de version ; une sauvegarde sur une version dépassée renvoie 409 et l'éditeur propose de fusionner ou de comparer (aucune perte silencieuse entre co-autrices).
+- **Tâches en arrière-plan** : file de tâches **pg-boss** (dans PostgreSQL, pas de Redis) pour l'indexation Meilisearch, le traitement des images, les e-mails groupés, la compaction des révisions et les suppressions de compte.
+- **Médias** : téléversement vers un espace temporaire, puis traitement asynchrone (vérification du type réel, refus des SVG, ré-encodage WebP/AVIF qui supprime les métadonnées) avant publication ; servis depuis un domaine séparé. Avatars et couvertures n'acceptent que des médias internes, jamais une URL externe.
 - **Pagination** par curseur sur toutes les listes.
 - **Migrations TypeORM** versionnées ; `synchronize` désactivé partout.
-- **Comptage des vues** : une lecture unique par utilisateur (ou empreinte anonyme) et par fenêtre de temps.
+- **Comptage des lectures** : une lecture unique par compte connecté et par fenêtre de temps ; pour les visiteurs non connectés, un hachage quotidien salé (adresse + jour) jamais conservé au-delà de la journée. Aucune empreinte de navigateur (traceur au sens de la CNIL).
 - **OpenAPI** générée depuis les contrats et publiée à chaque build.
 
 ### Authentification
@@ -177,11 +202,11 @@ Pensée pour les lectrices et lecteurs de fanfiction (référence : AO3).
 **Métadonnées structurées d'une histoire**
 - Univers (ou « histoire originale »), **personnages** et **relations** sont des entités, pas du texte libre. Les personnages sont ceux des fiches de l'univers.
 - Relation = ensemble de personnages + type : **romantique `/`** ou **platonique / familiale `&`**.
-- Classement : Tout public, Ado, Mature, Explicite.
+- Classement : Tout public, Ado, Mature (Explicite reporté, décision 22).
 - Statut (en cours / terminée), langue, nombre de mots, nombre de chapitres (publiés / prévus).
 
 **Avertissements : modèle mixte**
-- Avertissements **majeurs obligatoires** à renseigner : mort de personnage, violence explicite, non-consentement, contenu sexuel impliquant des mineurs (interdit, donc refusé), ou « je préfère ne pas préciser ».
+- Avertissements **majeurs obligatoires** à renseigner : mort de personnage, violence explicite, non-consentement, ou « je préfère ne pas préciser ». Le contenu sexuel impliquant des personnages mineurs n'est **pas** un avertissement : il est interdit par la charte (#37) et relève de la modération urgente.
 - Liste **fine et facultative** : deuil, automutilation, troubles alimentaires, etc.
 - Les lecteurs excluent par recherche ou de façon permanente (« Mes limites »). « Non précisé » est excluable comme un avertissement.
 
@@ -191,7 +216,9 @@ Pensée pour les lectrices et lecteurs de fanfiction (référence : AO3).
 - Les **jardiniers des tags** (rôle bénévole) fusionnent, renomment et rattachent, avec un journal des opérations. La recherche porte toujours sur le tag canonique.
 
 **Moteur**
-- **Meilisearch** auto-hébergé : facettes avec comptes, inclusion et exclusion, tolérance aux fautes, accents. PostgreSQL reste la source de vérité ; un indexeur synchronise à chaque changement.
+- **Meilisearch** auto-hébergé, interrogé **via l'API** (jamais de clé maître côté navigateur) ; seuls les contenus publiés et publics sont indexés.
+- **Fandoms d'œuvres publiées** : entité « fandom » **sans propriétaire** (ex. une saga littéraire), avec ses personnages, gérée par les jardiniers des tags ; distincte des univers originaux, qui appartiennent à leurs autrices.
+- Moteur : facettes avec comptes, inclusion et exclusion, tolérance aux fautes, accents. PostgreSQL reste la source de vérité ; un indexeur synchronise à chaque changement.
 - Saisie intelligente : la barre reconnaît personnages, relations (`Ilse/Tomas`, `Ilse & Tomas`), tags et exclusions (`-angst`) et les transforme en filtres.
 - Recherches enregistrées et alertes « nouvelle histoire correspondant à ma recherche ».
 
@@ -204,7 +231,7 @@ Pensée pour les lectrices et lecteurs de fanfiction (référence : AO3).
 | Routage | React Router (mode framework / data) avec chargement paresseux par route |
 | Données serveur | TanStack Query + client généré depuis `packages/contracts` |
 | Éditeur | TipTap (extensions : identifiants de blocs, compteur, focus, commentaires) |
-| Styles | CSS Modules + variables CSS (design tokens) ; thèmes clair / sombre / sépia |
+| Styles | CSS Modules + variables CSS (design tokens) ; ambiances Lueur, Bougie, Indigo et lune, Encre et rouille, chacune en clair et en sombre (#77) |
 | Composants accessibles | Radix UI (primitives sans style) |
 | Formulaires | React Hook Form + zod (mêmes schémas que l'API) |
 | Auth | `react-oidc-context` |
@@ -278,3 +305,11 @@ Le code actuel est petit : on **reconstruit au bon endroit** plutôt que de tout
 | 21 | Galerie avec fan arts validés par l'autrice ; images IA autorisées mais déclarées et filtrables | ✅ validé |
 | 22 | Classement maximum « Mature » au lancement ; « Explicite » reporté (preuve de majorité anonyme + avis juridique) | ✅ validé |
 | 23 | Modération à trois niveaux (conception, animatrices, équipe) avec décisions motivées et appel | ✅ validé |
+| 24 | Tranche d'âge déclarée (15-17 / 18+) ; Mature visible des 15-17 ans avec avertissements | ✅ validé |
+| 25 | Bêta-lecture uniquement dans les cercles, retours visibles du cercle et signalables | ✅ validé |
+| 26 | Suppression de compte : choix entre effacement et anonymisation des contributions | ✅ validé |
+| 27 | « J'ai aimé » : compteur privé, visible de l'autrice | ✅ validé |
+| 28 | Fandoms d'œuvres publiées : entité sans propriétaire gérée par les jardiniers des tags | ✅ validé |
+| 29 | Données personnelles conçues dès M1 (inventaire, durées, journaux sans données personnelles, images sans métadonnées) | ✅ validé |
+| 30 | File de tâches pg-boss ; sécurité HTTP, limitation de débit et durcissement des comptes dès le squelette | proposé |
+| 31 | Pas de bêta publique avant M6 ; aucune image Docker publiée avant la réécriture de l'API | ✅ validé |
