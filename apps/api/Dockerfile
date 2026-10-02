@@ -1,4 +1,4 @@
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
@@ -8,14 +8,17 @@ RUN yarn install --frozen-lockfile
 COPY . .
 RUN yarn build
 
-FROM node:20-alpine
+FROM node:24-alpine
 
+ENV NODE_ENV=production
 WORKDIR /app
 
 COPY --from=builder /app/package.json /app/yarn.lock ./
-RUN yarn install --production --frozen-lockfile
+RUN yarn install --production --frozen-lockfile && yarn cache clean
 
 COPY --from=builder /app/dist ./dist
+
+USER node
 
 EXPOSE 3000
 
