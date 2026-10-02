@@ -28,17 +28,28 @@ if (/NO ROLE ASSIGNED/.test(status)) {
   const nodeId = status.match(/^([0-9a-f]{16})\s/m)?.[1];
   if (!nodeId) throw new Error(`Identifiant de nœud Garage introuvable :\n${status}`);
   garage('layout', 'assign', '-z', 'dev', '-c', '1G', nodeId);
-  garage('layout', 'apply', '--version', '1');
+  const current = Number(
+    garage('layout', 'show').match(/Current cluster layout version:\s*(\d+)/)?.[1] ?? 0,
+  );
+  garage('layout', 'apply', '--version', String(current + 1));
   console.log('✓ Disposition Garage appliquée');
 }
 
-if (!garage('bucket', 'list').includes(BUCKET)) {
+// Noms comparés exactement (colonne d'alias ou de nom), jamais par sous-chaîne.
+const columns = (text) =>
+  text
+    .split('\n')
+    .slice(1)
+    .map((line) => line.trim().split(/\s{2,}/));
+const bucketExists = columns(garage('bucket', 'list')).some((cols) => cols[2] === BUCKET);
+if (!bucketExists) {
   garage('bucket', 'create', BUCKET);
   console.log(`✓ Bucket « ${BUCKET} » créé`);
 }
 
 let keyInfo;
-if (garage('key', 'list').includes(KEY_NAME)) {
+const keyExists = columns(garage('key', 'list')).some((cols) => cols[2] === KEY_NAME);
+if (keyExists) {
   keyInfo = garage('key', 'info', '--show-secret', KEY_NAME);
 } else {
   keyInfo = garage('key', 'create', KEY_NAME);

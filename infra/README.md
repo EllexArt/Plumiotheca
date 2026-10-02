@@ -16,6 +16,7 @@ Tous les ports sont liés à `127.0.0.1` : rien n'est exposé sur le réseau loc
 pnpm infra:setup   # une fois : crée infra/.env et apps/api/.env avec des secrets aléatoires
 pnpm infra:up      # démarre tout, attend que chaque service soit prêt, initialise Garage
 node infra/scripts/check-realm.mjs   # vérifie Keycloak de bout en bout
+pnpm infra:seed    # comptes de démonstration (mot de passe : DEMO_PASSWORD dans infra/.env)
 ```
 
 Autres commandes : `pnpm infra:logs`, `pnpm infra:down` (arrête), `pnpm infra:reset` (arrête **et efface les données**).
@@ -29,12 +30,16 @@ Le realm `infra/keycloak/realm-plumiotheca.json` est **généré, jamais écrit 
 Choix de configuration :
 
 - inscription ouverte, **e-mail vérifié**, connexion par e-mail ou nom d'utilisateur ;
-- le nom d'utilisateur n'est jamais l'e-mail ; **ni prénom ni nom** dans le profil (pseudonymat, minimisation) ;
+- le nom d'utilisateur ne peut pas contenir d'adresse e-mail (lettres, chiffres, `.`, `-`, `_`) ; **ni prénom ni nom** dans le profil (pseudonymat, minimisation) ;
+- l'e-mail n'est **pas** dans le jeton d'accès ; aucun jeton hors ligne pour le client `web` ;
 - protection contre les essais de mots de passe répétés ; mots de passe de 10 caractères minimum ;
 - client `web` : public, code d'autorisation + **PKCE obligatoire**, pas de mot de passe direct ;
 - client `api` : cible d'audience des jetons, sans flux de connexion ;
-- rôles `moderation`, `administration` (**double authentification obligatoire**) et `jardinage-tags` ;
+- rôles `moderation`, `administration` (**double authentification obligatoire**, un seul code demandé) et `jardinage-tags` ;
+- `admin-cli` du realm sans connexion par mot de passe direct (l'administration passe par le realm `master`) ;
 - français par défaut ; e-mails envoyés vers Mailpit.
+
+> ⚠️ Keycloak n'importe le realm **que s'il n'existe pas encore**. Après un `git pull` qui modifie `realm-plumiotheca.json`, lancer `pnpm infra:reset && pnpm infra:up` (efface les comptes locaux).
 
 Pour modifier le realm : changer `keycloak-realm.mjs`, puis
 `pnpm infra:reset`, retirer temporairement le JSON de `infra/keycloak/`, `pnpm infra:up`,

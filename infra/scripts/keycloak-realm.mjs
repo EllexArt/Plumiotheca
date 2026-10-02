@@ -66,6 +66,17 @@ await kc.put(R, {
 //        minimisation des données). Seuls le nom d'utilisateur et l'e-mail existent.
 const profile = await kc.get(`${R}/users/profile`);
 profile.attributes = profile.attributes.filter((a) => !['firstName', 'lastName'].includes(a.name));
+// Le nom d'utilisateur ne peut pas être une adresse e-mail (ni contenir @) : il apparaît
+// dans les jetons (preferred_username) et ne doit jamais révéler l'adresse.
+const username = profile.attributes.find((a) => a.name === 'username');
+username.validations = {
+  ...username.validations,
+  pattern: {
+    pattern: '^[\\p{L}\\p{N}._-]+$',
+    'error-message':
+      'Lettres, chiffres, point, tiret et tiret bas uniquement (pas d’adresse e-mail).',
+  },
+};
 await kc.put(`${R}/users/profile`, profile);
 
 // 2. Rôles de la plateforme.
@@ -157,6 +168,11 @@ for (const role of ['moderation', 'administration']) {
     await kc.post(`${R}/authentication/flows/${enc(alias)}/executions/execution`, {
       provider: 'conditional-user-role',
     });
+    // Saute l'étape si un code TOTP a déjà été saisi pendant cette connexion
+    // (sinon un modérateur déjà équipé devrait saisir deux codes).
+    await kc.post(`${R}/authentication/flows/${enc(alias)}/executions/execution`, {
+      provider: 'conditional-credential',
+    });
     await kc.post(`${R}/authentication/flows/${enc(alias)}/executions/execution`, {
       provider: 'auth-otp-form',
     });
@@ -172,12 +188,39 @@ for (const role of ['moderation', 'administration']) {
       alias: `role-${role}`,
       config: { condUserRole: role, negate: 'false' },
     });
+    const credCond = inner.find((e) => e.providerId === 'conditional-credential');
+    await kc.post(`${R}/authentication/executions/${credCond.id}/config`, {
+      alias: `otp-pas-encore-saisi-${role}`,
+      config: { credentials: 'otp', included: 'false' },
+    });
     execs = await kc.get(`${R}/authentication/flows/${enc(FLOW)}/executions`);
   }
 }
 await kc.put(R, { browserFlow: FLOW });
 
-// 6. Export (sans utilisateurs ni secrets) vers le fichier importé au démarrage.
+// 6. Fermer les accès qui contourneraient la MFA ou dureraient trop longtemps.
+const clients = await kc.get(`${R}/clients`);
+const byId = (clientId) => clients.find((c) => c.clientId === clientId);
+//    admin-cli de ce realm : pas de mot de passe direct (l'administration passe par « master »).
+await kc.put(`${R}/clients/${byId('admin-cli').id}`, {
+  ...byId('admin-cli'),
+  directAccessGrantsEnabled: false,
+});
+//    Pas de jeton hors ligne (quasi permanent) pour une application dans le navigateur.
+const scopes = await kc.get(`${R}/client-scopes`);
+const scopeId = (name) => scopes.find((sc) => sc.name === name).id;
+const web = byId('web');
+await kc.del(`${R}/clients/${web.id}/optional-client-scopes/${scopeId('offline_access')}`);
+const defaultRoles = await kc.get(`${R}/roles/default-roles-${REALM}/composites/realm`);
+const offline = defaultRoles.filter((r) => r.name === 'offline_access');
+if (offline.length) {
+  await kc.del(`${R}/roles/default-roles-${REALM}/composites`, offline);
+}
+//    L'e-mail ne circule pas dans chaque jeton d'accès (journaux sans données personnelles).
+await kc.del(`${R}/clients/${web.id}/default-client-scopes/${scopeId('email')}`);
+await kc.put(`${R}/clients/${web.id}/optional-client-scopes/${scopeId('email')}`);
+
+// 7. Export (sans utilisateurs ni secrets) vers le fichier importé au démarrage.
 const exported = await kc.post(`${R}/partial-export?exportClients=true&exportGroupsAndRoles=true`);
 delete exported.id;
 const out = join(root, 'infra', 'keycloak', 'realm-plumiotheca.json');

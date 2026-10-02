@@ -86,6 +86,11 @@ services:
       - ./garage/garage.toml:/etc/garage.toml:ro
       - garage-meta:/var/lib/garage/meta
       - garage-data:/var/lib/garage/data
+    healthcheck:
+      test: ['CMD', '/garage', 'status']
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   mailpit:
     # Capture tous les e-mails envoyés en développement : http://localhost:8025

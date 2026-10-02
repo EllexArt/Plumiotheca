@@ -94,7 +94,7 @@ Choix fondateurs, validés en octobre 2026 :
                 ┌──────▼─────┐  ┌─────▼─────────┐               │
                 │ PostgreSQL │  │ Stockage S3   │               │
                 │ (app + KC) │◀─┼───────────────┼───────────────┘
-                └────────────┘  │ (MinIO en dev)│ couvertures, avatars
+                └────────────┘  │ (Garage en dev)│ couvertures, avatars
                                 └───────────────┘
 ```
 
@@ -109,7 +109,7 @@ Plumiotheca/
 │   ├── contracts/           Schémas zod partagés (entrées/sorties de l'API) + types TS
 │   └── editor-schema/       Schéma TipTap partagé (rendu côté web, validation côté API)
 ├── infra/
-│   ├── docker-compose.yml   Postgres, Keycloak, Meilisearch, MinIO, Mailpit pour le dev
+│   ├── docker-compose.yml   Postgres, Keycloak, Meilisearch, Garage, Mailpit pour le dev
 │   └── keycloak/            Realm versionné (export valide)
 ├── docs/                    Architecture, décisions (ADR), maquettes
 └── .github/workflows/       CI
@@ -292,7 +292,7 @@ Le code actuel est petit : on **reconstruit au bon endroit** plutôt que de tout
 | 4   | Éditeur TipTap, contenu stocké en JSON ProseMirror                                                                    | ✅ validé |
 | 5   | pnpm workspaces + `packages/contracts` (zod partagé)                                                                  | ✅ validé |
 | 6   | Keycloak conservé, validation JWT par JWKS, PKCE côté web                                                             | ✅ validé |
-| 7   | Stockage S3 (MinIO en dev) pour les images                                                                            | proposé   |
+| 7   | Stockage S3 : Garage (MinIO archivé) pour les images                                                                  | ✅ validé |
 | 8   | CSS Modules + tokens + Radix (pas de Tailwind)                                                                        | ✅ validé |
 | 9   | Univers : solo, collaboratif, ouvert sur invitation, fanfictions — au choix du propriétaire                           | ✅ validé |
 | 10  | Identité « Lampe de chevet », palette Lueur + 3 ambiances au choix                                                    | ✅ validé |

@@ -49,6 +49,19 @@ jobs:
       - name: Vérifier le realm Keycloak
         run: node infra/scripts/check-realm.mjs
 
+      - name: Les comptes survivent à un redémarrage
+        run: |
+          node infra/scripts/check-persistence.mjs ecrire
+          docker compose -f infra/docker-compose.yml --env-file infra/.env down
+          docker compose -f infra/docker-compose.yml --env-file infra/.env up -d --wait
+          node infra/scripts/check-persistence.mjs lire
+
+      - name: Comptes de démonstration
+        run: node infra/scripts/seed-dev.mjs
+
       - name: Journaux en cas d'échec
         if: failure()
-        run: docker compose -f infra/docker-compose.yml --env-file infra/.env logs --no-color --tail 200
+        run: |
+          if [ -f infra/.env ]; then
+            docker compose -f infra/docker-compose.yml --env-file infra/.env logs --no-color --tail 200
+          fi
