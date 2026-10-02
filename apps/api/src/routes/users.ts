@@ -24,11 +24,11 @@ const router = express.Router();
  */
 // GET current user profile
 router.get('/profile', async (req: any, res: Response) => {
-    if (!req.user) {
-        res.status(401).json({ message: 'Unauthorized' });
-        return;
-    }
-    res.json(req.user);
+  if (!req.user) {
+    res.status(401).json({ message: 'Unauthorized' });
+    return;
+  }
+  res.json(req.user);
 });
 
 /**
@@ -65,18 +65,18 @@ router.get('/profile', async (req: any, res: Response) => {
  */
 // UPDATE current user profile
 router.patch('/profile', async (req: any, res: Response) => {
-    if (!req.user) {
-        res.status(401).json({ message: 'Unauthorized' });
-        return;
-    }
+  if (!req.user) {
+    res.status(401).json({ message: 'Unauthorized' });
+    return;
+  }
 
-    try {
-        const { displayName, bio, avatarUrl } = req.body;
-        const updatedUser = await UserService.updateProfile(req.user, { displayName, bio, avatarUrl });
-        res.json(updatedUser);
-    } catch (error) {
-        res.status(500).json({ message: 'Error updating profile', error });
-    }
+  try {
+    const { displayName, bio, avatarUrl } = req.body;
+    const updatedUser = await UserService.updateProfile(req.user, { displayName, bio, avatarUrl });
+    res.json(updatedUser);
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating profile', error });
+  }
 });
 
 /**
@@ -104,16 +104,16 @@ router.patch('/profile', async (req: any, res: Response) => {
  */
 // GET profile by username (public)
 router.get('/:username', async (req: any, res: Response) => {
-    try {
-        const user = await UserService.getUserByUsername(req.params.username);
-        if (!user) {
-            res.status(404).json({ message: 'User not found' });
-            return;
-        }
-        res.json(user);
-    } catch (error) {
-        res.status(500).json({ message: 'Error fetching user', error });
+  try {
+    const user = await UserService.getUserByUsername(req.params.username);
+    if (!user) {
+      res.status(404).json({ message: 'User not found' });
+      return;
     }
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching user', error });
+  }
 });
 
 export default router;

@@ -16,15 +16,15 @@ const USE_KEYCLOAK = import.meta.env.VITE_ENABLE_KEYCLOAK === 'true';
 const demoKeycloak = {
   tokenParsed: { preferred_username: 'DemoUser' },
   authenticated: false,
-  logout: () => alert('Logout clicked')
+  logout: () => alert('Logout clicked'),
 };
 
 const renderDemo = () => {
   root.render(
     <React.StrictMode>
-      {/* @ts-ignore - Mock keycloak for demo */}
+      {/* @ts-expect-error -- faux Keycloak du mode démo */}
       <App keycloak={demoKeycloak} api={createApi(() => undefined)} isAuthenticated={false} />
-    </React.StrictMode>
+    </React.StrictMode>,
   );
 };
 
@@ -42,7 +42,7 @@ if (!USE_KEYCLOAK) {
             api={createApi(() => keycloak.token)}
             isAuthenticated={authenticated}
           />
-        </React.StrictMode>
+        </React.StrictMode>,
       );
     })
     .catch((err) => {

@@ -32,8 +32,8 @@ class RemoteErrorBoundary extends React.Component<Props, State> {
       <div style={{ padding: '20px', border: '2px solid #e74c3c', borderRadius: '8px' }}>
         <h2>Module « {this.props.name} » indisponible</h2>
         <p>
-          Le micro-frontend n'a pas pu être chargé. Vérifiez qu'il est bien démarré, puis
-          rechargez la page.
+          Le micro-frontend n'a pas pu être chargé. Vérifiez qu'il est bien démarré, puis rechargez
+          la page.
         </p>
         <p style={{ color: '#7f8c8d' }}>{error.message}</p>
       </div>

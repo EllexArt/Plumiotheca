@@ -3,7 +3,7 @@ services:
     build: .
     # Port hote configurable pour cohabiter avec d'autres stacks locales (defaut: 3000).
     ports:
-      - "${API_PORT:-3000}:3000"
+      - '${API_PORT:-3000}:3000'
     environment:
       - PORT=3000
       - KEYCLOAK_AUTH_SERVER_URL=http://keycloak:8080
@@ -25,7 +25,7 @@ services:
       - POSTGRES_PASSWORD=plumiotheca
       - POSTGRES_DB=plumiotheca
     ports:
-      - "5433:5432"
+      - '5433:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -37,7 +37,7 @@ services:
       - KEYCLOAK_ADMIN_PASSWORD=admin
       - KC_HOSTNAME_STRICT=false
     ports:
-      - "8080:8080"
+      - '8080:8080'
     volumes:
       - ./keycloak:/opt/keycloak/data/import/
 

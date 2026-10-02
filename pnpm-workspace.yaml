@@ -9,7 +9,9 @@ packages:
 # et @scarf/scarf (télémétrie de swagger-ui) sont volontairement bloqués.
 allowBuilds:
   esbuild: true
-  "@parcel/watcher": false
-  "@scarf/scarf": false
+  '@parcel/watcher': false
+  '@scarf/scarf': false
   chromedriver: false
   unrs-resolver: false
+  # Les hooks Git sont installés par le script « prepare » de la racine.
+  simple-git-hooks: false

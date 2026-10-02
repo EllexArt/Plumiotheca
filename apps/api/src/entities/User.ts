@@ -1,4 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from "typeorm";
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
 /**
  * @openapi
@@ -23,30 +29,30 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
  */
 @Entity()
 export class User {
-    @PrimaryGeneratedColumn()
-    id!: number;
+  @PrimaryGeneratedColumn()
+  id!: number;
 
-    @Column({ unique: true })
-    keycloakId!: string; // The 'sub' field from Keycloak token
+  @Column({ unique: true })
+  keycloakId!: string; // The 'sub' field from Keycloak token
 
-    @Column({ unique: true })
-    username!: string;
+  @Column({ unique: true })
+  username!: string;
 
-    @Column()
-    email!: string;
+  @Column()
+  email!: string;
 
-    @Column({ nullable: true })
-    displayName?: string;
+  @Column({ nullable: true })
+  displayName?: string;
 
-    @Column({ type: "text", nullable: true })
-    bio?: string;
+  @Column({ type: 'text', nullable: true })
+  bio?: string;
 
-    @Column({ nullable: true })
-    avatarUrl?: string;
+  @Column({ nullable: true })
+  avatarUrl?: string;
 
-    @CreateDateColumn()
-    createdAt!: Date;
+  @CreateDateColumn()
+  createdAt!: Date;
 
-    @UpdateDateColumn()
-    updatedAt!: Date;
+  @UpdateDateColumn()
+  updatedAt!: Date;
 }

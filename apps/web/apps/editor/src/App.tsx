@@ -11,7 +11,7 @@ interface AppProps {
 const cardStyle: React.CSSProperties = {
   padding: '20px',
   border: '2px solid #3498db',
-  borderRadius: '8px'
+  borderRadius: '8px',
 };
 
 const fieldStyle: React.CSSProperties = { padding: '8px' };
@@ -19,9 +19,8 @@ const fieldStyle: React.CSSProperties = { padding: '8px' };
 const App: React.FC<AppProps> = ({ api, isAuthenticated = false }) => {
   const client = useMemo(
     () =>
-      api ??
-      createApiClient({ baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:3000' }),
-    [api]
+      api ?? createApiClient({ baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:3000' }),
+    [api],
   );
 
   const [title, setTitle] = useState('');
@@ -57,27 +56,27 @@ const App: React.FC<AppProps> = ({ api, isAuthenticated = false }) => {
         tags: tags
           .split(',')
           .map((tag) => tag.trim())
-          .filter((tag) => tag.length > 0)
+          .filter((tag) => tag.length > 0),
       });
 
       if (content.trim()) {
         await client.stories.createChapter(story.id, {
           title: chapterTitle.trim() || 'Chapitre 1',
           content: content.trim(),
-          order: 1
+          order: 1,
         });
       }
 
       setSuccess(
         `« ${story.title} » enregistrée (#${story.id})` +
-          (status === 'published' ? ' et publiée.' : ' en brouillon.')
+          (status === 'published' ? ' et publiée.' : ' en brouillon.'),
       );
       resetForm();
     } catch (err) {
       setError(
         isUnauthorizedError(err)
           ? 'Vous devez être connecté pour publier une histoire.'
-          : getErrorMessage(err)
+          : getErrorMessage(err),
       );
     } finally {
       setSubmitting(false);
@@ -152,7 +151,7 @@ const App: React.FC<AppProps> = ({ api, isAuthenticated = false }) => {
             color: 'white',
             border: 'none',
             borderRadius: '4px',
-            cursor: submitting ? 'default' : 'pointer'
+            cursor: submitting ? 'default' : 'pointer',
           }}
         >
           {submitting ? 'Enregistrement…' : 'Publier'}

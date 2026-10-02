@@ -17,7 +17,8 @@ Principes non négociables du projet : écriture pseudonyme, données minimales,
 ## Grille de revue
 
 **1. Sécurité**
-- Authentification et autorisation : chaque route protégée vérifie l'identité *et* la propriété ; pas d'écrasement d'objets d'autrui ; liste blanche des champs acceptés.
+
+- Authentification et autorisation : chaque route protégée vérifie l'identité _et_ la propriété ; pas d'écrasement d'objets d'autrui ; liste blanche des champs acceptés.
 - Fuites de données : jamais d'e-mail, d'identifiant Keycloak ou de donnée privée dans une réponse publique ; brouillons invisibles du public.
 - Entrées : validation, injection (SQL, HTML/XSS via le contenu des histoires), téléversements (type, taille), pagination.
 - Secrets : rien en dur dans le code, les workflows ou les images Docker.
@@ -25,6 +26,7 @@ Principes non négociables du projet : écriture pseudonyme, données minimales,
 - Conformité : RGPD (minimisation, suppression), DSA (motifs, appel), protection des mineurs, droits d'auteur des images.
 
 **2. Bonnes pratiques**
+
 - TypeScript strict, gestion d'erreurs sans fuite d'informations internes, logs utiles.
 - Tests : présents, pertinents, qui échoueraient si le code était faux.
 - Lisibilité, cohérence avec le code voisin, conventions (commits conventionnels, structure du monorepo).
@@ -32,11 +34,13 @@ Principes non négociables du projet : écriture pseudonyme, données minimales,
 - Accessibilité pour tout ce qui touche l'interface.
 
 **3. Logique fonctionnelle**
+
 - Le changement fait-il ce que l'issue ou la décision demande ? Cas limites oubliés ?
 - Cohérence entre architecture, backlog, maquettes et décisions : contradictions, trous, fonctionnalités orphelines.
 - Effets sur la sécurité de la communauté (harcèlement, contournement des règles, mineurs).
 
 **4. Logique technique**
+
 - Choix d'architecture adaptés à une petite équipe ; dette créée ; ordre de réalisation et dépendances entre issues.
 - Risques de performance, de coût, d'exploitation.
 

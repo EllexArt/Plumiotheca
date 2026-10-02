@@ -16,15 +16,19 @@ pnpm install        # installe tout le monorepo
 pnpm typecheck      # vérifie les types de toutes les applications
 pnpm test           # lance les tests
 pnpm build          # construit toutes les applications
+pnpm lint           # lint, dont les règles d'accessibilité (jsx-a11y)
+pnpm format         # formate le code (Prettier)
 pnpm dev:api        # API (nécessite Postgres et Keycloak : voir apps/api/README.md)
 pnpm dev:web        # application web
 ```
 
-| Dossier | Contenu |
-|---|---|
-| `apps/api` | API (prototype Express, en cours de réécriture en NestJS) |
+| Dossier    | Contenu                                                                |
+| ---------- | ---------------------------------------------------------------------- |
+| `apps/api` | API (prototype Express, en cours de réécriture en NestJS)              |
 | `apps/web` | Application web (prototype en micro-frontends, en cours de réécriture) |
-| `docs/` | Architecture, décisions, revues |
+| `docs/`    | Architecture, décisions, revues                                        |
+
+Un hook Git vérifie lint et formatage des fichiers modifiés à chaque commit (`lint-staged`).
 
 Les scripts d'installation des dépendances sont bloqués par défaut ; seuls ceux listés dans `pnpm-workspace.yaml` (`allowBuilds`) sont autorisés.
 
