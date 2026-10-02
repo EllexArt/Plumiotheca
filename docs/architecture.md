@@ -8,18 +8,18 @@ Une plateforme de lecture et d'écriture confortable des deux côtés : des outi
 
 Trois piliers guident les choix techniques :
 
-| Pilier | Ce que ça implique techniquement |
-|---|---|
-| **Écrire** | Éditeur riche, sauvegarde automatique, historique des versions, outils d'univers (personnages, lieux, chronologie), statistiques. |
-| **Lire** | Rendu typographique soigné, réglages de lecture, reprise de lecture, bibliothèque, site responsive pensé d'abord pour l'ordinateur. |
+| Pilier         | Ce que ça implique techniquement                                                                                                                  |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Écrire**     | Éditeur riche, sauvegarde automatique, historique des versions, outils d'univers (personnages, lieux, chronologie), statistiques.                 |
+| **Lire**       | Rendu typographique soigné, réglages de lecture, reprise de lecture, bibliothèque, site responsive pensé d'abord pour l'ordinateur.               |
 | **Communauté** | Notes de lecture, recommandations, abonnements, galerie, cercles d'entraide, **modération dès le départ** — et aucune messagerie privée (§1 ter). |
 
 ### Identité et principes d'expérience (validés sur maquettes)
 
-Maquettes de référence : canevas « Plumiotheca — pistes d'identité », pages *Web — ordinateur*, *Web — écrire*, *Web — communauté* et *Web — mobile*.
+Maquettes de référence : canevas « Plumiotheca — pistes d'identité », pages _Web — ordinateur_, _Web — écrire_, _Web — communauté_ et _Web — mobile_.
 
-- **Web d'abord** : Plumiotheca est un site web *responsive* (ordinateur, tablette, téléphone), conçu en priorité pour l'ordinateur. Pas d'application native à installer depuis un magasin ; une PWA (installable depuis le navigateur, lecture hors ligne) viendra plus tard.
-- **Identité « Lampe de chevet »** : Young Serif (titres), Literata (lecture), Figtree (interface). Palette par défaut *Lueur* en clair et en sombre ; *Bougie*, *Indigo et lune* et *Encre et rouille* sont des ambiances au choix (#77).
+- **Web d'abord** : Plumiotheca est un site web _responsive_ (ordinateur, tablette, téléphone), conçu en priorité pour l'ordinateur. Pas d'application native à installer depuis un magasin ; une PWA (installable depuis le navigateur, lecture hors ligne) viendra plus tard.
+- **Identité « Lampe de chevet »** : Young Serif (titres), Literata (lecture), Figtree (interface). Palette par défaut _Lueur_ en clair et en sombre ; _Bougie_, _Indigo et lune_ et _Encre et rouille_ sont des ambiances au choix (#77).
 - **Métaphore de bibliothèque dans le visuel, mots simples dans l'interface** : livres en cours montrés de dos, sélections présentées comme des étagères, mais les libellés restent « Mes lectures », « Explorer », « Univers », « Écrire ».
 - **La lecture d'abord** : aucune annotation dans le texte. Un repère discret en marge (bulle + nombre) indique les passages commentés ; les échanges s'ouvrent dans un panneau ou sont regroupés en fin de chapitre. Les repères peuvent être masqués.
 - **Découverte humaine** : sélections publiques composées par des membres et par l'équipe, recommandations écrites. Pas de fil algorithmique en page d'accueil.
@@ -64,15 +64,15 @@ Choix fondateurs, validés en octobre 2026 :
 
 À intégrer au modèle de données dès le jalon M1 (#13), pas en fin de projet.
 
-| Donnée | Pourquoi | Durée de conservation |
-|---|---|---|
-| E-mail | connexion, récupération du compte, notifications choisies | durée du compte |
-| Pseudonyme, profil, pronoms | affichage public choisi par la personne | durée du compte |
-| Tranche d'âge déclarée | protection des mineurs | durée du compte |
-| Contenus (histoires, notes, images, fiches) | service | durée du compte, puis selon le choix de suppression |
-| Journaux techniques | sécurité, débogage | 30 jours, **sans e-mail ni contenu** (masquage automatique) |
-| Décisions de modération | DSA, appels | 3 ans, rattachées à un identifiant interne |
-| Comptage des lectures anonymes | statistiques | hachage effacé chaque jour |
+| Donnée                                      | Pourquoi                                                  | Durée de conservation                                       |
+| ------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------- |
+| E-mail                                      | connexion, récupération du compte, notifications choisies | durée du compte                                             |
+| Pseudonyme, profil, pronoms                 | affichage public choisi par la personne                   | durée du compte                                             |
+| Tranche d'âge déclarée                      | protection des mineurs                                    | durée du compte                                             |
+| Contenus (histoires, notes, images, fiches) | service                                                   | durée du compte, puis selon le choix de suppression         |
+| Journaux techniques                         | sécurité, débogage                                        | 30 jours, **sans e-mail ni contenu** (masquage automatique) |
+| Décisions de modération                     | DSA, appels                                               | 3 ans, rattachées à un identifiant interne                  |
+| Comptage des lectures anonymes              | statistiques                                              | hachage effacé chaque jour                                  |
 
 - **Suppression de compte** : au moment de supprimer, la personne **choisit** entre tout effacer ou anonymiser ses contributions (notes, fiches d'univers collaboratifs, fan arts offerts) sous la mention « compte supprimé ». Ses histoires et images sont supprimées dans les deux cas. **Œuvres partagées** (histoire co-écrite, fan art offert à une autrice, fiches d'un univers collaboratif) : les co-autrices ou l'autrice destinataire sont prévenues et **décident** de garder l'œuvre (part de la personne signée « compte supprimé ») ou de la retirer ; sans réponse sous 30 jours, l'œuvre est conservée anonymisée. Délai d'exécution : 30 jours maximum ; export de ses données proposé avant.
 - **Pseudonymes** : un ancien pseudonyme n'est réattribuable qu'après 90 jours (anti-usurpation).
@@ -94,7 +94,7 @@ Choix fondateurs, validés en octobre 2026 :
                 ┌──────▼─────┐  ┌─────▼─────────┐               │
                 │ PostgreSQL │  │ Stockage S3   │               │
                 │ (app + KC) │◀─┼───────────────┼───────────────┘
-                └────────────┘  │ (MinIO en dev)│ couvertures, avatars
+                └────────────┘  │ (Garage en dev)│ couvertures, avatars
                                 └───────────────┘
 ```
 
@@ -109,7 +109,7 @@ Plumiotheca/
 │   ├── contracts/           Schémas zod partagés (entrées/sorties de l'API) + types TS
 │   └── editor-schema/       Schéma TipTap partagé (rendu côté web, validation côté API)
 ├── infra/
-│   ├── docker-compose.yml   Postgres, Keycloak, Meilisearch, MinIO, Mailpit pour le dev
+│   ├── docker-compose.yml   Postgres, Keycloak, Meilisearch, Garage, Mailpit pour le dev
 │   └── keycloak/            Realm versionné (export valide)
 ├── docs/                    Architecture, décisions (ADR), maquettes
 └── .github/workflows/       CI
@@ -124,23 +124,23 @@ Plumiotheca/
 
 ### Modules
 
-| Module | Responsabilité |
-|---|---|
-| `auth` | Vérification des JWT Keycloak (JWKS via `jose`), guard global, décorateur `@Public()`, rattachement de l'utilisateur local. |
-| `users` | Profil public (pseudonyme unique, bio, avatar), préférences privées. **L'email n'est jamais exposé.** |
-| `stories` | Histoires, statut (brouillon / publiée / archivée), tags, avertissements de contenu, public visé. |
-| `chapters` | Chapitres, ordre, version publiée vs brouillon, révisions. |
-| `universes` | Univers partagés entre histoires : fiches personnages, lieux, chronologie, notes. Gère les membres et le mode d'ouverture (voir §5 bis). |
-| `reading` | Bibliothèque, listes de lecture, progression (chapitre + position), réglages de lecture synchronisés. |
-| `social` | Abonnements (personnes, univers), « J'ai aimé » (compteur privé, visible de l'autrice), recommandations, notes par passage et de fin de chapitre. **Pas de messagerie privée.** |
-| `notifications` | Nouveau chapitre, réponse à un commentaire, nouvel abonné. |
-| `moderation` | Signalements, blocages, file par urgence, décisions motivées, appels, journal, rapport de transparence. |
-| `circles` | Cercles d'entraide : annuaire, adhésion, rôles d'animation, bêta-lecture équitable, défis, outils d'animation. |
-| `gallery` | Images : origine déclarée (dont IA), description obligatoire, liens univers / histoires / personnages, validation des fan arts, droits. |
-| `media` | Upload d'images vers S3 via URL pré-signée. |
-| `stats` | Lectures uniques, temps de lecture, statistiques auteur. |
-| `tags` | Tags libres, tags canoniques, synonymes et hiérarchie ; outils des « jardiniers des tags ». |
-| `search` | Indexation et recherche à facettes (Meilisearch), recherches enregistrées et alertes. |
+| Module          | Responsabilité                                                                                                                                                                  |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auth`          | Vérification des JWT Keycloak (JWKS via `jose`), guard global, décorateur `@Public()`, rattachement de l'utilisateur local.                                                     |
+| `users`         | Profil public (pseudonyme unique, bio, avatar), préférences privées. **L'email n'est jamais exposé.**                                                                           |
+| `stories`       | Histoires, statut (brouillon / publiée / archivée), tags, avertissements de contenu, public visé.                                                                               |
+| `chapters`      | Chapitres, ordre, version publiée vs brouillon, révisions.                                                                                                                      |
+| `universes`     | Univers partagés entre histoires : fiches personnages, lieux, chronologie, notes. Gère les membres et le mode d'ouverture (voir §5 bis).                                        |
+| `reading`       | Bibliothèque, listes de lecture, progression (chapitre + position), réglages de lecture synchronisés.                                                                           |
+| `social`        | Abonnements (personnes, univers), « J'ai aimé » (compteur privé, visible de l'autrice), recommandations, notes par passage et de fin de chapitre. **Pas de messagerie privée.** |
+| `notifications` | Nouveau chapitre, réponse à un commentaire, nouvel abonné.                                                                                                                      |
+| `moderation`    | Signalements, blocages, file par urgence, décisions motivées, appels, journal, rapport de transparence.                                                                         |
+| `circles`       | Cercles d'entraide : annuaire, adhésion, rôles d'animation, bêta-lecture équitable, défis, outils d'animation.                                                                  |
+| `gallery`       | Images : origine déclarée (dont IA), description obligatoire, liens univers / histoires / personnages, validation des fan arts, droits.                                         |
+| `media`         | Upload d'images vers S3 via URL pré-signée.                                                                                                                                     |
+| `stats`         | Lectures uniques, temps de lecture, statistiques auteur.                                                                                                                        |
+| `tags`          | Tags libres, tags canoniques, synonymes et hiérarchie ; outils des « jardiniers des tags ».                                                                                     |
+| `search`        | Indexation et recherche à facettes (Meilisearch), recherches enregistrées et alertes.                                                                                           |
 
 ### Règles transverses
 
@@ -180,12 +180,12 @@ Le texte des chapitres est stocké en **JSON ProseMirror/TipTap**, pas en texte 
 
 Un univers (et les histoires qui s'y rattachent) a un **propriétaire** et un **mode d'ouverture** que le propriétaire choisit et peut faire évoluer :
 
-| Mode | Qui écrit dans l'univers | Exemple |
-|---|---|---|
-| **Solo** | Le propriétaire uniquement | Une saga personnelle |
-| **Collaboratif** | Les co-auteurs invités, avec un rôle | Un projet à quatre mains |
-| **Ouvert sur invitation** | Des personnes choisies, avec des droits restreints (ex. proposer des fiches, écrire des histoires annexes) | Un cercle d'écriture |
-| **Fanfictions autorisées** | N'importe qui peut écrire une histoire *dérivée*, rattachée à l'univers mais qui ne modifie pas le canon | Un univers qui fédère une communauté |
+| Mode                       | Qui écrit dans l'univers                                                                                   | Exemple                              |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| **Solo**                   | Le propriétaire uniquement                                                                                 | Une saga personnelle                 |
+| **Collaboratif**           | Les co-auteurs invités, avec un rôle                                                                       | Un projet à quatre mains             |
+| **Ouvert sur invitation**  | Des personnes choisies, avec des droits restreints (ex. proposer des fiches, écrire des histoires annexes) | Un cercle d'écriture                 |
+| **Fanfictions autorisées** | N'importe qui peut écrire une histoire _dérivée_, rattachée à l'univers mais qui ne modifie pas le canon   | Un univers qui fédère une communauté |
 
 Conséquences sur le modèle :
 
@@ -193,29 +193,33 @@ Conséquences sur le modèle :
 - Les fiches (personnages, lieux, événements) ont un **statut canon / proposition** : les contributions passent par une validation de l'auteur.
 - Une histoire a un `canon_status` : `canon` (écrite par l'auteur ou un co-auteur) ou `fanfiction` (dérivée, affichée séparément, avec l'auteur d'origine crédité).
 - L'auteur peut **révoquer** l'ouverture aux fanfictions : les fanfictions existantes restent en ligne mais ne sont plus rattachées visiblement à l'univers (choix à affiner).
-- Toutes les permissions passent par une seule *policy* `UniversePolicy`, testée en profondeur.
+- Toutes les permissions passent par une seule _policy_ `UniversePolicy`, testée en profondeur.
 
 ## 5 ter. Recherche, tags et avertissements
 
 Pensée pour les lectrices et lecteurs de fanfiction (référence : AO3).
 
 **Métadonnées structurées d'une histoire**
+
 - Univers (ou « histoire originale »), **personnages** et **relations** sont des entités, pas du texte libre. Les personnages sont ceux des fiches de l'univers.
 - Relation = ensemble de personnages + type : **romantique `/`** ou **platonique / familiale `&`**.
 - Classement : Tout public, Ado, Mature (Explicite reporté, décision 22).
 - Statut (en cours / terminée), langue, nombre de mots, nombre de chapitres (publiés / prévus).
 
 **Avertissements : modèle mixte**
+
 - Avertissements **majeurs obligatoires** à renseigner : mort de personnage, violence explicite, non-consentement, ou « je préfère ne pas préciser ». Le contenu sexuel impliquant des personnages mineurs n'est **pas** un avertissement : il est interdit par la charte (#37) et relève de la modération urgente.
 - Liste **fine et facultative** : deuil, automutilation, troubles alimentaires, etc.
 - Les lecteurs excluent par recherche ou de façon permanente (« Mes limites »). « Non précisé » est excluable comme un avertissement.
 
 **Tags et synonymes**
+
 - Tags libres saisis par les auteurs. Normalisation automatique (casse, accents, tirets, espaces) vers un tag existant.
-- Les **tags canoniques** regroupent les synonymes (« slowburn », « Slow Burn » → *slow burn*), y compris d'une langue à l'autre. Un sous-tag hérite de son parent.
+- Les **tags canoniques** regroupent les synonymes (« slowburn », « Slow Burn » → _slow burn_), y compris d'une langue à l'autre. Un sous-tag hérite de son parent.
 - Les **jardiniers des tags** (rôle bénévole) fusionnent, renomment et rattachent, avec un journal des opérations. La recherche porte toujours sur le tag canonique.
 
 **Moteur**
+
 - **Meilisearch** auto-hébergé, interrogé **via l'API** (jamais de clé maître côté navigateur) ; seuls les contenus publiés et publics sont indexés.
 - **Fandoms d'œuvres publiées** : entité « fandom » **sans propriétaire** (ex. une saga littéraire), avec ses personnages, gérée par les jardiniers des tags ; distincte des univers originaux, qui appartiennent à leurs autrices.
 - Moteur : facettes avec comptes, inclusion et exclusion, tolérance aux fautes, accents. PostgreSQL reste la source de vérité ; un indexeur synchronise à chaque changement.
@@ -226,16 +230,16 @@ Pensée pour les lectrices et lecteurs de fanfiction (référence : AO3).
 
 **React 19 + Vite + TypeScript**, une seule application, découpée par fonctionnalités et chargée à la demande.
 
-| Brique | Choix |
-|---|---|
-| Routage | React Router (mode framework / data) avec chargement paresseux par route |
-| Données serveur | TanStack Query + client généré depuis `packages/contracts` |
-| Éditeur | TipTap (extensions : identifiants de blocs, compteur, focus, commentaires) |
-| Styles | CSS Modules + variables CSS (design tokens) ; ambiances Lueur, Bougie, Indigo et lune, Encre et rouille, chacune en clair et en sombre (#77) |
-| Composants accessibles | Radix UI (primitives sans style) |
-| Formulaires | React Hook Form + zod (mêmes schémas que l'API) |
-| Auth | `react-oidc-context` |
-| PWA | Service worker pour la lecture hors ligne (plus tard) |
+| Brique                 | Choix                                                                                                                                        |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Routage                | React Router (mode framework / data) avec chargement paresseux par route                                                                     |
+| Données serveur        | TanStack Query + client généré depuis `packages/contracts`                                                                                   |
+| Éditeur                | TipTap (extensions : identifiants de blocs, compteur, focus, commentaires)                                                                   |
+| Styles                 | CSS Modules + variables CSS (design tokens) ; ambiances Lueur, Bougie, Indigo et lune, Encre et rouille, chacune en clair et en sombre (#77) |
+| Composants accessibles | Radix UI (primitives sans style)                                                                                                             |
+| Formulaires            | React Hook Form + zod (mêmes schémas que l'API)                                                                                              |
+| Auth                   | `react-oidc-context`                                                                                                                         |
+| PWA                    | Service worker pour la lecture hors ligne (plus tard)                                                                                        |
 
 ```
 apps/web/src/
@@ -280,37 +284,41 @@ Le code actuel est petit : on **reconstruit au bon endroit** plutôt que de tout
 
 ## 10. Décisions prises
 
-| # | Décision | Statut |
-|---|---|---|
-| 1 | Monorepo unique `EllexArt/Plumiotheca` (historiques conservés) | ✅ fait |
-| 2 | Une seule application web (abandon des micro-frontends) | ✅ validé |
-| 3 | Backend NestJS + TypeORM + PostgreSQL | ✅ validé |
-| 4 | Éditeur TipTap, contenu stocké en JSON ProseMirror | ✅ validé |
-| 5 | pnpm workspaces + `packages/contracts` (zod partagé) | ✅ validé |
-| 6 | Keycloak conservé, validation JWT par JWKS, PKCE côté web | ✅ validé |
-| 7 | Stockage S3 (MinIO en dev) pour les images | proposé |
-| 8 | CSS Modules + tokens + Radix (pas de Tailwind) | ✅ validé |
-| 9 | Univers : solo, collaboratif, ouvert sur invitation, fanfictions — au choix du propriétaire | ✅ validé |
-| 10 | Identité « Lampe de chevet », palette Lueur + 3 ambiances au choix | ✅ validé |
-| 11 | Concept « bibliothèque vivante » avec vocabulaire simple ; notes de lecture en marge discrètes | ✅ validé |
-| 12 | Compteurs publics : lecteurs, en cours de lecture, recommandations | ✅ validé |
-| 13 | Recherche à facettes avec Meilisearch, personnages et relations structurés | proposé |
-| 14 | Avertissements : modèle mixte (majeurs obligatoires + liste fine facultative) | ✅ validé |
-| 15 | Tags : normalisation automatique + jardiniers des tags bénévoles | ✅ validé |
-| 16 | Accessibilité RGAA 4 / WCAG 2.2 AA, incluse dans la définition de « terminé » | ✅ validé |
-| 17 | Web d’abord : site responsive, ordinateur prioritaire, pas d’application native (PWA plus tard) | ✅ validé |
-| 18 | Aucune messagerie privée ; échanges uniquement publics ou modérés | ✅ validé |
-| 19 | Écriture anonyme, âge déclaré, 15 ans minimum, aucune pièce d'identité | ✅ validé |
-| 20 | Cercles d'entraide : bêta-lecture et défis, sans discussions | ✅ validé |
-| 21 | Galerie avec fan arts validés par l'autrice ; images IA autorisées mais déclarées et filtrables | ✅ validé |
-| 22 | Classement maximum « Mature » au lancement ; « Explicite » reporté (preuve de majorité anonyme + avis juridique) | ✅ validé |
-| 23 | Modération à trois niveaux (conception, animatrices, équipe) avec décisions motivées et appel | ✅ validé |
-| 24 | Tranche d'âge déclarée (15-17 / 18+) ; Mature visible des 15-17 ans avec avertissements | ✅ validé |
-| 25 | Bêta-lecture uniquement dans les cercles, retours visibles du cercle et signalables | ✅ validé |
-| 26 | Suppression de compte : choix entre effacement et anonymisation des contributions | ✅ validé |
-| 27 | « J'ai aimé » : compteur privé, visible de l'autrice | ✅ validé |
-| 28 | Fandoms d'œuvres publiées : entité sans propriétaire gérée par les jardiniers des tags | ✅ validé |
-| 29 | Données personnelles conçues dès M1 (inventaire, durées, journaux sans données personnelles, images sans métadonnées) | ✅ validé |
-| 30 | File de tâches pg-boss ; sécurité HTTP, limitation de débit et durcissement des comptes dès le squelette | proposé |
-| 31 | Pas de bêta publique avant M6 ; aucune image Docker publiée avant la réécriture de l'API | ✅ validé |
-| 32 | Suppression de compte : pour les œuvres partagées, les co-autrices décident (garder anonymisé ou retirer) | ✅ validé |
+| #   | Décision                                                                                                                    | Statut    |
+| --- | --------------------------------------------------------------------------------------------------------------------------- | --------- |
+| 1   | Monorepo unique `EllexArt/Plumiotheca` (historiques conservés)                                                              | ✅ fait   |
+| 2   | Une seule application web (abandon des micro-frontends)                                                                     | ✅ validé |
+| 3   | Backend NestJS + TypeORM + PostgreSQL                                                                                       | ✅ validé |
+| 4   | Éditeur TipTap, contenu stocké en JSON ProseMirror                                                                          | ✅ validé |
+| 5   | pnpm workspaces + `packages/contracts` (zod partagé)                                                                        | ✅ validé |
+| 6   | Keycloak conservé, validation JWT par JWKS, PKCE côté web                                                                   | ✅ validé |
+| 7   | Stockage S3 : Garage (MinIO archivé) pour les images                                                                        | ✅ validé |
+| 8   | CSS Modules + tokens + Radix (pas de Tailwind)                                                                              | ✅ validé |
+| 9   | Univers : solo, collaboratif, ouvert sur invitation, fanfictions — au choix du propriétaire                                 | ✅ validé |
+| 10  | Identité « Lampe de chevet », palette Lueur + 3 ambiances au choix                                                          | ✅ validé |
+| 11  | Concept « bibliothèque vivante » avec vocabulaire simple ; notes de lecture en marge discrètes                              | ✅ validé |
+| 12  | Compteurs publics : lecteurs, en cours de lecture, recommandations                                                          | ✅ validé |
+| 13  | Recherche à facettes avec Meilisearch, personnages et relations structurés                                                  | proposé   |
+| 14  | Avertissements : modèle mixte (majeurs obligatoires + liste fine facultative)                                               | ✅ validé |
+| 15  | Tags : normalisation automatique + jardiniers des tags bénévoles                                                            | ✅ validé |
+| 16  | Accessibilité RGAA 4 / WCAG 2.2 AA, incluse dans la définition de « terminé »                                               | ✅ validé |
+| 17  | Web d’abord : site responsive, ordinateur prioritaire, pas d’application native (PWA plus tard)                             | ✅ validé |
+| 18  | Aucune messagerie privée ; échanges uniquement publics ou modérés                                                           | ✅ validé |
+| 19  | Écriture anonyme, âge déclaré, 15 ans minimum, aucune pièce d'identité                                                      | ✅ validé |
+| 20  | Cercles d'entraide : bêta-lecture et défis, sans discussions                                                                | ✅ validé |
+| 21  | Galerie avec fan arts validés par l'autrice ; images IA autorisées mais déclarées et filtrables                             | ✅ validé |
+| 22  | Classement maximum « Mature » au lancement ; « Explicite » reporté (preuve de majorité anonyme + avis juridique)            | ✅ validé |
+| 23  | Modération à trois niveaux (conception, animatrices, équipe) avec décisions motivées et appel                               | ✅ validé |
+| 24  | Tranche d'âge déclarée (15-17 / 18+) ; Mature visible des 15-17 ans avec avertissements                                     | ✅ validé |
+| 25  | Bêta-lecture uniquement dans les cercles, retours visibles du cercle et signalables                                         | ✅ validé |
+| 26  | Suppression de compte : choix entre effacement et anonymisation des contributions                                           | ✅ validé |
+| 27  | « J'ai aimé » : compteur privé, visible de l'autrice                                                                        | ✅ validé |
+| 28  | Fandoms d'œuvres publiées : entité sans propriétaire gérée par les jardiniers des tags                                      | ✅ validé |
+| 29  | Données personnelles conçues dès M1 (inventaire, durées, journaux sans données personnelles, images sans métadonnées)       | ✅ validé |
+| 30  | File de tâches pg-boss ; sécurité HTTP, limitation de débit et durcissement des comptes dès le squelette                    | proposé   |
+| 31  | Pas de bêta publique avant M6 ; aucune image Docker publiée avant la réécriture de l'API                                    | ✅ validé |
+| 32  | Suppression de compte : pour les œuvres partagées, les co-autrices décident (garder anonymisé ou retirer)                   | ✅ validé |
+| 33  | Pseudonyme public stocké dans l'application (modifiable, réattribution après 90 jours) ; l'identifiant Keycloak reste privé | ✅ validé |
+| 34  | Tranche d'âge déclarée à la première visite dans l'application, pas à l'inscription Keycloak                                | ✅ validé |
+| 35  | MFA de la modération : codes de secours à l'activation + réinitialisation par un administrateur                             | ✅ validé |
+| 36  | Suppression de compte depuis l'application (choix effacer / anonymiser), qui supprime ensuite le compte Keycloak            | ✅ validé |

@@ -8,5 +8,5 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
  * builds the API client and passes it down to the remotes.
  */
 export function createApi(getToken: () => string | undefined): ApiClient {
-    return createApiClient({ baseUrl: API_URL, getToken });
+  return createApiClient({ baseUrl: API_URL, getToken });
 }

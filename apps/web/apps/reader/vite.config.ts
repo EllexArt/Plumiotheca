@@ -10,22 +10,22 @@ export default defineConfig({
       name: 'reader',
       filename: 'remoteEntry.js',
       exposes: {
-        './App': './src/App.tsx'
+        './App': './src/App.tsx',
       },
-      shared: ['react', 'react-dom']
-    })
+      shared: ['react', 'react-dom'],
+    }),
   ],
   resolve: {
     alias: {
       '@plumiotheca/api-client': fileURLToPath(
-        new URL('../../libs/api-client/src/index.ts', import.meta.url)
-      )
-    }
+        new URL('../../libs/api-client/src/index.ts', import.meta.url),
+      ),
+    },
   },
   build: {
     target: 'esnext',
     minify: false,
-    cssCodeSplit: false
+    cssCodeSplit: false,
   },
   server: {
     port: 5001,
@@ -36,5 +36,5 @@ export default defineConfig({
   preview: {
     port: 5001,
     strictPort: true,
-  }
+  },
 });

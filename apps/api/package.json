@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts",
+    "dev": "node --env-file-if-exists=.env --require ts-node/register src/index.ts",
     "test": "jest",
     "typecheck": "tsc --noEmit",
     "typeorm": "ts-node ./node_modules/typeorm/cli",

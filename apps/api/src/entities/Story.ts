@@ -1,7 +1,17 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, OneToMany, ManyToMany, JoinTable } from "typeorm";
-import { User } from "./User";
-import { Chapter } from "./Chapter";
-import { Tag } from "./Tag";
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  OneToMany,
+  ManyToMany,
+  JoinTable,
+} from 'typeorm';
+import { User } from './User';
+import { Chapter } from './Chapter';
+import { Tag } from './Tag';
 
 /**
  * @openapi
@@ -31,40 +41,40 @@ import { Tag } from "./Tag";
  */
 @Entity()
 export class Story {
-    @PrimaryGeneratedColumn()
-    id!: number;
+  @PrimaryGeneratedColumn()
+  id!: number;
 
-    @Column()
-    title!: string;
+  @Column()
+  title!: string;
 
-    @Column({ type: "text", nullable: true })
-    description?: string;
+  @Column({ type: 'text', nullable: true })
+  description?: string;
 
-    @Column({ nullable: true })
-    coverUrl?: string;
+  @Column({ nullable: true })
+  coverUrl?: string;
 
-    @ManyToOne(() => User)
-    author!: User;
+  @ManyToOne(() => User)
+  author!: User;
 
-    @OneToMany(() => Chapter, (chapter) => chapter.story)
-    chapters!: Chapter[];
+  @OneToMany(() => Chapter, (chapter) => chapter.story)
+  chapters!: Chapter[];
 
-    @ManyToMany(() => Tag)
-    @JoinTable()
-    tags!: Tag[];
+  @ManyToMany(() => Tag)
+  @JoinTable()
+  tags!: Tag[];
 
-    @Column({ default: 0 })
-    viewsCount!: number;
+  @Column({ default: 0 })
+  viewsCount!: number;
 
-    @Column({ default: 0 })
-    likesCount!: number;
+  @Column({ default: 0 })
+  likesCount!: number;
 
-    @Column({ default: "draft" }) // draft, published
-    status!: string;
+  @Column({ default: 'draft' }) // draft, published
+  status!: string;
 
-    @CreateDateColumn()
-    createdAt!: Date;
+  @CreateDateColumn()
+  createdAt!: Date;
 
-    @UpdateDateColumn()
-    updatedAt!: Date;
+  @UpdateDateColumn()
+  updatedAt!: Date;
 }

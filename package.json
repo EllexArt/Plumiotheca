@@ -3,6 +3,7 @@
   "private": true,
   "description": "Plateforme pour lire, écrire et partager des histoires et des univers.",
   "license": "MIT",
+  "type": "module",
   "packageManager": "pnpm@12.8.1+sha512.f64ba907507f5ceafe06c8d38e6052d0179444580ec1279ddd5bfc11cb48aa8a2644b66598e07e761da84872a9fc57d5f902b87fa49d024198d558612aabbe45",
   "engines": {
     "node": ">=24"
@@ -13,6 +14,40 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "dev:api": "pnpm --filter @plumiotheca/api dev",
     "dev:web": "pnpm --filter @plumiotheca/web dev-full",
-    "dev": "pnpm --filter @plumiotheca/web build-remotes && pnpm --parallel --filter @plumiotheca/api --filter @plumiotheca/web dev"
+    "dev": "pnpm --filter @plumiotheca/web build-remotes && pnpm --parallel --filter @plumiotheca/api --filter @plumiotheca/web dev",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "simple-git-hooks",
+    "infra:setup": "node infra/scripts/setup.mjs",
+    "infra:up": "docker compose -f infra/docker-compose.yml --env-file infra/.env up -d --wait && node infra/scripts/garage-init.mjs",
+    "infra:down": "docker compose -f infra/docker-compose.yml --env-file infra/.env down",
+    "infra:logs": "docker compose -f infra/docker-compose.yml --env-file infra/.env logs -f",
+    "infra:reset": "docker compose -f infra/docker-compose.yml --env-file infra/.env down -v",
+    "infra:seed": "node infra/scripts/seed-dev.mjs"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm exec lint-staged"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,cjs,mjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml,css,html}": "prettier --write"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.0",
+    "eslint": "^10.0.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.0.0",
+    "lint-staged": "^17.0.0",
+    "prettier": "^3.9.9",
+    "simple-git-hooks": "^2.14.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.0.0"
   }
 }
