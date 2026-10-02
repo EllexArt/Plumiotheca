@@ -284,37 +284,41 @@ Le code actuel est petit : on **reconstruit au bon endroit** plutôt que de tout
 
 ## 10. Décisions prises
 
-| #   | Décision                                                                                                              | Statut    |
-| --- | --------------------------------------------------------------------------------------------------------------------- | --------- |
-| 1   | Monorepo unique `EllexArt/Plumiotheca` (historiques conservés)                                                        | ✅ fait   |
-| 2   | Une seule application web (abandon des micro-frontends)                                                               | ✅ validé |
-| 3   | Backend NestJS + TypeORM + PostgreSQL                                                                                 | ✅ validé |
-| 4   | Éditeur TipTap, contenu stocké en JSON ProseMirror                                                                    | ✅ validé |
-| 5   | pnpm workspaces + `packages/contracts` (zod partagé)                                                                  | ✅ validé |
-| 6   | Keycloak conservé, validation JWT par JWKS, PKCE côté web                                                             | ✅ validé |
-| 7   | Stockage S3 : Garage (MinIO archivé) pour les images                                                                  | ✅ validé |
-| 8   | CSS Modules + tokens + Radix (pas de Tailwind)                                                                        | ✅ validé |
-| 9   | Univers : solo, collaboratif, ouvert sur invitation, fanfictions — au choix du propriétaire                           | ✅ validé |
-| 10  | Identité « Lampe de chevet », palette Lueur + 3 ambiances au choix                                                    | ✅ validé |
-| 11  | Concept « bibliothèque vivante » avec vocabulaire simple ; notes de lecture en marge discrètes                        | ✅ validé |
-| 12  | Compteurs publics : lecteurs, en cours de lecture, recommandations                                                    | ✅ validé |
-| 13  | Recherche à facettes avec Meilisearch, personnages et relations structurés                                            | proposé   |
-| 14  | Avertissements : modèle mixte (majeurs obligatoires + liste fine facultative)                                         | ✅ validé |
-| 15  | Tags : normalisation automatique + jardiniers des tags bénévoles                                                      | ✅ validé |
-| 16  | Accessibilité RGAA 4 / WCAG 2.2 AA, incluse dans la définition de « terminé »                                         | ✅ validé |
-| 17  | Web d’abord : site responsive, ordinateur prioritaire, pas d’application native (PWA plus tard)                       | ✅ validé |
-| 18  | Aucune messagerie privée ; échanges uniquement publics ou modérés                                                     | ✅ validé |
-| 19  | Écriture anonyme, âge déclaré, 15 ans minimum, aucune pièce d'identité                                                | ✅ validé |
-| 20  | Cercles d'entraide : bêta-lecture et défis, sans discussions                                                          | ✅ validé |
-| 21  | Galerie avec fan arts validés par l'autrice ; images IA autorisées mais déclarées et filtrables                       | ✅ validé |
-| 22  | Classement maximum « Mature » au lancement ; « Explicite » reporté (preuve de majorité anonyme + avis juridique)      | ✅ validé |
-| 23  | Modération à trois niveaux (conception, animatrices, équipe) avec décisions motivées et appel                         | ✅ validé |
-| 24  | Tranche d'âge déclarée (15-17 / 18+) ; Mature visible des 15-17 ans avec avertissements                               | ✅ validé |
-| 25  | Bêta-lecture uniquement dans les cercles, retours visibles du cercle et signalables                                   | ✅ validé |
-| 26  | Suppression de compte : choix entre effacement et anonymisation des contributions                                     | ✅ validé |
-| 27  | « J'ai aimé » : compteur privé, visible de l'autrice                                                                  | ✅ validé |
-| 28  | Fandoms d'œuvres publiées : entité sans propriétaire gérée par les jardiniers des tags                                | ✅ validé |
-| 29  | Données personnelles conçues dès M1 (inventaire, durées, journaux sans données personnelles, images sans métadonnées) | ✅ validé |
-| 30  | File de tâches pg-boss ; sécurité HTTP, limitation de débit et durcissement des comptes dès le squelette              | proposé   |
-| 31  | Pas de bêta publique avant M6 ; aucune image Docker publiée avant la réécriture de l'API                              | ✅ validé |
-| 32  | Suppression de compte : pour les œuvres partagées, les co-autrices décident (garder anonymisé ou retirer)             | ✅ validé |
+| #   | Décision                                                                                                                    | Statut    |
+| --- | --------------------------------------------------------------------------------------------------------------------------- | --------- |
+| 1   | Monorepo unique `EllexArt/Plumiotheca` (historiques conservés)                                                              | ✅ fait   |
+| 2   | Une seule application web (abandon des micro-frontends)                                                                     | ✅ validé |
+| 3   | Backend NestJS + TypeORM + PostgreSQL                                                                                       | ✅ validé |
+| 4   | Éditeur TipTap, contenu stocké en JSON ProseMirror                                                                          | ✅ validé |
+| 5   | pnpm workspaces + `packages/contracts` (zod partagé)                                                                        | ✅ validé |
+| 6   | Keycloak conservé, validation JWT par JWKS, PKCE côté web                                                                   | ✅ validé |
+| 7   | Stockage S3 : Garage (MinIO archivé) pour les images                                                                        | ✅ validé |
+| 8   | CSS Modules + tokens + Radix (pas de Tailwind)                                                                              | ✅ validé |
+| 9   | Univers : solo, collaboratif, ouvert sur invitation, fanfictions — au choix du propriétaire                                 | ✅ validé |
+| 10  | Identité « Lampe de chevet », palette Lueur + 3 ambiances au choix                                                          | ✅ validé |
+| 11  | Concept « bibliothèque vivante » avec vocabulaire simple ; notes de lecture en marge discrètes                              | ✅ validé |
+| 12  | Compteurs publics : lecteurs, en cours de lecture, recommandations                                                          | ✅ validé |
+| 13  | Recherche à facettes avec Meilisearch, personnages et relations structurés                                                  | proposé   |
+| 14  | Avertissements : modèle mixte (majeurs obligatoires + liste fine facultative)                                               | ✅ validé |
+| 15  | Tags : normalisation automatique + jardiniers des tags bénévoles                                                            | ✅ validé |
+| 16  | Accessibilité RGAA 4 / WCAG 2.2 AA, incluse dans la définition de « terminé »                                               | ✅ validé |
+| 17  | Web d’abord : site responsive, ordinateur prioritaire, pas d’application native (PWA plus tard)                             | ✅ validé |
+| 18  | Aucune messagerie privée ; échanges uniquement publics ou modérés                                                           | ✅ validé |
+| 19  | Écriture anonyme, âge déclaré, 15 ans minimum, aucune pièce d'identité                                                      | ✅ validé |
+| 20  | Cercles d'entraide : bêta-lecture et défis, sans discussions                                                                | ✅ validé |
+| 21  | Galerie avec fan arts validés par l'autrice ; images IA autorisées mais déclarées et filtrables                             | ✅ validé |
+| 22  | Classement maximum « Mature » au lancement ; « Explicite » reporté (preuve de majorité anonyme + avis juridique)            | ✅ validé |
+| 23  | Modération à trois niveaux (conception, animatrices, équipe) avec décisions motivées et appel                               | ✅ validé |
+| 24  | Tranche d'âge déclarée (15-17 / 18+) ; Mature visible des 15-17 ans avec avertissements                                     | ✅ validé |
+| 25  | Bêta-lecture uniquement dans les cercles, retours visibles du cercle et signalables                                         | ✅ validé |
+| 26  | Suppression de compte : choix entre effacement et anonymisation des contributions                                           | ✅ validé |
+| 27  | « J'ai aimé » : compteur privé, visible de l'autrice                                                                        | ✅ validé |
+| 28  | Fandoms d'œuvres publiées : entité sans propriétaire gérée par les jardiniers des tags                                      | ✅ validé |
+| 29  | Données personnelles conçues dès M1 (inventaire, durées, journaux sans données personnelles, images sans métadonnées)       | ✅ validé |
+| 30  | File de tâches pg-boss ; sécurité HTTP, limitation de débit et durcissement des comptes dès le squelette                    | proposé   |
+| 31  | Pas de bêta publique avant M6 ; aucune image Docker publiée avant la réécriture de l'API                                    | ✅ validé |
+| 32  | Suppression de compte : pour les œuvres partagées, les co-autrices décident (garder anonymisé ou retirer)                   | ✅ validé |
+| 33  | Pseudonyme public stocké dans l'application (modifiable, réattribution après 90 jours) ; l'identifiant Keycloak reste privé | ✅ validé |
+| 34  | Tranche d'âge déclarée à la première visite dans l'application, pas à l'inscription Keycloak                                | ✅ validé |
+| 35  | MFA de la modération : codes de secours à l'activation + réinitialisation par un administrateur                             | ✅ validé |
+| 36  | Suppression de compte depuis l'application (choix effacer / anonymiser), qui supprime ensuite le compte Keycloak            | ✅ validé |
