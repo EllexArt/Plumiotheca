@@ -189,7 +189,7 @@ Un univers (et les histoires qui s'y rattachent) a un **propriétaire** et un **
 
 Conséquences sur le modèle :
 
-- `universe_members(universe, user, role)` avec des rôles : `owner`, `coauthor` (édite tout), `contributor` (propose, l'auteur valide), `reader_beta` (lit les brouillons, commente).
+- `universe_members(universe, user, role)` avec des rôles : `owner`, `coauthor` (édite tout), `contributor` (propose, l'auteur valide). Pas de rôle de bêta-lecture au niveau de l'univers : la bêta-lecture passe uniquement par les cercles (décision 25).
 - Les fiches (personnages, lieux, événements) ont un **statut canon / proposition** : les contributions passent par une validation de l'auteur.
 - Une histoire a un `canon_status` : `canon` (écrite par l'auteur ou un co-auteur) ou `fanfiction` (dérivée, affichée séparément, avec l'auteur d'origine crédité).
 - L'auteur peut **révoquer** l'ouverture aux fanfictions : les fanfictions existantes restent en ligne mais ne sont plus rattachées visiblement à l'univers (choix à affiner).
@@ -264,7 +264,7 @@ apps/web/src/
 GitHub Actions, sans déploiement pour l'instant :
 
 1. `ci.yml` sur chaque PR et sur `main` : installation pnpm (avec cache) → lint → vérification des types → tests unitaires → tests e2e API (service Postgres) → build web et API.
-2. `docker.yml` sur `main` et les tags : construction des images `api` et `web`, publication sur **GitHub Container Registry** (gratuit pour un dépôt public).
+2. `docker.yml` : construction des images `api` et `web` sur chaque PR concernée et sur `main` ; **publication sur GitHub Container Registry uniquement sur tag de version `v*`**, et pas avant la réécriture de l'API (décision 31).
 3. Plus tard : un workflow de déploiement branché sur la cible choisie (VPS + Docker Compose, Fly.io, Render, Scaleway…).
 
 Protection de `main` : PR obligatoire, CI verte.
