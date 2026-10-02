@@ -29,7 +29,9 @@ pnpm dev:web        # application web
 | `apps/web` | Application web (prototype en micro-frontends, en cours de réécriture) |
 | `docs/`    | Architecture, décisions, revues                                        |
 
-Un hook Git vérifie lint et formatage des fichiers modifiés à chaque commit (`lint-staged`).
+Un hook Git vérifie lint et formatage des fichiers modifiés à chaque commit (`lint-staged`). C'est un confort : la vraie barrière est la CI. Avec un client Git graphique qui ne trouve pas `pnpm`, voir `SIMPLE_GIT_HOOKS_RC` dans la documentation de simple-git-hooks.
+
+Les `any` du prototype de l'API sont tolérés via `eslint-suppressions.json` (suppressions natives d'ESLint) : la règle reste bloquante pour tout nouveau code. Le fichier disparaîtra avec la réécriture.
 
 Les scripts d'installation des dépendances sont bloqués par défaut ; seuls ceux listés dans `pnpm-workspace.yaml` (`allowBuilds`) sont autorisés.
 

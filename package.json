@@ -15,8 +15,8 @@
     "dev:api": "pnpm --filter @plumiotheca/api dev",
     "dev:web": "pnpm --filter @plumiotheca/web dev-full",
     "dev": "pnpm --filter @plumiotheca/web build-remotes && pnpm --parallel --filter @plumiotheca/api --filter @plumiotheca/web dev",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "simple-git-hooks"

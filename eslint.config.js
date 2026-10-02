@@ -28,15 +28,37 @@ export default tseslint.config(
     plugins: { 'jsx-a11y': jsxA11y, 'react-hooks': reactHooks },
     rules: {
       ...jsxA11y.flatConfigs.strict.rules,
+      // Règles non incluses dans le preset strict, exigées par notre définition de « terminé » (#83).
+      'jsx-a11y/control-has-associated-label': [
+        'error',
+        {
+          ignoreElements: ['audio', 'canvas', 'embed', 'input', 'textarea', 'tr', 'video'],
+          ignoreRoles: [
+            'grid',
+            'listbox',
+            'menu',
+            'menubar',
+            'radiogroup',
+            'row',
+            'tablist',
+            'toolbar',
+            'tree',
+            'treegrid',
+          ],
+          includeRoles: ['alert', 'dialog'],
+        },
+      ],
+      'jsx-a11y/no-aria-hidden-on-focusable': 'error',
+      'jsx-a11y/prefer-tag-over-role': 'error',
+      // Liens au texte ambigu (RGAA 6.1).
+      'jsx-a11y/anchor-ambiguous-text': [
+        'error',
+        {
+          words: ['ici', 'cliquez ici', 'lire la suite', 'en savoir plus', 'plus', 'lien', 'voir'],
+        },
+      ],
       ...reactHooks.configs.recommended.rules,
     },
-  },
-
-  // TEMPORAIRE : prototype Express voué à la réécriture NestJS (#9 à #16).
-  // Supprimer ce bloc avec l'ancien code ; la nouvelle API respecte la règle.
-  {
-    files: ['apps/api/src/**/*.ts'],
-    rules: { '@typescript-eslint/no-explicit-any': 'warn' },
   },
 
   // Fichiers de configuration en CommonJS
