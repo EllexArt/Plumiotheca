@@ -22,10 +22,14 @@ describe('configuration', () => {
     expect(() => loadConfig({ CORS_ORIGINS: 'https://a.example/app' })).toThrow(/CORS_ORIGINS/);
   });
 
-  it('exige les origines CORS en production', () => {
+  it('exige les origines CORS et le nombre de proxys en production', () => {
     expect(() => loadConfig({ NODE_ENV: 'production' })).toThrow(
-      /CORS_ORIGINS : Obligatoire en production/,
+      /CORS_ORIGINS : Obligatoire en production[\s\S]*TRUST_PROXY : Obligatoire en production/,
     );
+    expect(
+      loadConfig({ NODE_ENV: 'production', CORS_ORIGINS: 'https://a.example', TRUST_PROXY: '0' })
+        .TRUST_PROXY,
+    ).toBe(0);
   });
 
   it('nomme la variable en cause sans afficher sa valeur', () => {

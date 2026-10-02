@@ -41,7 +41,7 @@ Validée au démarrage par `src/config/env.ts` : l'API s'arrête avec la liste d
 | `PORT`                  | `3000`                  |                                                           |
 | `LOG_LEVEL`             | `info`                  | niveau pino                                               |
 | `CORS_ORIGINS`          | origines locales de dev | liste séparée par des virgules, obligatoire en production |
-| `TRUST_PROXY`           | `0`                     | nombre de proxys inverses devant l'API                    |
+| `TRUST_PROXY`           | `0`                     | proxys inverses devant l'API, obligatoire en production   |
 | `RATE_LIMIT_PER_MINUTE` | `120`                   | requêtes par minute et par adresse IP                     |
 
 Les autres variables de `.env.example` (base, Keycloak, Meilisearch, S3, SMTP) seront lues par les prochaines étapes de la M1. Toutes sont générées par `pnpm infra:setup` dans `apps/api/.env` (jamais commité).

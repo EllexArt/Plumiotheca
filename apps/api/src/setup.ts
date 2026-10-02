@@ -4,10 +4,13 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
+import { requestId } from './common/logger.js';
 import type { Config } from './config/env.js';
 
 export const API_PREFIX = 'api';
 const DOCS_PATH = `${API_PREFIX}/docs`;
+const isDocs = (path: string) =>
+  path === `/${DOCS_PATH}` || path === `/${DOCS_PATH}-json` || path.startsWith(`/${DOCS_PATH}/`);
 
 /** En-têtes de sécurité : l'API ne sert que du JSON, rien ne doit s'y exécuter ni s'y afficher. */
 const strictHeaders = helmet({
@@ -26,6 +29,7 @@ const strictHeaders = helmet({
 /** Page de documentation (hors production) : ses propres scripts et styles uniquement. */
 const docsHeaders = helmet({
   contentSecurityPolicy: {
+    useDefaults: false,
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'"],
@@ -34,7 +38,8 @@ const docsHeaders = helmet({
       imgSrc: ["'self'", 'data:'],
       connectSrc: ["'self'"],
       frameAncestors: ["'none'"],
-      upgradeInsecureRequests: null,
+      baseUri: ["'self'"],
+      objectSrc: ["'none'"],
     },
   },
 });
@@ -45,8 +50,9 @@ export function configureApp(app: NestExpressApplication, config: Config): INest
 
   app.useLogger(app.get(Logger));
   app.set('trust proxy', config.TRUST_PROXY);
+  app.use(requestId(config));
   app.use((req: Request, res: Response, next: NextFunction) =>
-    (docs && req.path.startsWith(`/${DOCS_PATH}`) ? docsHeaders : strictHeaders)(req, res, next),
+    (docs && isDocs(req.path) ? docsHeaders : strictHeaders)(req, res, next),
   );
   app.enableCors({
     origin: config.CORS_ORIGINS,

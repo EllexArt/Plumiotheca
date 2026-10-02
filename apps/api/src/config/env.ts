@@ -35,23 +35,31 @@ export const Env = z
       .default('info'),
     /** Origines autorisées à appeler l'API depuis un navigateur. */
     CORS_ORIGINS: origins.optional(),
-    /** Nombre de proxys inverses devant l'API (pour l'adresse IP réelle du client). */
-    TRUST_PROXY: z.coerce.number().int().min(0).max(10).default(0),
+    /**
+     * Nombre de proxys inverses devant l'API (adresse IP réelle du client, pour la
+     * limitation de débit). Obligatoire en production : 0 si l'API est exposée directement.
+     */
+    TRUST_PROXY: z.coerce.number().int().min(0).max(10).optional(),
     /** Requêtes autorisées par minute et par adresse IP. */
     RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).default(120),
   })
   .superRefine((env, ctx) => {
-    if (env.NODE_ENV === 'production' && !env.CORS_ORIGINS?.length) {
+    if (env.NODE_ENV !== 'production') return;
+    if (!env.CORS_ORIGINS?.length) {
       ctx.addIssue({
         code: 'custom',
         path: ['CORS_ORIGINS'],
         message: 'Obligatoire en production',
       });
     }
+    if (env.TRUST_PROXY === undefined) {
+      ctx.addIssue({ code: 'custom', path: ['TRUST_PROXY'], message: 'Obligatoire en production' });
+    }
   })
   .transform((env) => ({
     ...env,
     CORS_ORIGINS: env.CORS_ORIGINS ?? DEV_ORIGINS,
+    TRUST_PROXY: env.TRUST_PROXY ?? 0,
   }));
 
 export type Config = z.output<typeof Env>;

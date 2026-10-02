@@ -281,7 +281,7 @@ Le code actuel est petit : on **reconstruit au bon endroit** plutôt que de tout
 1. Socle : pnpm, `infra/`, realm Keycloak corrigé, CI minimale.
 2. `apps/api` : nouveau projet NestJS qui reprend entités et routes existantes, sécurisées.
 3. `apps/web` : application unique qui reprend lecteur et éditeur, connexion OIDC.
-4. Suppression du code Express et des micro-frontends une fois la parité atteinte.
+4. Suppression des micro-frontends une fois la parité atteinte. Le prototype Express a été supprimé dès le squelette NestJS (#122) : le prototype web ne trouve plus ses routes d'ici la nouvelle application (#19).
 
 ## 10. Décisions prises
 
@@ -323,4 +323,4 @@ Le code actuel est petit : on **reconstruit au bon endroit** plutôt que de tout
 | 34  | Tranche d'âge déclarée à la première visite dans l'application, pas à l'inscription Keycloak                                | ✅ validé |
 | 35  | MFA de la modération : codes de secours à l'activation + réinitialisation par un administrateur                             | ✅ validé |
 | 36  | Suppression de compte depuis l'application (choix effacer / anonymiser), qui supprime ensuite le compte Keycloak            | ✅ validé |
-| 37  | NestJS 12 (ESM natif), validation zod native (Standard Schema) sans `nestjs-zod`, Vitest au lieu de Jest                    | ✅ fait   |
+| 37  | NestJS 12 (ESM natif), validation zod native (Standard Schema) sans `nestjs-zod`, Vitest au lieu de Jest                    | proposé   |

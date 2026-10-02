@@ -6,6 +6,9 @@
   "license": "MIT",
   "author": "ellexart",
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",

@@ -24,9 +24,22 @@ class EssaiController {
 
   @Get('panne')
   panne() {
-    const error = new Error('relation "users" : SELECT * FROM users WHERE email = $1');
-    Object.assign(error, { parameters: ['camille@exemple.fr'] });
+    // Forme d'une erreur de contrainte PostgreSQL remontée par TypeORM.
+    const error = new Error('duplicate key value violates unique constraint "users_email_key"');
+    Object.assign(error, {
+      parameters: ['camille@exemple.fr'],
+      driverError: {
+        detail: 'Key (email)=(camille@exemple.fr) already exists.',
+        parameters: ['camille@exemple.fr'],
+      },
+    });
     throw error;
+  }
+
+  @Get('dependance')
+  dependance() {
+    // Erreur d'un client HTTP (Keycloak, S3…) : ne concerne pas la personne.
+    throw Object.assign(new Error('Request failed with status code 401'), { status: 401 });
   }
 
   @Get('conflit')
@@ -37,7 +50,11 @@ class EssaiController {
   @Get('journal')
   journal() {
     this.logger.log(
-      { user: { email: 'camille@exemple.fr' }, chapter: { content: 'Il était une fois' } },
+      {
+        user: { email: 'camille@exemple.fr' },
+        ctx: { user: { email: 'camille@exemple.fr', refresh_token: 'jeton-secret' } },
+        chapter: { content: 'Il était une fois' },
+      },
       'essai',
     );
     return { ok: true };
@@ -103,9 +120,16 @@ describe('erreurs', () => {
     const problem = expectProblem(res.body, 500);
     expect(problem.type).toBe('interne');
     expect(problem.requestId).toBe(res.headers['x-request-id']);
-    expect(JSON.stringify(res.body)).not.toMatch(/SELECT|users|camille|stack|at /);
+    expect(JSON.stringify(res.body)).not.toMatch(/duplicate|users|camille|stack|at /);
     expect(logs()).toContain('Erreur non gérée');
     expect(logs()).not.toContain('camille@exemple.fr');
+  });
+
+  it('erreur d’une dépendance portant un statut 4xx : 500, journalisée', async () => {
+    const { http, logs } = await start();
+    const res = await http.get('/api/essai/dependance').expect(500);
+    expect(expectProblem(res.body, 500).type).toBe('interne');
+    expect(logs()).toContain('Request failed with status code 401');
   });
 
   it('erreur métier : message destiné à la personne', async () => {
@@ -114,14 +138,17 @@ describe('erreurs', () => {
     expect(expectProblem(res.body, 409).detail).toBe('Ce titre est déjà utilisé dans cet univers.');
   });
 
-  it('JSON illisible : 400', async () => {
-    const { http } = await start();
+  it('JSON illisible : 400, traçable par son identifiant', async () => {
+    const { http, logs } = await start();
     const res = await http
       .post('/api/essai')
       .set('Content-Type', 'application/json')
       .send('{"title": ')
       .expect(400);
-    expectProblem(res.body, 400);
+    const problem = expectProblem(res.body, 400);
+    expect(problem.requestId).toBe(res.headers['x-request-id']);
+    expect(problem.requestId).toBeDefined();
+    expect(logs()).toContain('Corps de requête refusé');
   });
 
   it('corps trop volumineux : 413', async () => {
@@ -130,7 +157,9 @@ describe('erreurs', () => {
       .post('/api/essai')
       .send({ title: 'x'.repeat(1_100_000) })
       .expect(413);
-    expect(expectProblem(res.body, 413).type).toBe('trop-volumineux');
+    const problem = expectProblem(res.body, 413);
+    expect(problem.type).toBe('trop-volumineux');
+    expect(problem.requestId).toBe(res.headers['x-request-id']);
   });
 });
 
@@ -158,6 +187,8 @@ describe('validation par les contrats zod', () => {
     const res = await http.post('/api/essai').send({ title: '' }).expect(400);
     const problem = expectProblem(res.body, 400);
     expect(problem.errors?.[0]).toMatchObject({ path: 'title', code: 'too_small' });
+    // Messages en français, lisibles tels quels.
+    expect(problem.errors?.[0]?.message).toMatch(/^Trop petit/);
   });
 });
 
@@ -196,6 +227,7 @@ describe('documentation OpenAPI', () => {
     const { http } = await start({
       NODE_ENV: 'production',
       CORS_ORIGINS: 'https://plumiotheca.example',
+      TRUST_PROXY: '1',
     });
     await http.get('/api/docs').expect(404);
     await http.get('/api/docs-json').expect(404);
@@ -216,8 +248,14 @@ describe('journaux', () => {
     expect(out).not.toMatch(/camille|jeton-secret|session=secret|Il était une fois/);
   });
 
-  it('reprend un identifiant de requête valide, remplace un identifiant suspect', async () => {
+  it('ignore l’identifiant de requête du client sans proxy de confiance', async () => {
     const { http } = await start();
+    const res = await http.get('/api/health').set('X-Request-Id', 'proxy-1234abcd');
+    expect(res.headers['x-request-id']).not.toBe('proxy-1234abcd');
+  });
+
+  it('derrière un proxy : reprend un identifiant valide, remplace un identifiant suspect', async () => {
+    const { http } = await start({ TRUST_PROXY: '1' });
     const ok = await http.get('/api/health').set('X-Request-Id', 'proxy-1234abcd');
     expect(ok.headers['x-request-id']).toBe('proxy-1234abcd');
     const ko = await http.get('/api/health').set('X-Request-Id', 'faux journal <script>');
