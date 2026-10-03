@@ -88,3 +88,25 @@ Il reste quelques erreurs 500 provoquables par n'importe qui et deux critères d
 | 14  | **Corrigé** : ZWNJ/ZWJ permis dans les titres ; isolats U+2066–2069 interdits dans le texte.                                        |
 | 15  | Reporté (issue de suivi).                                                                                                           |
 | 16  | **Corrigé**.                                                                                                                        |
+
+---
+
+# Contre-vérification — 3 octobre 2026 (commit 7202b62)
+
+**Verdict : fusionnable après corrections mineures.** Le constat bloquant n°1 est réellement corrigé (aucune requête des routes publiques ne lit `draft`, vérifié sur le SQL envoyé) ; les déclencheurs tiennent sur tous les scénarios essayés (aller-retour des migrations, cascades, 2 000 chapitres et 6 000 révisions supprimés en 111 ms, concurrence).
+
+| #   | Gravité | Constat                                                                                                                                      | Suite                                                                                                            |
+| --- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| 1   | Moyen   | ZWNJ/ZWJ permis sans condition : titre invisible, tag invisible, tags sosies (`romance` / `roma&zwnj;nce`).                                  | **Corrigé** : seulement entre deux caractères visibles ; ignorés dans l'identité d'un tag ; tests.               |
+| 2   | Moyen   | Curseur daté de l'année 0000 : erreur 500.                                                                                                   | **Corrigé** : dates avant 2000 refusées (400) ; test.                                                            |
+| 3   | Faible  | Tests trop faibles : révision courante déplacée (l'autre déclencheur suffisait à échouer), brouillon vérifié dans les métadonnées seulement. | **Corrigé** : révision non courante, message vérifié ; SQL réellement envoyé capturé sur trois routes publiques. |
+| 4   | Faible  | `update()` lisait l'histoire avant le verrou ; `loadDraft` levait une erreur 500 si le chapitre disparaissait.                               | **Corrigé** : relecture après le verrou ; 404.                                                                   |
+| 5   | Faible  | Pas de test des isolats bidirectionnels dans l'éditeur.                                                                                      | **Corrigé**.                                                                                                     |
+| 6   | Info    | Curseur à la milliseconde, colonne à la microseconde (non atteignable aujourd'hui).                                                          | Noté dans #101 (tâches de fond).                                                                                 |
+| 7   | Info    | `EMPTY_DOCUMENT` inutilisé ; U+200B accepté dans le résumé.                                                                                  | **Corrigé** : supprimé ; résumé aligné sur la présentation du profil.                                            |
+
+Hors constats : les caractères invisibles littéraux restants dans les tests (U+202A, U+202E) sont remplacés par des échappements visibles.
+
+**#46** n'est plus fermée par cette PR : le filtrage par classement existe dans la liste publique (`exclureClassement`), mais pas encore dans la recherche ni dans « Mes limites ».
+
+Questions toujours ouvertes pour la propriétaire du projet : chapitre vide publiable ou non ; écriture pendant les 30 jours d'une demande de suppression.

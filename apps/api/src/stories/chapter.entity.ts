@@ -3,9 +3,6 @@ import { Check, Column, Entity, JoinColumn, ManyToOne, type Relation, Unique } f
 import { CreatedAt, IdColumn, UpdatedAt } from '../database/columns.js';
 import { Story } from './story.entity.js';
 
-/** Document TipTap vide : point de départ d'un brouillon. */
-export const EMPTY_DOCUMENT = { type: 'doc', content: [{ type: 'paragraph' }] } as const;
-
 /**
  * Chapitre. Le brouillon (`draft`) se retravaille librement ; les lecteurs voient la
  * révision publiée courante (voir ChapterRevision), figée, tant qu'une nouvelle version

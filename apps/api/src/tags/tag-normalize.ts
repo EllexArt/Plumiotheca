@@ -4,10 +4,14 @@
  * « Slow Burn » et « slow  burn » oui.
  */
 export function normalizeTag(name: string): string {
-  return name
-    .normalize('NFKD')
-    .replace(/\p{M}/gu, '')
-    .toLowerCase()
-    .replace(/[\s_-]+/g, ' ')
-    .trim();
+  return (
+    name
+      .normalize('NFKD')
+      .replace(/\p{M}/gu, '')
+      .toLowerCase()
+      // Liaisons invisibles (ZWNJ, ZWJ) : « roma‌nce » est le même tag que « romance ».
+      .replace(/[\u200C\u200D]/gu, '')
+      .replace(/[\s_-]+/g, ' ')
+      .trim()
+  );
 }

@@ -424,8 +424,31 @@ describe('chapitres', () => {
 describe('suites de la revue de #133', () => {
   it('le brouillon n’est jamais chargé par défaut (lecture publique sans brouillons en mémoire)', async () => {
     const ctx = await start();
-    const column = ctx.app.get(DataSource).getMetadata(Chapter).findColumnWithPropertyName('draft');
-    expect(column?.isSelect).toBe(false);
+    const db = ctx.app.get(DataSource);
+    expect(db.getMetadata(Chapter).findColumnWithPropertyName('draft')?.isSelect).toBe(false);
+    // Et dans le SQL réellement envoyé par les routes publiques.
+    const jwt = await readyToken(ctx.app);
+    const { story, chapter } = await publishedStory(ctx, jwt);
+    const runner = db.createQueryRunner();
+    const proto = Object.getPrototypeOf(runner) as {
+      query: (this: unknown, sql: string, ...rest: unknown[]) => Promise<unknown>;
+    };
+    await runner.release();
+    const original = proto.query;
+    const sent: string[] = [];
+    proto.query = function (sql, ...rest) {
+      sent.push(sql);
+      return original.call(this, sql, ...rest);
+    };
+    try {
+      await ctx.http.get(`/api/histoires/${story.id}/chapitres/${chapter.id}`).expect(200);
+      await ctx.http.get(`/api/histoires/${story.id}`).expect(200);
+      await ctx.http.get('/api/histoires').expect(200);
+    } finally {
+      proto.query = original;
+    }
+    expect(sent.length).toBeGreaterThan(3);
+    expect(sent.filter((sql) => /"draft"|SELECT draft\b/.test(sql))).toEqual([]);
   });
 
   it('une révision ne change jamais de chapitre ; un chapitre publié a toujours sa révision', async () => {
@@ -434,12 +457,34 @@ describe('suites de la revue de #133', () => {
     const { story, chapter } = await publishedStory(ctx, jwt);
     const other = await newChapter(ctx, jwt, story.id);
     const db = ctx.app.get(DataSource);
+    // Republier : la première révision n'est plus la révision courante. La déplacer ne
+    // déclenche donc que la règle d'immuabilité (pas celle de la révision courante).
+    const { draftVersion } = ChapterDraft.parse(
+      (
+        await ctx.http
+          .get(`/api/histoires/${story.id}/chapitres/${chapter.id}/brouillon`)
+          .set(...bearer(jwt))
+          .expect(200)
+      ).body,
+    );
+    await saveDraft(
+      ctx,
+      jwt,
+      story.id,
+      chapter.id,
+      doc(p('Seconde version.')),
+      draftVersion,
+    ).expect(200);
+    await ctx.http
+      .post(`/api/histoires/${story.id}/chapitres/${chapter.id}/publication`)
+      .set(...bearer(jwt))
+      .expect(201);
     await expect(
-      db.query('UPDATE chapter_revisions SET chapter_id = $1 WHERE chapter_id = $2', [
-        other.id,
-        chapter.id,
-      ]),
-    ).rejects.toThrow();
+      db.query(
+        'UPDATE chapter_revisions SET chapter_id = $1 WHERE chapter_id = $2 AND NOT current',
+        [other.id, chapter.id],
+      ),
+    ).rejects.toThrow(/non modifiable/);
     await expect(
       db.query(`UPDATE chapters SET status = 'published' WHERE id = $1`, [other.id]),
     ).rejects.toThrow();
@@ -451,6 +496,7 @@ describe('suites de la revue de #133', () => {
   it.each([
     ['date sans heure', `2020-01-01T00:00:00.000Z|${'-'.repeat(36)}`],
     ['date libre', `1 2|${randomUUID()}`],
+    ['année 0000', `0000-01-01T00:00:00Z|${randomUUID()}`],
   ])('curseur forgé (%s) : 400', async (_, raw) => {
     const ctx = await start();
     await ctx.http
@@ -460,8 +506,12 @@ describe('suites de la revue de #133', () => {
 
   it.each([
     ['un caractère nul dans le résumé', { summary: 'a\u0000b' }],
-    ['un forçage du sens d’écriture dans le résumé', { summary: 'a‮b' }],
+    ['un forçage du sens d’écriture dans le résumé', { summary: 'a\u202Eb' }],
     ['un tag qui se déplie une fois normalisé', { tags: ['ﷺ'.repeat(100)] }],
+    ['un titre fait de liaisons invisibles', { title: '\u200D\u200C\u200D' }],
+    ['un tag invisible', { tags: ['\u200D'] }],
+    ['une liaison invisible en fin de titre', { title: 'Lucioles\u200D' }],
+    ['une espace invisible dans le résumé', { summary: 'a\u200Bb' }],
     [
       '« ne pas préciser » combiné à un avertissement',
       { majorWarnings: ['unspecified', 'character_death'] },
@@ -476,10 +526,12 @@ describe('suites de la revue de #133', () => {
       .expect(400);
   });
 
-  it('un titre persan avec ZWNJ est accepté', async () => {
+  it('un titre persan avec ZWNJ est accepté ; un tag avec liaison invisible = le même tag', async () => {
     const ctx = await start();
     const jwt = await readyToken(ctx.app);
-    await newStory(ctx, jwt, { title: 'می‌خواهم', language: 'fa' });
+    await newStory(ctx, jwt, { title: 'می\u200Cخواهم', language: 'fa' });
+    const story = await newStory(ctx, jwt, { tags: ['romance', 'roma\u200Cnce'] });
+    expect(story.tags).toEqual(['romance']);
   });
 
   it('modifications simultanées des tags : jamais d’erreur 500', async () => {

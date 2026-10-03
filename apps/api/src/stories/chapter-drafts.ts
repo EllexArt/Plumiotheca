@@ -1,4 +1,4 @@
-import { HttpStatus } from '@nestjs/common';
+import { HttpStatus, NotFoundException } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import { ApiProblem } from '../common/problem.js';
 
@@ -7,7 +7,8 @@ export async function loadDraft(db: EntityManager, chapterId: string): Promise<o
   const [row] = await db.query<{ draft: object }[]>('SELECT draft FROM chapters WHERE id = $1', [
     chapterId,
   ]);
-  if (!row) throw new Error(`Chapitre ${chapterId} introuvable`);
+  // Supprimé entre-temps (autre onglet, co-écriture) : 404, comme chapterOf().
+  if (!row) throw new NotFoundException();
   return row.draft;
 }
 

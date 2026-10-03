@@ -8,8 +8,12 @@ const line = (min: number, max: number) =>
     .trim()
     .min(min)
     .max(max)
-    // Ni contrôle ni format invisible, sauf ZWNJ/ZWJ (persan, écritures indiennes, émojis).
+    // Ni contrôle ni format invisible, sauf ZWNJ/ZWJ (persan, écritures indiennes, émojis)…
     .regex(/^(?:[^\p{Cc}\p{Cf}]|[\u200C\u200D])*$/u, {
+      message: 'Caractères invisibles ou de contrôle interdits.',
+    })
+    // … et seulement entre deux caractères visibles : pas de titre ou de tag invisible.
+    .regex(/^(?![\u200C\u200D])(?!.*[\u200C\u200D]$)(?!.*[\u200C\u200D]{2})/u, {
       message: 'Caractères invisibles ou de contrôle interdits.',
     });
 
@@ -20,8 +24,9 @@ const freeText = (max: number) =>
     .trim()
     .max(max)
     .regex(/^[\n\r\t\P{Cc}]*$/u, { message: 'Caractères de contrôle interdits.' })
-    .regex(/^[^\u202A-\u202E\u2066-\u2069]*$/u, {
-      message: 'Caractère de forçage du sens d’écriture interdit.',
+    // Inversions du sens d'écriture et espaces invisibles (comme la présentation du profil).
+    .regex(/^[^\u200B\uFEFF\u202A-\u202E\u2066-\u2069]*$/u, {
+      message: 'Caractères invisibles interdits.',
     });
 
 /** Langue de l'histoire (BCP 47 : « fr », « en », « pt-BR »). */

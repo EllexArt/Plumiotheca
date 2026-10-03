@@ -24,7 +24,11 @@ const iso = (d: Date | null) => (d ? d.toISOString() : null);
 const encodeCursor = (story: Story) =>
   Buffer.from(`${story.publishedAt!.toISOString()}|${story.id}`).toString('base64url');
 
-const Cursor = z.tuple([z.iso.datetime(), z.uuid()]);
+// Bornes de date : PostgreSQL refuse l'année 0000, que la norme ISO accepte.
+const Cursor = z.tuple([
+  z.iso.datetime().refine((d) => Date.parse(d) >= Date.UTC(2000, 0, 1)),
+  z.uuid(),
+]);
 
 function decodeCursor(cursor: string): [string, string] {
   const parsed = Cursor.safeParse(Buffer.from(cursor, 'base64url').toString().split('|'));
@@ -62,9 +66,11 @@ export class StoriesService {
   /** Mise à jour partielle sur la liste blanche des champs (jamais `save()`). */
   async update(account: User, id: string, input: UpdateStory): Promise<StoryDetail> {
     await this.db.transaction(async (tx) => {
-      const story = await ownedStory(tx, id, account);
-      // Deux modifications simultanées (double clic, deux onglets) s'enchaînent.
+      await ownedStory(tx, id, account);
+      // Deux modifications simultanées (double clic, deux onglets) s'enchaînent ; l'état est
+      // relu après le verrou (une publication a pu passer entre-temps).
       await lockStory(tx, id);
+      const story = await ownedStory(tx, id, account);
       const { tags, ...fields } = input;
       const changes = Object.fromEntries(
         Object.entries(fields).filter(([, value]) => value !== undefined),
