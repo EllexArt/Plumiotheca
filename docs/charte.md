@@ -64,9 +64,9 @@ Plumiotheca est une bibliothèque vivante : on y écrit, on y lit, on s'y entrai
 
 ## 6. Communauté et sécurité
 
-**6.1** On ne fausse pas la communauté : pas de faux comptes, de lectures ou de recommandations achetées ou automatisées, de publicité non sollicitée ni de liens trompeurs.
+**6.1** On ne fausse pas la communauté : pas de lectures, de recommandations ou d'abonnements achetés ou automatisés, pas de comptes créés pour se recommander soi-même ou gonfler ses chiffres, pas de publicité non sollicitée ni de liens trompeurs.
 
-**6.2** Un seul compte par personne, et jamais de compte secondaire pour contourner une sanction.
+**6.2** Vous pouvez avoir plusieurs comptes, par exemple pour séparer vos styles d'écriture ou vos communautés. Mais jamais pour échapper à une sanction (un compte suspendu ou fermé vaut pour la personne, pas pour le pseudonyme), ni pour harceler, ni pour tricher : un seul compte par personne dans un même cercle ou un même défi.
 
 **6.3** Plumiotheca est ouverte à partir de 15 ans. L'âge déclaré doit être vrai : il sert à protéger les plus jeunes. S'il apparaît qu'une personne a moins de 15 ans, son compte est fermé et ses contenus retirés ; elle pourra revenir à 15 ans.
 
