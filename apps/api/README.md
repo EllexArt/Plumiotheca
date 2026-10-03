@@ -39,6 +39,17 @@ pnpm --filter @plumiotheca/api typecheck
 - Clés de Keycloak injoignables ou illisibles : `503 indisponible` journalisée (avec `Retry-After`), jamais un 401 qui déconnecterait tout le monde.
 - `GET /api/moi` : rôles et double authentification de la session en cours.
 
+## Compte dans l'application
+
+- Le compte de l'application est créé à la première requête connectée (sans e-mail : il reste dans Keycloak).
+- **Refus par défaut** : toute route connectée exige un compte prêt (première visite faite, charte en vigueur acceptée, âge d'au moins 15 ans déclaré). Sinon `403` : `premiere-visite-requise`, `charte-a-accepter` ou `age-minimum`. Les routes du parcours d'arrivée le permettent avec `@AllowAccountSteps(...)` ; `@CurrentAccount()` donne le compte.
+- `GET /api/moi/compte` : mon compte et l'étape à franchir (`first-visit`, `charter`, `age-locked`, `ready`).
+- `POST /api/moi/compte/premiere-visite` : pseudonyme, âge déclaré (`under-15`, `15-17`, `18+`), version de la charte lue. « Moins de 15 ans » verrouille le compte : seule cette réponse est gardée.
+- `POST /api/moi/compte/charte` : accepter une nouvelle version de la charte ([docs/charte.md](../../docs/charte.md), version dans `@plumiotheca/contracts`).
+- `PUT /api/moi/compte/pseudonyme` : 3 à 30 caractères, unicité sans casse ni accents, noms officiels réservés, un changement par mois ; l'ancien pseudonyme est bloqué 90 jours.
+- `PATCH /api/moi/compte/profil` : nom affiché, pronoms, présentation.
+- `GET /api/pseudonymes/:handle` (public) : profil public, sans identifiant, âge ni e-mail ; `GET /api/pseudonymes/:handle/disponibilite`.
+
 ## Configuration
 
 Validée au démarrage par `src/config/env.ts` : l'API s'arrête avec la liste des variables en cause (sans leur valeur).

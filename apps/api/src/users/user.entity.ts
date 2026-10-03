@@ -1,4 +1,4 @@
-import { AccountStatus, AgeBand, DeletionMode } from '@plumiotheca/contracts';
+import { AccountStatus, DeclaredAge, DeletionMode } from '@plumiotheca/contracts';
 import { Check, Column, Entity, Index } from 'typeorm';
 import { CreatedAt, IdColumn, UpdatedAt } from '../database/columns.js';
 
@@ -48,9 +48,12 @@ export class User {
   @Column({ type: 'text', nullable: true })
   bio!: string | null;
 
-  /** Tranche déclarée (« 15-17 » ou « 18+ ») ; NULL tant qu'elle n'est pas renseignée. */
-  @Column({ type: 'enum', enum: AgeBand.options, enumName: 'age_band', nullable: true })
-  ageBand!: AgeBand | null;
+  /**
+   * Âge déclaré à la première visite ; NULL tant qu'il n'est pas renseigné. « under-15 »
+   * verrouille le compte (on ne recommence pas en changeant de réponse).
+   */
+  @Column({ type: 'enum', enum: DeclaredAge.options, enumName: 'age_band', nullable: true })
+  ageBand!: DeclaredAge | null;
 
   /** Version de la charte acceptée, et quand. */
   @Column({ type: 'varchar', length: 20, nullable: true })
@@ -58,6 +61,10 @@ export class User {
 
   @Column({ type: 'timestamptz', nullable: true })
   charterAcceptedAt!: Date | null;
+
+  /** Dernier changement de pseudonyme (un par mois au plus) ; NULL : jamais changé. */
+  @Column({ type: 'timestamptz', nullable: true })
+  handleChangedAt!: Date | null;
 
   @Column({
     type: 'enum',
@@ -99,6 +106,7 @@ export const PERSONAL_FIELDS = [
 
 export const NON_PERSONAL_FIELDS = [
   'id',
+  'handleChangedAt',
   'status',
   'deletionRequestedAt',
   'deletionMode',

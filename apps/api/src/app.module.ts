@@ -4,6 +4,8 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import type { JWTVerifyGetKey } from 'jose';
 import type { DestinationStream } from 'pino';
+import { AccountGuard } from './account/account.guard.js';
+import { AccountModule } from './account/account.module.js';
 import { AuthGuard } from './auth/auth.guard.js';
 import { AuthModule } from './auth/auth.module.js';
 import { loggerParams } from './common/logger.js';
@@ -36,11 +38,14 @@ export class AppModule {
         AuthModule.forRoot(options.jwks),
         HealthModule,
         MeModule,
+        AccountModule,
       ],
       providers: [
         // Ordre des gardes : limitation de débit, puis authentification et rôles.
         { provide: APP_GUARD, useClass: ThrottlerGuard },
         { provide: APP_GUARD, useClass: AuthGuard },
+        // Puis le compte de l'application : première visite, charte, âge.
+        { provide: APP_GUARD, useClass: AccountGuard },
         { provide: APP_FILTER, useClass: ProblemFilter },
         // Paramètres déclarés avec un schéma (`@Body({ schema })`) : validés par zod.
         {
