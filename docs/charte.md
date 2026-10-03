@@ -20,7 +20,7 @@ Plumiotheca est une bibliothèque vivante : on y écrit, on y lit, on s'y entrai
 
 **2.1** Il n'y a pas de messages privés sur Plumiotheca, et c'est voulu : tous les échanges ont lieu dans des espaces visibles (notes de lecture, notes de fin de chapitre, recommandations, retours de bêta-lecture dans les cercles).
 
-**2.2** Vous pouvez indiquer dans votre profil où l'on vous trouve ailleurs (site, réseaux). En revanche, on ne pousse jamais quelqu'un à continuer une conversation en privé ailleurs, on ne lui demande pas ses coordonnées, et on ne fait aucune démarche de ce genre envers un ou une mineure.
+**2.2** Vous pouvez indiquer dans votre profil où l'on vous trouve ailleurs (site, réseaux). En revanche, on ne pousse jamais quelqu'un à continuer une conversation en privé ailleurs et on ne lui demande pas ses coordonnées : vous ne savez pas qui est mineur ici, cette règle vaut donc envers tout le monde.
 
 **2.3** La bêta-lecture se fait uniquement dans un cercle : les retours sont visibles de tous ses membres.
 

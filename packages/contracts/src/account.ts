@@ -18,8 +18,11 @@ export function handleKey(handle: string): string {
   return handle.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase();
 }
 
-/** Lettres latines accentuées (Latin-1 et Latin étendu A/B, sans × ni ÷), chiffres, `._-`. */
-const HANDLE_CHARS = /^[A-Za-z0-9\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u024F._-]+$/;
+/**
+ * Lettres latines accentuées (Latin-1 et Latin étendu A/B, sans × ni ÷ ni les clics
+ * U+01C0-U+01C3 qui imitent « l » et « ! »), chiffres, `._-`.
+ */
+const HANDLE_CHARS = /^[A-Za-z0-9\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u01BF\u01C4-\u024F._-]+$/;
 
 export const Handle = z
   .string()
@@ -72,7 +75,11 @@ const freeText = (max: number) =>
     .string()
     .trim()
     .max(max)
-    .regex(/^[\n\r\t\P{Cc}]*$/u, { message: 'Caractères de contrôle interdits.' });
+    .regex(/^[\n\r\t\P{Cc}]*$/u, { message: 'Caractères de contrôle interdits.' })
+    // Inversions du sens d'écriture et espaces invisibles (les émojis composés restent permis).
+    .regex(/^[^\u200B\u202A-\u202E\u2066-\u2069]*$/u, {
+      message: 'Caractères invisibles interdits.',
+    });
 
 /** Champs de profil modifiables (tous facultatifs ; null efface). */
 export const UpdateProfile = z.strictObject({

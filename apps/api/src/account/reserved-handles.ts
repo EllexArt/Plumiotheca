@@ -1,9 +1,9 @@
 import { handleKey } from '@plumiotheca/contracts';
 
 /**
- * Noms qui pourraient faire croire à un message officiel (charte 3.4). On compare un
- * « squelette » : forme normalisée, sans séparateurs, chiffres sosies remplacés
- * (« p1umi0theca » → « plumiotheca », « equipe-plumiotheca » → « equipeplumiotheca »).
+ * Noms qui pourraient faire croire à un message officiel (charte 3.4). On compare des
+ * « squelettes » : forme normalisée, sosies ramenés à la lettre imitée, sans séparateurs
+ * (« p1umi0theca », « admın », « Моdération » cyrillique → « plumiotheca », « admin »…).
  */
 const EXACT = [
   'admin',
@@ -18,28 +18,84 @@ const EXACT = [
   'root',
   'anonyme',
   'comptesupprime',
+  'equipe',
   'null',
   'undefined',
 ];
 /** Interdits même au milieu d'un nom (« moderation_officielle », « lequipeplumiotheca »). */
-const CONTAINED = ['plumiotheca', 'moderat', 'administr', 'equipe'];
+const CONTAINED = ['plumiotheca', 'moderateur', 'moderatrice', 'moderation', 'administr'];
 
-const LOOKALIKE_DIGITS: Record<string, string> = {
-  '0': 'o',
-  '1': 'l',
-  '3': 'e',
-  '4': 'a',
-  '5': 's',
-  '7': 't',
+/** Lettres qui imitent une lettre latine sans s'y décomposer (latin, cyrillique, grec). */
+const LOOKALIKES: Record<string, string> = {
+  ı: 'i',
+  ł: 'l',
+  ø: 'o',
+  æ: 'a',
+  œ: 'o',
+  đ: 'd',
+  ð: 'd',
+  þ: 'th',
+  ß: 'ss',
+  ŀ: 'l',
+  ǀ: 'l',
+  ǁ: 'll',
+  ǂ: 't',
+  ǃ: 'i',
+  а: 'a',
+  в: 'b',
+  е: 'e',
+  ё: 'e',
+  к: 'k',
+  м: 'm',
+  н: 'h',
+  о: 'o',
+  р: 'p',
+  с: 'c',
+  т: 't',
+  у: 'y',
+  х: 'x',
+  і: 'i',
+  ј: 'j',
+  ѕ: 's',
+  ԁ: 'd',
+  ӏ: 'l',
+  α: 'a',
+  β: 'b',
+  ε: 'e',
+  η: 'n',
+  ι: 'i',
+  κ: 'k',
+  ν: 'v',
+  ο: 'o',
+  ρ: 'p',
+  τ: 't',
+  υ: 'u',
+  χ: 'x',
+  ω: 'w',
 };
 
-export function skeleton(text: string): string {
-  return handleKey(text)
-    .replace(/[^a-z0-9]/g, '')
-    .replace(/[013457]/g, (d) => LOOKALIKE_DIGITS[d] ?? d);
+function base(text: string): string {
+  // Avant la mise en minuscules : « I » majuscule imite souvent « l ».
+  const lowered = handleKey(text.replace(/I/g, 'l'));
+  return [...lowered]
+    .map((c) => LOOKALIKES[c] ?? c)
+    .join('')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+/** Squelettes possibles : un chiffre peut imiter plusieurs lettres (« 1 » = « l » ou « i »). */
+export function skeletons(text: string): string[] {
+  const b = base(text);
+  const digits = (one: string) =>
+    b.replace(
+      /[0-9]/g,
+      (d) => ({ '0': 'o', '1': one, '3': 'e', '4': 'a', '5': 's', '7': 't' })[d] ?? d,
+    );
+  return [...new Set([digits('l'), digits('i'), base(text.toLowerCase())])];
 }
 
 export function isReservedName(text: string): boolean {
-  const s = skeleton(text);
-  return EXACT.includes(s) || CONTAINED.some((word) => s.includes(word));
+  return skeletons(text).some(
+    (s) => EXACT.includes(s) || CONTAINED.some((word) => s.includes(word)),
+  );
 }

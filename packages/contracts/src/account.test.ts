@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Handle, handleKey } from './account.js';
+import { Handle, handleKey, UpdateProfile } from './account.js';
 
 describe('pseudonyme', () => {
   it.each(['Élise', 'lune_noire', 'k.l-42', 'Ōkami', 'abc', 'Søren', 'Çağla'])(
@@ -35,5 +35,13 @@ describe('pseudonyme', () => {
   it('compare sans casse ni accents', () => {
     expect(handleKey('Élise')).toBe(handleKey('elise'));
     expect(handleKey('ÉLISE')).toBe('elise');
+  });
+});
+
+describe('profil', () => {
+  it('présentation : retours à la ligne et émojis permis, inversion du sens d’écriture refusée', () => {
+    expect(UpdateProfile.safeParse({ bio: 'Ligne 1\nLigne 2 👩‍💻' }).success).toBe(true);
+    expect(UpdateProfile.safeParse({ bio: 'texte \u202Eesrevni' }).success).toBe(false);
+    expect(UpdateProfile.safeParse({ bio: 'invisible\u200B' }).success).toBe(false);
   });
 });
