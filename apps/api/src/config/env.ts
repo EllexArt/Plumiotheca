@@ -2,12 +2,7 @@ import { z } from 'zod';
 
 const DEV_ISSUER = 'http://localhost:8080/realms/plumiotheca';
 
-const DEV_ORIGINS = [
-  'http://localhost:5000',
-  'http://localhost:5001',
-  'http://localhost:5002',
-  'http://localhost:5173',
-];
+const DEV_ORIGINS = ['http://localhost:5173'];
 
 /** Liste d'origines séparées par des virgules, chacune réduite à « schéma://hôte[:port] ». */
 const origins = z

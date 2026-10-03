@@ -1,0 +1,218 @@
+.skip {
+  position: absolute;
+  left: var(--space-4);
+  top: -10rem;
+  z-index: 100;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-weight: 600;
+}
+
+.skip:focus {
+  top: var(--space-3);
+}
+
+.header {
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.bar {
+  max-width: var(--page-width);
+  margin: 0 auto;
+  padding: 0 var(--space-6);
+  min-height: var(--header-height);
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--target-min);
+  color: var(--color-text);
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+}
+
+.brand:hover {
+  color: var(--color-text);
+}
+
+.nav {
+  align-self: stretch;
+}
+
+.navList {
+  display: flex;
+  gap: var(--space-1);
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  min-height: var(--target-min);
+  padding: 0 var(--space-3);
+  border-bottom: 3px solid transparent;
+  color: var(--color-text-soft);
+  text-decoration: none;
+  font-size: var(--text-md);
+}
+
+.navLink:hover {
+  color: var(--color-text);
+  border-bottom-color: var(--color-border-strong);
+}
+
+/* Page courante : soulignée ET en gras, pas seulement colorée (RGAA 3.1). */
+.navLink[aria-current='page'] {
+  color: var(--color-text);
+  font-weight: 600;
+  border-bottom-color: var(--color-amber);
+}
+
+.actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--target-min);
+  height: var(--target-min);
+  border-radius: 50%;
+  border: 0;
+  background: var(--color-success);
+  color: var(--color-page);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.menu {
+  min-width: 15rem;
+  padding: var(--space-2);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-raised);
+  color: var(--color-text);
+  box-shadow: var(--shadow-raised);
+  z-index: 40;
+}
+
+.menuLabel {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--target-min);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-md);
+  cursor: pointer;
+  outline: none;
+}
+
+.menuItem[data-highlighted] {
+  background: var(--color-sunken);
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+
+.menuItem[data-state='checked'] {
+  font-weight: 600;
+}
+
+.menuIndicator {
+  width: 1rem;
+  display: inline-flex;
+}
+
+.separator {
+  height: 1px;
+  margin: var(--space-2) 0;
+  background: var(--color-border);
+}
+
+.main {
+  min-height: calc(100vh - var(--header-height) - 6rem);
+}
+
+.main:focus {
+  outline: none;
+}
+
+.footer {
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.footerInner {
+  max-width: var(--page-width);
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-6);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-6);
+  align-items: center;
+}
+
+.footerLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.footerLinks a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  color: var(--color-text-soft);
+}
+
+/* Téléphone : la navigation passe sur sa propre ligne, défilable. */
+@media (max-width: 52rem) {
+  .bar {
+    flex-wrap: wrap;
+    gap: 0 var(--space-3);
+    padding: 0 var(--space-4);
+  }
+
+  .nav {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .navLink {
+    min-height: 3rem;
+  }
+
+  .writeLabel {
+    display: none;
+  }
+}

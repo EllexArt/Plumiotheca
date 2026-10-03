@@ -103,12 +103,7 @@ await kc.post(`${R}/clients`, {
 
 // 4. Client « web » : application publique, code d'autorisation + PKCE obligatoire,
 //    pas de connexion par mot de passe direct, origines limitées.
-const devOrigins = [
-  'http://localhost:5000',
-  'http://localhost:5001',
-  'http://localhost:5002',
-  'http://localhost:5173',
-];
+const devOrigins = ['http://localhost:5173'];
 await kc.post(`${R}/clients`, {
   clientId: 'web',
   name: 'Application web Plumiotheca',
