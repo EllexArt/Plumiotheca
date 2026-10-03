@@ -129,23 +129,23 @@ Plumiotheca/
 
 ### Modules
 
-| Module          | Responsabilité                                                                                                                                                                                                |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `auth`          | Vérification des JWT Keycloak (JWKS via `jose`), guard global, `@Public()`, `@RequireRoles()` avec preuve de MFA (`amr`), rattachement de l'utilisateur local.                                                |
-| `users`         | Profil public (pseudonyme unique, bio, avatar), préférences privées. **L'email n'est jamais exposé.**                                                                                                         |
-| `stories`       | Histoires, statut (brouillon / publiée / archivée), tags, avertissements de contenu, public visé.                                                                                                             |
-| `chapters`      | Chapitres, ordre, version publiée vs brouillon, révisions.                                                                                                                                                    |
-| `universes`     | Univers partagés entre histoires : fiches personnages, lieux, chronologie, notes. Gère les membres et le mode d'ouverture (voir §5 bis).                                                                      |
-| `reading`       | Bibliothèque, listes de lecture, progression (chapitre + position), réglages de lecture synchronisés.                                                                                                         |
-| `social`        | Abonnements (personnes, univers), « J'ai aimé » (compteur privé, visible de l'autrice ou de l'auteur ou de l'auteur), recommandations, notes par passage et de fin de chapitre. **Pas de messagerie privée.** |
-| `notifications` | Nouveau chapitre, réponse à un commentaire, nouvel abonné.                                                                                                                                                    |
-| `moderation`    | Signalements, blocages, file par urgence, décisions motivées, appels, journal, rapport de transparence.                                                                                                       |
-| `circles`       | Cercles d'entraide : annuaire, adhésion, rôles d'animation, bêta-lecture équitable, défis, outils d'animation.                                                                                                |
-| `gallery`       | Images : origine déclarée (dont IA), description obligatoire, liens univers / histoires / personnages, validation des fan arts, droits.                                                                       |
-| `media`         | Upload d'images vers S3 via URL pré-signée.                                                                                                                                                                   |
-| `stats`         | Lectures uniques, temps de lecture, statistiques auteur.                                                                                                                                                      |
-| `tags`          | Tags libres, tags canoniques, synonymes et hiérarchie ; outils des « jardiniers des tags ».                                                                                                                   |
-| `search`        | Indexation et recherche à facettes (Meilisearch), recherches enregistrées et alertes.                                                                                                                         |
+| Module          | Responsabilité                                                                                                                                                                                 |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auth`          | Vérification des JWT Keycloak (JWKS via `jose`), guard global, `@Public()`, `@RequireRoles()` avec preuve de MFA (`amr`), rattachement de l'utilisateur local.                                 |
+| `users`         | Profil public (pseudonyme unique, bio, avatar), préférences privées. **L'email n'est jamais exposé.**                                                                                          |
+| `stories`       | Histoires, statut (brouillon / publiée / archivée), tags, avertissements de contenu, public visé.                                                                                              |
+| `chapters`      | Chapitres, ordre, version publiée vs brouillon, révisions.                                                                                                                                     |
+| `universes`     | Univers partagés entre histoires : fiches personnages, lieux, chronologie, notes. Gère les membres et le mode d'ouverture (voir §5 bis).                                                       |
+| `reading`       | Bibliothèque, listes de lecture, progression (chapitre + position), réglages de lecture synchronisés.                                                                                          |
+| `social`        | Abonnements (personnes, univers), « J'ai aimé » (compteur privé, visible de l'autrice ou de l'auteur), recommandations, notes par passage et de fin de chapitre. **Pas de messagerie privée.** |
+| `notifications` | Nouveau chapitre, réponse à un commentaire, nouvel abonné.                                                                                                                                     |
+| `moderation`    | Signalements, blocages, file par urgence, décisions motivées, appels, journal, rapport de transparence.                                                                                        |
+| `circles`       | Cercles d'entraide : annuaire, adhésion, rôles d'animation, bêta-lecture équitable, défis, outils d'animation.                                                                                 |
+| `gallery`       | Images : origine déclarée (dont IA), description obligatoire, liens univers / histoires / personnages, validation des fan arts, droits.                                                        |
+| `media`         | Upload d'images vers S3 via URL pré-signée.                                                                                                                                                    |
+| `stats`         | Lectures uniques, temps de lecture, statistiques auteur.                                                                                                                                       |
+| `tags`          | Tags libres, tags canoniques, synonymes et hiérarchie ; outils des « jardiniers des tags ».                                                                                                    |
+| `search`        | Indexation et recherche à facettes (Meilisearch), recherches enregistrées et alertes.                                                                                                          |
 
 ### Règles transverses
 
