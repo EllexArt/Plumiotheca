@@ -3,6 +3,8 @@ import { Controller, Get } from '@nestjs/common';
 import { CHARTER_VERSION, MyAccount, PublicProfile } from '@plumiotheca/contracts';
 import { DataSource } from 'typeorm';
 import { describe, expect, it } from 'vitest';
+import { HandleHistory } from '../src/users/handle-history.entity.js';
+import { HandleRelease } from '../src/users/handle-release.entity.js';
 import { User } from '../src/users/user.entity.js';
 import { expectProblem, readyToken, start as startApp, token } from './support.js';
 
@@ -92,6 +94,29 @@ describe('première visite', () => {
     expect([row.ageBand, row.handle, row.charterVersion]).toEqual(['under-15', null, null]);
   });
 
+  it('« moins de 15 ans » et « 18+ » au même instant : jamais un compte prêt après un refus', async () => {
+    const { app, http } = await start();
+    for (let i = 0; i < 10; i++) {
+      const sub = randomUUID();
+      const jwt = await token({ sub });
+      const [young, adult] = await Promise.all([
+        firstVisit(http, jwt, { handle: `course-${unique()}`, age: 'under-15' }),
+        firstVisit(http, jwt, { handle: `course-${unique()}`, age: '18+' }),
+      ]);
+      const row = await app
+        .get(DataSource)
+        .getRepository(User)
+        .findOneByOrFail({ keycloakId: sub });
+      if (young.status === 403) {
+        // Le refus a été prononcé : le compte doit rester verrouillé.
+        expect(row.ageBand).toBe('under-15');
+        expect(adult.status).not.toBe(201);
+      } else {
+        expect([adult.status, row.ageBand]).toEqual([201, '18+']);
+      }
+    }
+  });
+
   it('refuse une charte périmée', async () => {
     const { http } = await start();
     const res = await firstVisit(http, await token(), {
@@ -119,6 +144,9 @@ describe('première visite', () => {
       base.replace('é', 'e'),
       'Modération',
       'Plumiotheca_officiel',
+      'equipe-plumiotheca',
+      'moderation_officielle',
+      'p1umi0theca',
     ]) {
       const res = await firstVisit(http, await token(), { handle }).expect(409);
       expect(expectProblem(res.body, 409).type).toBe('pseudonyme-indisponible');
@@ -207,6 +235,109 @@ describe('pseudonyme et profil', () => {
       .expect(200);
   });
 
+  it('les délais passés, le pseudonyme se change et l’ancien se libère', async () => {
+    const { app, http } = await start();
+    const db = app.get(DataSource);
+    const sub = randomUUID();
+    const jwt = await token({ sub });
+    const first = `delai-${unique()}`;
+    await firstVisit(http, jwt, { handle: first }).expect(201);
+    await http
+      .put('/api/moi/compte/pseudonyme')
+      .set(...bearer(jwt))
+      .send({ handle: `delai-b-${unique()}` })
+      .expect(200);
+    // 31 jours plus tard : nouveau changement permis.
+    await db
+      .getRepository(User)
+      .update({ keycloakId: sub }, { handleChangedAt: new Date(Date.now() - 31 * 86_400_000) });
+    await http
+      .put('/api/moi/compte/pseudonyme')
+      .set(...bearer(jwt))
+      .send({ handle: `delai-c-${unique()}` })
+      .expect(200);
+    // 90 jours plus tard : l'ancien pseudonyme est réattribuable.
+    await db
+      .getRepository(HandleRelease)
+      .update({ handleKey: first }, { reusableAt: new Date(Date.now() - 1000) });
+    await firstVisit(http, await token(), { handle: first }).expect(201);
+  });
+
+  it('les anciens pseudonymes restent rattachés au compte, pour la modération seule', async () => {
+    const { app, http } = await start();
+    const sub = randomUUID();
+    const jwt = await token({ sub });
+    const first = `histo-${unique()}`;
+    await firstVisit(http, jwt, { handle: first }).expect(201);
+    await http
+      .put('/api/moi/compte/pseudonyme')
+      .set(...bearer(jwt))
+      .send({ handle: `histo-b-${unique()}` })
+      .expect(200);
+    const db = app.get(DataSource);
+    const user = await db.getRepository(User).findOneByOrFail({ keycloakId: sub });
+    const history = await db
+      .getRepository(HandleHistory)
+      .find({ where: { user: { id: user.id } } });
+    expect(history.map((h) => h.handle)).toEqual([first]);
+    // Rien de l'historique dans « mon compte » (ni, a fortiori, dans le profil public).
+    const mine = await http
+      .get('/api/moi/compte')
+      .set(...bearer(jwt))
+      .expect(200);
+    expect(JSON.stringify(mine.body)).not.toContain(first);
+  });
+
+  it('changement vers un nom réservé refusé', async () => {
+    const { app, http } = await start();
+    const jwt = await readyToken(app);
+    await http
+      .put('/api/moi/compte/pseudonyme')
+      .set(...bearer(jwt))
+      .send({ handle: 'Equipe_Moderation' })
+      .expect(409);
+  });
+
+  it('compte verrouillé ou première visite non faite : ni pseudonyme ni profil modifiables', async () => {
+    const { http } = await start();
+    const fresh = await token();
+    const locked = await token();
+    await firstVisit(http, locked, { handle: `v-${unique()}`, age: 'under-15' }).expect(403);
+    for (const jwt of [fresh, locked]) {
+      await http
+        .put('/api/moi/compte/pseudonyme')
+        .set(...bearer(jwt))
+        .send({ handle: `x-${unique()}` })
+        .expect(403);
+      await http
+        .patch('/api/moi/compte/profil')
+        .set(...bearer(jwt))
+        .send({ bio: 'coucou' })
+        .expect(403);
+    }
+  });
+
+  it('nom affiché : pas d’imitation de l’équipe, pas de caractères invisibles', async () => {
+    const { app, http } = await start();
+    const jwt = await readyToken(app);
+    const reserved = await http
+      .patch('/api/moi/compte/profil')
+      .set(...bearer(jwt))
+      .send({ displayName: 'Équipe de modération Plumiotheca' })
+      .expect(409);
+    expect(expectProblem(reserved.body, 409).type).toBe('nom-reserve');
+    await http
+      .patch('/api/moi/compte/profil')
+      .set(...bearer(jwt))
+      .send({ displayName: 'Élise‮esilé' })
+      .expect(400);
+    await http
+      .patch('/api/moi/compte/profil')
+      .set(...bearer(jwt))
+      .send({ bio: 'Première ligne\nDeuxième ligne' })
+      .expect(200);
+  });
+
   it('profil : champs modifiables, champ inconnu refusé, texte vide effacé', async () => {
     const { app, http } = await start();
     const jwt = await readyToken(app);
@@ -246,12 +377,29 @@ describe('pseudonyme et profil', () => {
     });
   });
 
-  it('profil public introuvable : inconnu, première visite non faite ou compte verrouillé', async () => {
-    const { http } = await start();
-    await http.get(`/api/pseudonymes/inconnu-${unique()}`).expect(404);
-    const locked = await token();
-    await firstVisit(http, locked, { handle: `verrou-${unique()}`, age: 'under-15' }).expect(403);
+  it('profil public introuvable : inconnu, ou compte verrouillé ensuite', async () => {
+    const { app, http } = await start();
     const res = await http.get(`/api/pseudonymes/inconnu-${unique()}`).expect(404);
     expect(expectProblem(res.body, 404).type).toBe('introuvable');
+    // Un compte prêt puis verrouillé (âge découvert) disparaît du public.
+    const sub = randomUUID();
+    const handle = `verrou-${unique()}`;
+    await firstVisit(http, await token({ sub }), { handle }).expect(201);
+    await http.get(`/api/pseudonymes/${handle}`).expect(200);
+    await app
+      .get(DataSource)
+      .getRepository(User)
+      .update({ keycloakId: sub }, { ageBand: 'under-15' });
+    await http.get(`/api/pseudonymes/${handle}`).expect(404);
+  });
+
+  it('une route publique reste accessible avec le jeton d’un compte incomplet', async () => {
+    const { http } = await start();
+    const handle = `pub-${unique()}`;
+    await firstVisit(http, await token(), { handle }).expect(201);
+    await http
+      .get(`/api/pseudonymes/${handle}`)
+      .set(...bearer(await token()))
+      .expect(200);
   });
 });

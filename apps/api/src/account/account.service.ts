@@ -10,14 +10,22 @@ import {
   type PublicProfile,
   type UpdateProfile,
 } from '@plumiotheca/contracts';
-import { DataSource, type EntityManager, MoreThan, QueryFailedError } from 'typeorm';
+import { DataSource, type EntityManager, IsNull, MoreThan, QueryFailedError } from 'typeorm';
 import { ApiProblem } from '../common/problem.js';
+import { HandleHistory } from '../users/handle-history.entity.js';
 import { HandleRelease } from '../users/handle-release.entity.js';
 import { User } from '../users/user.entity.js';
 import { accountStep } from './account-step.js';
-import { isReservedHandle } from './reserved-handles.js';
+import { isReservedName } from './reserved-handles.js';
 
 const DAY = 24 * 60 * 60 * 1000;
+
+/** Message unique du refus d'âge (garde et première visite). */
+export const AGE_LOCKED_MESSAGE =
+  'Plumiotheca est ouverte à partir de 15 ans : ce compte ne peut pas être utilisé. Reviens quand tu auras 15 ans, on t’attend !';
+
+export const ageLocked = () =>
+  new ApiProblem(HttpStatus.FORBIDDEN, AGE_LOCKED_MESSAGE, 'age-minimum');
 
 const unavailable = () =>
   new ApiProblem(
@@ -26,9 +34,29 @@ const unavailable = () =>
     'pseudonyme-indisponible',
   );
 
+const alreadyDone = () =>
+  new ApiProblem(HttpStatus.CONFLICT, 'La première visite est déjà faite.', 'deja-fait');
+
+const changedRecently = () =>
+  new ApiProblem(
+    HttpStatus.CONFLICT,
+    `Le pseudonyme ne peut changer qu’une fois tous les ${HANDLE_CHANGE_DAYS} jours.`,
+    'pseudonyme-change-recemment',
+  );
+
+const outdatedCharter = () =>
+  new ApiProblem(
+    HttpStatus.CONFLICT,
+    'La charte a été mise à jour pendant votre lecture : relisez la nouvelle version.',
+    'charte-perimee',
+  );
+
 const isUniqueViolation = (error: unknown) =>
   error instanceof QueryFailedError &&
   (error.driverError as { code?: string } | undefined)?.code === '23505';
+
+/** Une requête simultanée a modifié le compte : on recommence la décision sur l'état réel. */
+class Conflict extends Error {}
 
 @Injectable()
 export class AccountService {
@@ -67,10 +95,10 @@ export class AccountService {
     };
   }
 
-  /** Pseudonyme libre : valide, non réservé, non pris, non abandonné depuis moins de 90 jours. */
+  /** Pseudonyme libre : non réservé, non pris, non abandonné depuis moins de 90 jours. */
   async isAvailable(handle: string, manager: EntityManager = this.db.manager): Promise<boolean> {
     const key = handleKey(handle);
-    if (isReservedHandle(key)) return false;
+    if (isReservedName(handle)) return false;
     if (await manager.getRepository(User).existsBy({ handleKey: key })) return false;
     return !(await manager
       .getRepository(HandleRelease)
@@ -80,20 +108,41 @@ export class AccountService {
   async firstVisit(user: User, input: FirstVisit): Promise<User> {
     const step = accountStep(user);
     if (step === 'age-locked') throw ageLocked();
-    if (step !== 'first-visit') {
-      throw new ApiProblem(HttpStatus.CONFLICT, 'La première visite est déjà faite.', 'deja-fait');
-    }
+    if (step !== 'first-visit') throw alreadyDone();
     if (input.age === 'under-15') {
-      // Seule la réponse est gardée (ni pseudonyme ni charte) : elle verrouille le compte.
-      await this.users.update(user.id, { ageBand: 'under-15' });
+      // Seule la réponse est gardée (ni pseudonyme ni charte). Conditionnelle : une
+      // réponse « 18+ » envoyée au même instant ne peut ni l'écraser ni être écrasée.
+      const locked = await this.users.update(
+        { id: user.id, ageBand: IsNull() },
+        { ageBand: 'under-15' },
+      );
+      if (!locked.affected) return this.retry(user, input);
       throw ageLocked();
     }
     if (input.charterVersion !== CHARTER_VERSION) throw outdatedCharter();
-    return this.claimHandle(user, input.handle, {
-      ageBand: input.age,
-      charterVersion: CHARTER_VERSION,
-      charterAcceptedAt: new Date(),
-    });
+    try {
+      return await this.claimHandle(
+        user,
+        input.handle,
+        { ageBand: IsNull() },
+        {
+          ageBand: input.age,
+          charterVersion: CHARTER_VERSION,
+          charterAcceptedAt: new Date(),
+        },
+      );
+    } catch (error) {
+      if (error instanceof Conflict) return this.retry(user, input);
+      throw error;
+    }
+  }
+
+  /** Après une requête simultanée : décider sur l'état réellement enregistré. */
+  private async retry(user: User, input: FirstVisit): Promise<never> {
+    const current = await this.users.findOneByOrFail({ id: user.id });
+    if (accountStep(current) === 'age-locked') throw ageLocked();
+    if (accountStep(current) !== 'first-visit') throw alreadyDone();
+    throw new Error(`Première visite impossible à enregistrer (${input.age})`);
   }
 
   async acceptCharter(user: User, version: string): Promise<User> {
@@ -109,23 +158,33 @@ export class AccountService {
     const key = handleKey(handle);
     // Même pseudonyme à la casse ou aux accents près : simple retouche, sans délai.
     if (key === user.handleKey) {
-      await this.users.update(user.id, { handle });
+      await this.users.update({ id: user.id, handleKey: key }, { handle });
       return this.users.findOneByOrFail({ id: user.id });
     }
-    if (
-      user.handleChangedAt &&
-      Date.now() - user.handleChangedAt.getTime() < HANDLE_CHANGE_DAYS * DAY
-    ) {
-      throw new ApiProblem(
-        HttpStatus.CONFLICT,
-        `Le pseudonyme ne peut changer qu’une fois tous les ${HANDLE_CHANGE_DAYS} jours.`,
-        'pseudonyme-change-recemment',
+    const since = user.handleChangedAt ? Date.now() - user.handleChangedAt.getTime() : Infinity;
+    if (since < HANDLE_CHANGE_DAYS * DAY) throw changedRecently();
+    try {
+      // Conditionnelle sur l'ancien pseudonyme : deux changements simultanés n'en font qu'un.
+      return await this.claimHandle(
+        user,
+        handle,
+        { handleKey: user.handleKey ?? IsNull() },
+        { handleChangedAt: new Date() },
       );
+    } catch (error) {
+      if (error instanceof Conflict) throw changedRecently();
+      throw error;
     }
-    return this.claimHandle(user, handle, { handleChangedAt: new Date() });
   }
 
   async updateProfile(user: User, input: UpdateProfile): Promise<User> {
+    if (input.displayName && isReservedName(input.displayName)) {
+      throw new ApiProblem(
+        HttpStatus.CONFLICT,
+        'Ce nom pourrait faire croire à un message de l’équipe : choisissez-en un autre.',
+        'nom-reserve',
+      );
+    }
     const changes = Object.fromEntries(
       Object.entries(input)
         .filter(([, value]) => value !== undefined)
@@ -153,28 +212,42 @@ export class AccountService {
   }
 
   /**
-   * Attribue un pseudonyme (et d'autres champs) dans une transaction ; l'ancien est mis de
-   * côté 90 jours, sans lien vers le compte.
+   * Attribue un pseudonyme (et d'autres champs) dans une transaction, seulement si le compte
+   * est encore dans l'état attendu (`expected`) ; sinon Conflict. L'ancien pseudonyme est
+   * bloqué 90 jours pour tout le monde (sans lien) et gardé un an pour la modération.
    */
-  private async claimHandle(user: User, handle: string, extra: Partial<User>): Promise<User> {
+  private async claimHandle(
+    user: User,
+    handle: string,
+    expected: Record<string, unknown>,
+    extra: Partial<User>,
+  ): Promise<User> {
     try {
       await this.db.transaction(async (tx) => {
         if (!(await this.isAvailable(handle, tx))) throw unavailable();
-        if (user.handleKey) {
+        const updated = await tx
+          .getRepository(User)
+          .update({ id: user.id, ...expected }, { ...extra, handle, handleKey: handleKey(handle) });
+        if (!updated.affected) throw new Conflict();
+        if (user.handle && user.handleKey) {
+          const now = Date.now();
           await tx
             .createQueryBuilder()
             .insert()
             .into(HandleRelease)
             .values({
               handleKey: user.handleKey,
-              reusableAt: new Date(Date.now() + HANDLE_RELEASE_DAYS * DAY),
+              reusableAt: new Date(now + HANDLE_RELEASE_DAYS * DAY),
             })
             .orUpdate(['reusable_at'], ['handle_key'])
             .execute();
+          await tx.getRepository(HandleHistory).insert({
+            user: { id: user.id },
+            handle: user.handle,
+            handleKey: user.handleKey,
+            usedUntil: new Date(now),
+          });
         }
-        await tx
-          .getRepository(User)
-          .update(user.id, { ...extra, handle, handleKey: handleKey(handle) });
       });
     } catch (error) {
       // Deux personnes choisissent le même pseudonyme au même instant.
@@ -183,20 +256,4 @@ export class AccountService {
     }
     return this.users.findOneByOrFail({ id: user.id });
   }
-}
-
-function ageLocked() {
-  return new ApiProblem(
-    HttpStatus.FORBIDDEN,
-    'Plumiotheca est ouverte à partir de 15 ans : ce compte ne peut pas être utilisé. Tu pourras revenir avec un nouveau compte quand tu auras 15 ans.',
-    'age-minimum',
-  );
-}
-
-function outdatedCharter() {
-  return new ApiProblem(
-    HttpStatus.CONFLICT,
-    'La charte a été mise à jour pendant votre lecture : relisez la nouvelle version.',
-    'charte-perimee',
-  );
 }

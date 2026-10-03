@@ -7,15 +7,12 @@ import { ApiProblem } from '../common/problem.js';
 import type { User } from '../users/user.entity.js';
 import { ALLOWED_STEPS } from './account.decorators.js';
 import { accountStep } from './account-step.js';
-import { AccountService } from './account.service.js';
+import { AccountService, AGE_LOCKED_MESSAGE } from './account.service.js';
 
 const REFUSALS: Record<Exclude<AccountStep, 'ready'>, [string, string]> = {
   'first-visit': ['premiere-visite-requise', 'Choisissez d’abord votre pseudonyme.'],
   charter: ['charte-a-accepter', 'La charte a changé : prenez un instant pour la relire.'],
-  'age-locked': [
-    'age-minimum',
-    'Plumiotheca est ouverte à partir de 15 ans : ce compte ne peut pas être utilisé.',
-  ],
+  'age-locked': ['age-minimum', AGE_LOCKED_MESSAGE],
 };
 
 /**
