@@ -32,7 +32,7 @@ Plumiotheca est une bibliothèque vivante : on y écrit, on y lit, on s'y entrai
 
 **3.3** Protégez aussi vos propres informations : évitez de publier votre nom, votre adresse, votre école ou votre numéro dans vos textes, votre profil ou vos notes.
 
-**3.4** On n'usurpe pas l'identité d'une autre personne, d'une autrice connue ou de l'équipe de Plumiotheca (pseudonyme, nom affiché ou image qui imiteraient l'équipe).
+**3.4** On n'usurpe l'identité de personne : ni d'un membre de Plumiotheca, ni d'une personne réelle (autrice, auteur, artiste, personnalité, quelqu'un de votre entourage…), ni de l'équipe de Plumiotheca. Pseudonyme, nom affiché, image ou texte : rien ne doit faire croire qu'on est quelqu'un d'autre.
 
 ## 4. Contenus et classements
 
