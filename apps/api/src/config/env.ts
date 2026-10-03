@@ -51,6 +51,21 @@ export const Env = z
      * (ex. http://keycloak:8080/... dans un conteneur). Par défaut : celle de l'émetteur.
      */
     KEYCLOAK_JWKS_URL: z.url({ protocol: /^https?$/ }).optional(),
+    DB_HOST: z.string().min(1).default('localhost'),
+    /** 5433 : port de la base de l'infrastructure de développement (infra/). */
+    DB_PORT: z.coerce.number().int().min(1).max(65535).default(5433),
+    DB_USERNAME: z.string().min(1).default('plumiotheca'),
+    /** Obligatoire en production. */
+    DB_PASSWORD: z.string().optional(),
+    DB_NAME: z.string().min(1).default('plumiotheca'),
+    DB_SSL: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
+    /** Nouvelles tentatives de connexion au démarrage avant d'abandonner (2 s d'écart). */
+    DB_CONNECT_RETRIES: z.coerce.number().int().min(0).max(30).default(5),
+    /** Applique les migrations au démarrage (par défaut en développement seulement). */
+    DB_MIGRATE_ON_START: z.enum(['true', 'false']).optional(),
     /** Audience exigée dans les jetons (client Keycloak de l'API). */
     JWT_AUDIENCE: z.string().min(1).default('api'),
     /** Clients autorisés à appeler l'API (claim « azp »), séparés par des virgules. */
@@ -73,6 +88,9 @@ export const Env = z
         message: 'Obligatoire en production',
       });
     }
+    if (!env.DB_PASSWORD) {
+      ctx.addIssue({ code: 'custom', path: ['DB_PASSWORD'], message: 'Obligatoire en production' });
+    }
     if (!env.KEYCLOAK_ISSUER) {
       ctx.addIssue({
         code: 'custom',
@@ -88,6 +106,10 @@ export const Env = z
     ...env,
     CORS_ORIGINS: env.CORS_ORIGINS ?? DEV_ORIGINS,
     TRUST_PROXY: env.TRUST_PROXY ?? 0,
+    DB_PASSWORD: env.DB_PASSWORD ?? '',
+    DB_MIGRATE_ON_START: env.DB_MIGRATE_ON_START
+      ? env.DB_MIGRATE_ON_START === 'true'
+      : env.NODE_ENV === 'development',
     KEYCLOAK_ISSUER: env.KEYCLOAK_ISSUER ?? DEV_ISSUER,
     KEYCLOAK_JWKS_URL:
       env.KEYCLOAK_JWKS_URL ?? `${env.KEYCLOAK_ISSUER ?? DEV_ISSUER}/protocol/openid-connect/certs`,

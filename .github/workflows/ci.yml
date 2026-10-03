@@ -20,6 +20,26 @@ jobs:
     name: API (build et tests)
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Base éphémère pour les tests et la vérification des migrations. Même version
+    # que infra/docker-compose.yml (à mettre à jour ensemble).
+    services:
+      postgres:
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_USER: plumiotheca
+          POSTGRES_PASSWORD: ci-uniquement
+          POSTGRES_DB: plumiotheca
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U plumiotheca" --health-interval 2s
+          --health-timeout 5s --health-retries 30
+    env:
+      DB_HOST: localhost
+      DB_PORT: '5433'
+      DB_USERNAME: plumiotheca
+      DB_PASSWORD: ci-uniquement
+      DB_NAME: plumiotheca
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -41,6 +61,17 @@ jobs:
 
       - name: Compiler
         run: pnpm --filter "@plumiotheca/api..." build
+
+      # Appliquer, annuler, réappliquer : le retour arrière doit fonctionner aussi.
+      - name: Migrations sur une base vide (aller-retour)
+        run: |
+          pnpm --filter @plumiotheca/api migration:run
+          pnpm --filter @plumiotheca/api migration:revert
+          pnpm --filter @plumiotheca/api migration:run
+
+      # Échoue si les entités ont changé sans migration correspondante.
+      - name: Aucune migration ne manque
+        run: pnpm --filter @plumiotheca/api migration:check
 
       - name: Tests
         run: pnpm --filter "@plumiotheca/api..." test

@@ -10,6 +10,7 @@ import { loggerParams } from './common/logger.js';
 import { ProblemFilter, ValidationFailed } from './common/problem.js';
 import { ConfigModule } from './config/config.module.js';
 import type { Config } from './config/env.js';
+import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './health/health.module.js';
 import { MeModule } from './me/me.module.js';
 
@@ -31,6 +32,7 @@ export class AppModule {
         ThrottlerModule.forRoot({
           throttlers: [{ ttl: 60_000, limit: config.RATE_LIMIT_PER_MINUTE }],
         }),
+        DatabaseModule,
         AuthModule.forRoot(options.jwks),
         HealthModule,
         MeModule,

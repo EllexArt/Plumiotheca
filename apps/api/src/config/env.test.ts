@@ -6,6 +6,8 @@ describe('configuration', () => {
     const config = loadConfig({});
     expect(config).toMatchObject({
       NODE_ENV: 'development',
+      DB_PORT: 5433,
+      DB_MIGRATE_ON_START: true,
       HOST: '127.0.0.1',
       PORT: 3000,
       TRUST_PROXY: 0,
@@ -22,17 +24,19 @@ describe('configuration', () => {
     expect(() => loadConfig({ CORS_ORIGINS: 'https://a.example/app' })).toThrow(/CORS_ORIGINS/);
   });
 
-  it('exige les origines CORS, l’émetteur des jetons et le nombre de proxys en production', () => {
+  it('exige en production les réglages qui n’ont pas de valeur sûre par défaut', () => {
     expect(() => loadConfig({ NODE_ENV: 'production' })).toThrow(
-      /CORS_ORIGINS : Obligatoire[\s\S]*KEYCLOAK_ISSUER : Obligatoire[\s\S]*TRUST_PROXY : Obligatoire/,
+      /CORS_ORIGINS : Obligatoire[\s\S]*DB_PASSWORD : Obligatoire[\s\S]*KEYCLOAK_ISSUER : Obligatoire[\s\S]*TRUST_PROXY : Obligatoire/,
     );
     const config = loadConfig({
       NODE_ENV: 'production',
       CORS_ORIGINS: 'https://a.example',
       TRUST_PROXY: '0',
       KEYCLOAK_ISSUER: 'https://compte.plumiotheca.example/realms/plumiotheca',
+      DB_PASSWORD: 'secret',
     });
     expect(config.TRUST_PROXY).toBe(0);
+    expect(config.DB_MIGRATE_ON_START).toBe(false);
     expect(config.KEYCLOAK_JWKS_URL).toBe(
       'https://compte.plumiotheca.example/realms/plumiotheca/protocol/openid-connect/certs',
     );

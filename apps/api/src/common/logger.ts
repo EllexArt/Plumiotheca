@@ -63,6 +63,31 @@ const genReqId = (req: WithId, res: ServerResponse) => {
   return id;
 };
 
+type LoggedError = {
+  name?: string;
+  message?: string;
+  code?: unknown;
+  stack?: string;
+  driverError?: { code?: string; constraint?: string; table?: string };
+};
+
+/**
+ * Erreur telle qu'elle est journalisée. Pour une erreur de PostgreSQL, ni message ni pile :
+ * ils peuvent citer la valeur reçue (« invalid input syntax for type uuid: "…" ») ; on garde
+ * le code SQLSTATE, la contrainte et la table, qui suffisent au diagnostic.
+ */
+export function describeError(err: LoggedError) {
+  if (err.driverError) {
+    return {
+      type: err.name,
+      code: err.driverError.code,
+      constraint: err.driverError.constraint,
+      table: err.driverError.table,
+    };
+  }
+  return { type: err.name, message: err.message, code: err.code, stack: err.stack };
+}
+
 /** Chemin sans paramètres de requête (ils peuvent contenir des données personnelles). */
 export const pathOnly = (url: string | undefined) => (url ?? '').split('?')[0];
 
@@ -83,12 +108,7 @@ export function loggerParams(config: Config, destination?: DestinationStream): P
             path: pathOnly(req.url),
           }),
           res: (res: { statusCode: number }) => ({ statusCode: res.statusCode }),
-          err: (err: { name?: string; message?: string; code?: unknown; stack?: string }) => ({
-            type: err.name,
-            message: err.message,
-            code: err.code,
-            stack: err.stack,
-          }),
+          err: describeError,
         },
         autoLogging: { ignore: (req) => pathOnly(req.url) === '/api/health' },
         ...(pretty ? { transport: { target: 'pino-pretty', options: { singleLine: true } } } : {}),

@@ -17,6 +17,7 @@ import { afterEach, beforeEach, expect } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { loadConfig } from '../src/config/env.js';
 import { configureApp } from '../src/setup.js';
+import { testDbEnv } from './db-env.js';
 
 export const ISSUER = 'http://localhost:8080/realms/plumiotheca';
 
@@ -69,7 +70,7 @@ export async function start(
   controllers: Type[] = [],
   keys: JWTVerifyGetKey = jwks,
 ) {
-  const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'info', ...env });
+  const config = loadConfig({ ...testDbEnv(), NODE_ENV: 'test', LOG_LEVEL: 'info', ...env });
 
   @Module({ imports: [AppModule.forRoot(config, { logDestination, jwks: keys })], controllers })
   class TestModule {}
@@ -77,10 +78,11 @@ export async function start(
   app = await NestFactory.create<NestExpressApplication>(TestModule, {
     bodyParser: false,
     logger: false,
+    abortOnError: false,
   });
   configureApp(app, config);
   await app.init();
-  return { http: request(app.getHttpServer()), logs: () => lines.join('') };
+  return { app, http: request(app.getHttpServer()), logs: () => lines.join('') };
 }
 
 export const expectProblem = (body: unknown, status: number) => {
