@@ -110,3 +110,5 @@ Hors constats : les caractères invisibles littéraux restants dans les tests (U
 **#46** n'est plus fermée par cette PR : le filtrage par classement existe dans la liste publique (`exclureClassement`), mais pas encore dans la recherche ni dans « Mes limites ».
 
 Questions toujours ouvertes pour la propriétaire du projet : chapitre vide publiable ou non ; écriture pendant les 30 jours d'une demande de suppression.
+
+**Réponses de la propriétaire du projet (3 octobre 2026)** : un chapitre vide ne se publie pas, une annonce s'écrit dans le corps d'un chapitre (décision 48, comportement actuel) ; une demande de suppression coupe les accès dès le choix effacer / anonymiser et l'export (décision 47 : le constat 13 sera traité avec #70) ; réglages de lecture : alignement standard et police adaptée à la dyslexie au choix de la personne qui lit (décision 49).
