@@ -182,6 +182,26 @@ try {
   });
   check(direct.status >= 400, 'Connexion par mot de passe direct refusée pour le client « web »');
 
+  // Déconnexion depuis l'application : retour autorisé vers l'application web seulement.
+  if (tokens?.id_token) {
+    const logout = (target) => {
+      const url = new URL(`${ISSUER}/protocol/openid-connect/logout`);
+      url.search = new URLSearchParams({
+        client_id: 'web',
+        id_token_hint: tokens.id_token,
+        post_logout_redirect_uri: target,
+      });
+      return fetch(url, { redirect: 'manual' });
+    };
+    const other = await logout('http://localhost:5000/');
+    check(other.status >= 400, 'Déconnexion : retour vers une autre adresse refusé');
+    const back = await logout('http://localhost:5173/');
+    check(
+      back.status === 302 && back.headers.get('location')?.startsWith('http://localhost:5173/'),
+      `Déconnexion : retour vers l'application web (statut ${back.status})`,
+    );
+  }
+
   // Nom d'utilisateur contenant une adresse e-mail : refusé par le profil.
   let refused = false;
   try {

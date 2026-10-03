@@ -814,15 +814,9 @@
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [
-        "http://localhost:5002/*",
-        "http://localhost:5001/*",
-        "http://localhost:5173/*",
-        "http://localhost:5000/*"
+        "http://localhost:5173/*"
       ],
       "webOrigins": [
-        "http://localhost:5000",
-        "http://localhost:5001",
-        "http://localhost:5002",
         "http://localhost:5173"
       ],
       "notBefore": 0,
@@ -839,7 +833,7 @@
         "backchannel.logout.revoke.offline.tokens": "false",
         "backchannel.logout.session.required": "true",
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "http://localhost:5000/*##http://localhost:5001/*##http://localhost:5002/*##http://localhost:5173/*",
+        "post.logout.redirect.uris": "http://localhost:5173/*",
         "realm_client": "false"
       },
       "authenticationFlowBindingOverrides": {},
