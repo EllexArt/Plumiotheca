@@ -88,5 +88,17 @@ export async function request(
     );
   }
   if (response.status === 204 || schema === null) return undefined;
-  return schema.parse(await response.json());
+  const parsed = schema.safeParse(await response.json().catch(() => undefined));
+  if (!parsed.success) {
+    // Contrat non respecté (API plus récente ou plus ancienne que le web) : message lisible,
+    // détail pour l'équipe dans la console seulement.
+    console.error(`Réponse inattendue de l'API pour ${path}`, parsed.error.issues);
+    throw new ApiError({
+      type: 'reponse-inattendue',
+      title:
+        'Plumiotheca a répondu de façon inattendue. Rechargez la page ; si cela continue, signalez-le à l’équipe.',
+      status: 502,
+    });
+  }
+  return parsed.data;
 }

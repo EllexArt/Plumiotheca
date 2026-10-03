@@ -42,7 +42,7 @@ export function AcceptCharterPage() {
       <div>
         <Button
           variant="primary"
-          disabled={accept.isPending}
+          pending={accept.isPending}
           onClick={() =>
             accept.mutate(
               { charterVersion: CHARTER_VERSION },

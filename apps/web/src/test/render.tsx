@@ -10,10 +10,11 @@ import { ThemeProvider } from '../app/theme';
 export const auth = {
   isAuthenticated: false,
   isLoading: false,
-  error: undefined as Error | undefined,
+  activeNavigator: undefined as string | undefined,
+  error: undefined as (Error & { source?: string }) | undefined,
   user: null as { access_token: string } | null,
   signinRedirect: vi.fn(() => Promise.resolve()),
-  signinSilent: vi.fn(() => Promise.resolve(null)),
+  signinSilent: vi.fn((): Promise<{ access_token: string } | null> => Promise.resolve(null)),
   signoutRedirect: vi.fn(() => Promise.resolve()),
 };
 
@@ -22,8 +23,12 @@ export function signedIn() {
   auth.user = { access_token: 'jeton-de-test' };
 }
 
+/** Retour à l'état initial (appelé après chaque test). */
 export function signedOut() {
   auth.isAuthenticated = false;
+  auth.isLoading = false;
+  auth.activeNavigator = undefined;
+  auth.error = undefined;
   auth.user = null;
 }
 
@@ -72,9 +77,13 @@ export function renderApp(path: string) {
   return { ...view, router, queryClient };
 }
 
-/** Aucune violation axe-core (le contraste est vérifié à part : jsdom ne calcule pas les styles). */
-export async function expectAccessible(container: Element) {
-  const results = await axe.run(container, {
+/**
+ * Aucune violation axe-core sur la page entière (document.body) : dialogues et menus
+ * ouverts, rendus hors du conteneur, et règles de page (repères, lien d'évitement) compris.
+ * Le contraste est vérifié à part (jsdom ne calcule pas les styles).
+ */
+export async function expectAccessible() {
+  const results = await axe.run(document.body, {
     rules: { 'color-contrast': { enabled: false } },
   });
   expect(results.violations.map((v) => `${v.id} : ${v.help} (${v.nodes.length})`)).toEqual([]);

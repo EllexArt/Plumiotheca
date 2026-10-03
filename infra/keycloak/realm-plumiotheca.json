@@ -833,6 +833,7 @@
         "backchannel.logout.revoke.offline.tokens": "false",
         "backchannel.logout.session.required": "true",
         "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/*",
         "realm_client": "false"
       },
       "authenticationFlowBindingOverrides": {},

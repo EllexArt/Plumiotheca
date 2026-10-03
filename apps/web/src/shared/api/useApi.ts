@@ -13,9 +13,28 @@ export interface Api {
 }
 
 /**
+ * Renouvellement en cours, partagé : Keycloak fait tourner le jeton de rafraîchissement
+ * (un seul usage). Deux requêtes refusées en même temps (réveil après une veille) ne
+ * doivent pas le consommer deux fois, sinon la seconde échouerait et déconnecterait.
+ */
+let renewal: Promise<string | null> | null = null;
+
+export function renewOnce(
+  renew: () => Promise<{ access_token: string } | null>,
+): Promise<string | null> {
+  renewal ??= renew()
+    .then((user) => user?.access_token ?? null)
+    .catch(() => null)
+    .finally(() => {
+      renewal = null;
+    });
+  return renewal;
+}
+
+/**
  * Appels de l'API avec le jeton de la personne connectée. Jeton refusé (expiré pendant
- * une veille, par exemple) : un renouvellement silencieux, puis un seul nouvel essai ;
- * en dernier recours, retour à la connexion sur la même page.
+ * une veille, par exemple) : un renouvellement silencieux partagé, puis un seul nouvel
+ * essai ; en dernier recours, retour à la connexion sur la même page.
  */
 export function useApi(): Api {
   const auth = useAuth();
@@ -30,8 +49,8 @@ export function useApi(): Api {
         return await send(token);
       } catch (error) {
         if (!(error instanceof ApiError) || error.status !== 401 || !token) throw error;
-        const renewed = await auth.signinSilent().catch(() => null);
-        if (renewed) return send(renewed.access_token);
+        const renewed = await renewOnce(() => auth.signinSilent());
+        if (renewed) return send(renewed);
         const state: SigninState = { returnTo: location.pathname + location.search };
         await auth.signinRedirect({ state });
         throw error;

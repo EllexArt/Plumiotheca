@@ -20,7 +20,8 @@ export default defineConfig({
   },
   preview: { port: 5173, strictPort: true },
   build: {
-    sourcemap: true,
+    // Cartes de source générées (suivi d'erreurs) mais non référencées par les fichiers servis.
+    sourcemap: 'hidden',
   },
   test: {
     environment: 'jsdom',

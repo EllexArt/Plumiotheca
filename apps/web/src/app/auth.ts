@@ -9,12 +9,17 @@ export interface SigninState {
 
 /**
  * Chemin de retour sûr : une page de Plumiotheca, jamais une autre adresse
- * (« //exemple.org » ou « https:… » feraient sortir la personne du site).
+ * (« //exemple.org », « /\exemple.org » ou « https:… » feraient sortir la personne du site).
  */
 export function safeReturnTo(value: unknown): string {
-  return typeof value === 'string' && value.startsWith('/') && !value.startsWith('//')
-    ? value
-    : '/';
+  if (typeof value !== 'string' || !value.startsWith('/') || value.includes('\\')) return '/';
+  try {
+    const url = new URL(value, window.location.origin);
+    if (url.origin !== window.location.origin) return '/';
+    return url.pathname + url.search + url.hash;
+  } catch {
+    return '/';
+  }
 }
 
 export const returnToOf = (user: User | null | undefined): string =>

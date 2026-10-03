@@ -40,30 +40,21 @@ function useDescriptions(hint: unknown, error: unknown, status: unknown) {
   return { id, ids, describedBy: describedBy || undefined };
 }
 
-function Messages({
-  ids,
-  hint,
-  error,
-  status,
-}: { ids: ReturnType<typeof useDescriptions>['ids'] } & Omit<FieldText, 'label'>) {
+/**
+ * Message d'erreur dans une zone annoncée, toujours présente : une erreur qui apparaît
+ * alors que le focus est ailleurs (vérification à la sortie du champ) est lue quand même
+ * (WCAG 4.1.3).
+ */
+function ErrorMessage({ id, error }: { id: string | undefined; error: string | undefined }) {
   return (
-    <>
-      {hint && (
-        <span id={ids.hint} className={styles.hint}>
-          {hint}
-        </span>
-      )}
+    <span aria-live="polite">
       {error && (
-        <span id={ids.error} className={styles.error}>
+        <span id={id} className={styles.error}>
           <ErrorIcon />
           {error}
         </span>
       )}
-      {/* Toujours présente : une zone annoncée doit exister avant que son contenu change. */}
-      <output id={ids.status} className={styles.status}>
-        {status}
-      </output>
-    </>
+    </span>
   );
 }
 
@@ -91,7 +82,16 @@ export function TextField({
         required={required}
         {...input}
       />
-      <Messages ids={ids} hint={hint} error={error} status={status} />
+      {hint && (
+        <span id={ids.hint} className={styles.hint}>
+          {hint}
+        </span>
+      )}
+      <ErrorMessage id={ids.error} error={error} />
+      {/* Toujours présente : une zone annoncée doit exister avant que son contenu change. */}
+      <output id={ids.status} className={styles.status}>
+        {status}
+      </output>
     </div>
   );
 }
@@ -102,7 +102,12 @@ export interface Choice {
   hint?: ReactNode;
 }
 
-/** Choix unique parmi quelques options : vrais boutons radio dans un groupe nommé (RGAA 11.5). */
+/**
+ * Choix unique parmi quelques options : vrais boutons radio dans un groupe nommé
+ * (RGAA 11.5). L'aide et l'erreur sont reliées à chaque bouton, pas seulement au groupe
+ * (aria-invalid n'existe pas pour un bouton radio, l'erreur passe par la description) :
+ * les lecteurs d'écran ne lisent pas tous la description d'un fieldset.
+ */
 export function RadioGroup({
   label,
   hint,
@@ -116,11 +121,7 @@ export function RadioGroup({
   >) {
   const { id, ids, describedBy } = useDescriptions(hint, error, undefined);
   return (
-    <fieldset
-      className={styles.field}
-      aria-describedby={describedBy}
-      aria-invalid={error ? true : undefined}
-    >
+    <fieldset className={styles.field}>
       <legend className={styles.label}>
         {label}
         {required && <span className={styles.required}> (obligatoire)</span>}
@@ -131,28 +132,32 @@ export function RadioGroup({
         </span>
       )}
       <div className={styles.options}>
-        {choices.map((choice) => (
-          <label key={choice.value} className={styles.option} htmlFor={`${id}-${choice.value}`}>
-            <input
-              id={`${id}-${choice.value}`}
-              type="radio"
-              value={choice.value}
-              required={required}
-              {...input}
-            />
-            <span className={styles.optionText}>
-              {choice.label}
-              {choice.hint && <span className={styles.optionHint}>{choice.hint}</span>}
-            </span>
-          </label>
-        ))}
+        {choices.map((choice) => {
+          const inputId = `${id}-${choice.value}`;
+          const optionHint = choice.hint ? `${inputId}-aide` : undefined;
+          return (
+            <label key={choice.value} className={styles.option} htmlFor={inputId}>
+              <input
+                id={inputId}
+                type="radio"
+                value={choice.value}
+                required={required}
+                aria-describedby={[optionHint, describedBy].filter(Boolean).join(' ') || undefined}
+                {...input}
+              />
+              <span className={styles.optionText}>
+                {choice.label}
+                {choice.hint && (
+                  <span id={optionHint} className={styles.optionHint}>
+                    {choice.hint}
+                  </span>
+                )}
+              </span>
+            </label>
+          );
+        })}
       </div>
-      {error && (
-        <span id={ids.error} className={styles.error}>
-          <ErrorIcon />
-          {error}
-        </span>
-      )}
+      <ErrorMessage id={ids.error} error={error} />
     </fieldset>
   );
 }
@@ -182,12 +187,7 @@ export function Checkbox({
           {hint}
         </span>
       )}
-      {error && (
-        <span id={ids.error} className={styles.error}>
-          <ErrorIcon />
-          {error}
-        </span>
-      )}
+      <ErrorMessage id={ids.error} error={error} />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import {
   HANDLE_MAX,
   HANDLE_MIN,
 } from '@plumiotheca/contracts';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router';
@@ -18,27 +19,34 @@ import { Alert } from '../../shared/ui/Feedback';
 import { Checkbox, RadioGroup, TextField } from '../../shared/ui/Field';
 import { Page } from '../../shared/ui/Page';
 import prose from '../../shared/ui/Prose.module.css';
-import { useFirstVisit, useHandleAvailability } from './api';
+import { myAccountKey, useFirstVisit, useHandleAvailability } from './api';
 import { charterBody } from './charter';
 import styles from './FirstVisitPage.module.css';
 
 const Form = z.object({
-  handle: Handle,
   age: z.enum(DeclaredAge.options, { message: 'Indiquez votre âge.' }),
+  handle: Handle,
   charter: z.literal(true, { message: 'Acceptez la charte pour continuer.' }),
 });
 type FormInput = z.input<typeof Form>;
 type FormOutput = z.output<typeof Form>;
 
-/** Erreurs de l'API qui concernent le pseudonyme. */
-const HANDLE_ERRORS = ['pseudonyme-indisponible', 'nom-reserve'];
+const TAKEN = 'Ce pseudonyme est déjà pris. Essayez une variante.';
 
 /**
- * Première visite (décisions 34, 42) : pseudonyme public, tranche d'âge déclarée, charte.
- * Aucune donnée d'identité : ni nom, ni date de naissance.
+ * Refus qui changent l'étape du compte : moins de 15 ans (compte verrouillé), accueil
+ * déjà fait (autre onglet), charte modifiée entre-temps. Le compte est relu et la garde
+ * d'accueil conduit à la bonne page.
+ */
+const STEP_CHANGES = ['age-minimum', 'deja-fait', 'charte-perimee'];
+
+/**
+ * Première visite (décisions 34, 42) : âge déclaré d'abord (rien d'autre à remplir avant
+ * moins de 15 ans), pseudonyme public, charte. Ni nom, ni date de naissance.
  */
 export function FirstVisitPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const firstVisit = useFirstVisit();
   const isAvailable = useHandleAvailability();
   const [handleStatus, setHandleStatus] = useState<string>();
@@ -47,15 +55,23 @@ export function FirstVisitPage() {
     register,
     handleSubmit,
     setError,
-    formState: { errors },
+    clearErrors,
+    formState: { errors, isSubmitting },
   } = useForm<FormInput, unknown, FormOutput>({
     resolver: zodResolver(Form),
     shouldFocusError: true,
   });
 
-  const { onBlur: handleBlur, ...handleField } = register('handle', {
-    onChange: () => setHandleStatus(undefined),
-  });
+  // Ordre d'enregistrement = ordre du focus sur la première erreur : l'âge d'abord.
+  const ageField = register('age');
+  const { onBlur: handleBlur, onChange: handleChange, ...handleField } = register('handle');
+
+  /** Nouvelle saisie : l'ancienne vérification de disponibilité ne vaut plus. */
+  const resetCheck = () => {
+    check.current?.abort();
+    setHandleStatus(undefined);
+    if (errors.handle?.message === TAKEN) clearErrors('handle');
+  };
 
   /** En quittant le champ : le pseudonyme est-il libre ? (l'envoi tranchera de toute façon) */
   const checkHandle = async (value: string) => {
@@ -66,36 +82,44 @@ export function FirstVisitPage() {
     check.current = controller;
     try {
       const available = await isAvailable(parsed.data, controller.signal);
+      if (controller.signal.aborted) return;
       if (available) setHandleStatus(`@${parsed.data} est disponible.`);
-      else setError('handle', { message: 'Ce pseudonyme est déjà pris. Essayez une variante.' });
+      else setError('handle', { message: TAKEN });
     } catch {
       // Vérification de confort seulement.
     }
   };
 
-  const onSubmit = (values: FormOutput) =>
+  const pending = isSubmitting || firstVisit.isPending;
+
+  const onSubmit = (values: FormOutput) => {
+    if (firstVisit.isPending) return;
     firstVisit.mutate(
       { handle: values.handle, age: values.age, charterVersion: CHARTER_VERSION },
       {
-        onSuccess: (account) =>
-          void navigate(account.step === 'age-locked' ? '/compte-verrouille' : '/', {
-            replace: true,
-          }),
+        onSuccess: () => void navigate('/', { replace: true }),
         onError: (error) => {
           if (!(error instanceof ApiError)) return;
+          if (STEP_CHANGES.includes(error.type)) {
+            void queryClient.invalidateQueries({ queryKey: myAccountKey });
+            return;
+          }
           const message =
             error.fieldError('handle') ??
-            (HANDLE_ERRORS.includes(error.type) ? error.message : undefined);
+            (error.type === 'pseudonyme-indisponible' ? error.message : undefined);
           if (message) setError('handle', { message }, { shouldFocus: true });
         },
       },
     );
+  };
 
+  const error = firstVisit.error;
   const generalError =
-    firstVisit.error instanceof ApiError &&
-    !HANDLE_ERRORS.includes(firstVisit.error.type) &&
-    !firstVisit.error.fieldError('handle')
-      ? firstVisit.error.message
+    error instanceof ApiError &&
+    error.type !== 'pseudonyme-indisponible' &&
+    error.type !== 'age-minimum' &&
+    !error.fieldError('handle')
+      ? error.message
       : undefined;
 
   return (
@@ -105,22 +129,6 @@ export function FirstVisitPage() {
       width="narrow"
     >
       <form className={styles.form} onSubmit={handleSubmit(onSubmit)} noValidate>
-        <TextField
-          label="Votre pseudonyme"
-          hint={`De ${HANDLE_MIN} à ${HANDLE_MAX} caractères : lettres (accents compris), chiffres, point, tiret et tiret bas. C’est le nom que tout le monde verra ; vous pourrez le changer une fois par mois.`}
-          autoComplete="nickname"
-          autoCapitalize="none"
-          spellCheck={false}
-          required
-          error={errors.handle?.message}
-          status={handleStatus}
-          {...handleField}
-          onBlur={(event) => {
-            void handleBlur(event);
-            void checkHandle(event.target.value);
-          }}
-        />
-
         <RadioGroup
           label="Quel âge avez-vous ?"
           hint="Plumiotheca est ouverte à partir de 15 ans. Seule la tranche d’âge est gardée. Si vous avez moins de 15 ans, le compte sera fermé : vous pourrez revenir à vos 15 ans."
@@ -135,7 +143,27 @@ export function FirstVisitPage() {
             },
             { value: '18+', label: '18 ans ou plus' },
           ]}
-          {...register('age')}
+          {...ageField}
+        />
+
+        <TextField
+          label="Votre pseudonyme"
+          hint={`De ${HANDLE_MIN} à ${HANDLE_MAX} caractères : lettres (accents compris), chiffres, point, tiret et tiret bas. C’est le nom que tout le monde verra ; vous pourrez le changer une fois par mois.`}
+          autoComplete="nickname"
+          autoCapitalize="none"
+          spellCheck={false}
+          required
+          error={errors.handle?.message}
+          status={handleStatus}
+          {...handleField}
+          onBlur={(event) => {
+            void handleBlur(event);
+            void checkHandle(event.target.value);
+          }}
+          onChange={(event) => {
+            void handleChange(event);
+            resetCheck();
+          }}
         />
 
         <div className={styles.charter}>
@@ -169,8 +197,8 @@ export function FirstVisitPage() {
         )}
 
         <div>
-          <Button type="submit" variant="primary" disabled={firstVisit.isPending}>
-            {firstVisit.isPending ? 'Enregistrement…' : 'Commencer'}
+          <Button type="submit" variant="primary" pending={pending}>
+            {pending ? 'Enregistrement…' : 'Commencer'}
           </Button>
         </div>
       </form>

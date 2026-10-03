@@ -5,6 +5,7 @@ import { useAuth } from 'react-oidc-context';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useMyAccount } from '../features/account/api';
 import { Button, ButtonLink } from '../shared/ui/Button';
+import { Alert } from '../shared/ui/Feedback';
 import { AccountGate } from './AccountGate';
 import type { SigninState } from './auth';
 import styles from './Layout.module.css';
@@ -70,31 +71,25 @@ function AccountMenu() {
       >
         <span aria-hidden="true">{initials}</span>
       </DropdownMenu.Trigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content className={styles.menu} align="end" sideOffset={8}>
-          {handle && (
-            <DropdownMenu.Label className={styles.menuLabel}>@{handle}</DropdownMenu.Label>
-          )}
-          <DropdownMenu.Label className={styles.menuLabel}>Thème</DropdownMenu.Label>
-          <DropdownMenu.RadioGroup
-            value={choice}
-            onValueChange={(v) => setChoice(v as ThemeChoice)}
-          >
-            {themes.map(([value, label]) => (
-              <DropdownMenu.RadioItem key={value} value={value} className={styles.menuItem}>
-                <span className={styles.menuIndicator} aria-hidden="true">
-                  <DropdownMenu.ItemIndicator>✓</DropdownMenu.ItemIndicator>
-                </span>
-                {label}
-              </DropdownMenu.RadioItem>
-            ))}
-          </DropdownMenu.RadioGroup>
-          <DropdownMenu.Separator className={styles.separator} />
-          <DropdownMenu.Item className={styles.menuItem} onSelect={signout}>
-            Se déconnecter
-          </DropdownMenu.Item>
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
+      {/* Pas de portail : le menu reste dans l'en-tête (repère « banner »), comme le bouton. */}
+      <DropdownMenu.Content className={styles.menu} align="end" sideOffset={8}>
+        {handle && <DropdownMenu.Label className={styles.menuLabel}>@{handle}</DropdownMenu.Label>}
+        <DropdownMenu.Label className={styles.menuLabel}>Thème</DropdownMenu.Label>
+        <DropdownMenu.RadioGroup value={choice} onValueChange={(v) => setChoice(v as ThemeChoice)}>
+          {themes.map(([value, label]) => (
+            <DropdownMenu.RadioItem key={value} value={value} className={styles.menuItem}>
+              <span className={styles.menuIndicator} aria-hidden="true">
+                <DropdownMenu.ItemIndicator>✓</DropdownMenu.ItemIndicator>
+              </span>
+              {label}
+            </DropdownMenu.RadioItem>
+          ))}
+        </DropdownMenu.RadioGroup>
+        <DropdownMenu.Separator className={styles.separator} />
+        <DropdownMenu.Item className={styles.menuItem} onSelect={signout}>
+          Se déconnecter
+        </DropdownMenu.Item>
+      </DropdownMenu.Content>
     </DropdownMenu.Root>
   );
 }
@@ -130,12 +125,22 @@ function Header() {
           {auth.isAuthenticated ? (
             <AccountMenu />
           ) : (
-            !auth.isLoading && (
+            // Cachés seulement au tout premier chargement (lecture de la session) : pendant
+            // le départ vers Keycloak, ils restent en place (le focus n'est pas perdu).
+            (!auth.isLoading || auth.activeNavigator) && (
               <>
-                <Button variant="ghost" onClick={() => void signin()}>
+                <Button
+                  variant="ghost"
+                  pending={Boolean(auth.activeNavigator)}
+                  onClick={() => void signin()}
+                >
                   Se connecter
                 </Button>
-                <Button variant="secondary" onClick={() => void register()}>
+                <Button
+                  variant="secondary"
+                  pending={Boolean(auth.activeNavigator)}
+                  onClick={() => void register()}
+                >
                   Créer un compte
                 </Button>
               </>
@@ -144,6 +149,23 @@ function Header() {
         </div>
       </div>
     </header>
+  );
+}
+
+/** Départs vers Keycloak dont l'échec doit être dit (sinon le clic ne fait rien, en silence). */
+const NAVIGATORS = ['signinRedirect', 'signoutRedirect'];
+
+/** Keycloak injoignable au moment de se connecter ou de se déconnecter : message annoncé. */
+function SigninError() {
+  const auth = useAuth();
+  const source = (auth.error as { source?: string } | undefined)?.source;
+  if (!source || !NAVIGATORS.includes(source)) return null;
+  return (
+    <div className={styles.banner}>
+      <Alert tone="warning" live title="Le service de connexion ne répond pas.">
+        <p>Réessayez dans un instant.</p>
+      </Alert>
+    </div>
   );
 }
 
@@ -171,6 +193,7 @@ export function Layout() {
       </a>
       <Header />
       <main id="contenu" ref={main} tabIndex={-1} className={styles.main}>
+        <SigninError />
         <AccountGate>
           <Outlet />
         </AccountGate>

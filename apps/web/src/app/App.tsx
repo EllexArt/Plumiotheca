@@ -9,9 +9,11 @@ import { ThemeProvider } from './theme';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Une erreur de l'API (404, 403…) est une réponse, pas un incident réseau : pas de nouvel essai.
+      // Nouvel essai seulement pour un incident passager (réseau, API indisponible) ; une
+      // réponse de l'API (404, 403, réponse hors contrat…) ne changera pas en réessayant.
       retry: (failures, error) =>
-        !(error instanceof ApiError && error.status < 500) && failures < 2,
+        failures < 2 &&
+        (!(error instanceof ApiError) || error.type === 'reseau' || error.status === 503),
       refetchOnWindowFocus: false,
     },
   },

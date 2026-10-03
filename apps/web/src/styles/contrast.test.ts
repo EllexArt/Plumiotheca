@@ -9,9 +9,16 @@ function block(selector: string): Record<string, string> {
   const start = css.indexOf(`${selector} {`);
   if (start < 0) throw new Error(`Bloc ${selector} introuvable`);
   const body = css.slice(start, css.indexOf('\n}', start));
-  return Object.fromEntries(
-    [...body.matchAll(/--(color-[\w-]+):\s*(#[0-9a-f]{6})/gi)].map((m) => [m[1]!, m[2]!]),
+  const colors = Object.fromEntries(
+    [...body.matchAll(/--(color-[\w-]+):\s*(#[0-9a-f]{6})\s*;/gi)].map((m) => [m[1]!, m[2]!]),
   );
+  // Toute couleur doit être lue : une valeur écrite autrement (#abc, rgb()…) serait sinon
+  // ignorée en silence, et le thème sombre testé avec la valeur claire.
+  const declared = [...body.matchAll(/--(color-[\w-]+):/g)].map((m) => m[1]!);
+  const unread = declared.filter((name) => !(name in colors));
+  if (unread.length)
+    throw new Error(`${selector} : couleurs à écrire en #rrggbb : ${unread.join(', ')}`);
+  return colors;
 }
 
 const light = block(':root');
@@ -44,6 +51,8 @@ const pairs: [string, string][] = [
   ['text', 'highlight'],
   ['text', 'sunken'],
   ['text-soft', 'sunken'],
+  ['success', 'page'], // « pseudonyme disponible »
+  ['page', 'success'], // initiales dans l'avatar du compte
 ];
 /** Éléments d'interface (contour des champs, focus) : 3:1 (WCAG 1.4.11). */
 const ui = ['control-border', 'focus'];
