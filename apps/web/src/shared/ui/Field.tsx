@@ -96,6 +96,40 @@ export function TextField({
   );
 }
 
+/** Texte sur plusieurs lignes (résumé, texte d'un chapitre). */
+export function TextArea({
+  label,
+  hint,
+  error,
+  required,
+  className,
+  ...input
+}: Omit<FieldText, 'status'> & Omit<ComponentProps<'textarea'>, 'id'>) {
+  const { id, ids, describedBy } = useDescriptions(hint, error, undefined);
+  return (
+    <div className={styles.field}>
+      <label htmlFor={id} className={styles.label}>
+        {label}
+        {required && <span className={styles.required}> (obligatoire)</span>}
+      </label>
+      {hint && (
+        <span id={ids.hint} className={styles.hint}>
+          {hint}
+        </span>
+      )}
+      <textarea
+        id={id}
+        className={[styles.input, styles.textarea, className].filter(Boolean).join(' ')}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy}
+        required={required}
+        {...input}
+      />
+      <ErrorMessage id={ids.error} error={error} />
+    </div>
+  );
+}
+
 export interface Choice {
   value: string;
   label: ReactNode;

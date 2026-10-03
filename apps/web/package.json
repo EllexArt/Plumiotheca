@@ -18,6 +18,7 @@
     "@fontsource/young-serif": "^5.2.0",
     "@hookform/resolvers": "^5.2.0",
     "@plumiotheca/contracts": "workspace:*",
+    "@plumiotheca/editor-schema": "workspace:*",
     "@tanstack/react-query": "^5.90.0",
     "oidc-client-ts": "^3.4.0",
     "radix-ui": "^1.4.0",

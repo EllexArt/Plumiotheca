@@ -1,0 +1,50 @@
+.content {
+  font-family: var(--font-reading);
+  font-size: var(--text-lg);
+  line-height: var(--leading-reading);
+  color: var(--color-reading);
+  display: flex;
+  flex-direction: column;
+  gap: 1.1em;
+  overflow-wrap: break-word;
+}
+
+.content h2 {
+  margin-top: 0.6em;
+  font-size: 1.6rem;
+}
+
+.content h3 {
+  margin-top: 0.4em;
+  font-size: 1.3rem;
+}
+
+.content blockquote {
+  margin: 0;
+  padding-left: 1.2em;
+  border-left: 3px solid var(--color-border-strong);
+  font-style: italic;
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+
+.content ul,
+.content ol {
+  margin: 0;
+  padding-left: 1.5em;
+}
+
+.scene {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  overflow: visible;
+  text-align: center;
+  color: var(--color-accent);
+}
+
+.scene::after {
+  content: '⁂';
+  letter-spacing: 0.3em;
+}

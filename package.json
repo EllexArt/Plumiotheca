@@ -25,7 +25,8 @@
     "infra:down": "docker compose -f infra/docker-compose.yml --env-file infra/.env down",
     "infra:logs": "docker compose -f infra/docker-compose.yml --env-file infra/.env logs -f",
     "infra:reset": "docker compose -f infra/docker-compose.yml --env-file infra/.env down -v",
-    "infra:seed": "node infra/scripts/seed-dev.mjs"
+    "infra:seed": "node infra/scripts/seed-dev.mjs",
+    "infra:seed-stories": "node infra/scripts/seed-stories.mjs"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm exec lint-staged"
