@@ -33,9 +33,12 @@ export const Text = z.strictObject({
     .min(1)
     .max(MAX_TEXT)
     // Pas de caractère de contrôle (hors tabulation), ni de forçage du sens d'écriture
-    // (U+202A à U+202E, procédé des textes « trompeurs ») ; les marques LRM/RLM restent permises.
-    .regex(/^[\t\P{Cc}]*$/u)
-    .regex(/^[^‪-‮]*$/u)
+    // (U+202A à U+202E et isolats U+2066 à U+2069, procédés des textes « trompeurs ») ;
+    // les marques LRM/RLM restent permises.
+    .regex(/^[\t\P{Cc}]*$/u, { message: 'Caractère de contrôle interdit' })
+    .regex(/^[^\u202A-\u202E\u2066-\u2069]*$/u, {
+      message: 'Caractère de forçage du sens d’écriture interdit',
+    })
     // Texte Unicode bien formé (pas de demi-paire isolée, que PostgreSQL refuserait).
     .regex(/^\P{Cs}*$/u, { message: 'Texte mal encodé' }),
   marks: Marks,
