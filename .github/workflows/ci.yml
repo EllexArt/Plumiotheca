@@ -52,15 +52,16 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
 
-      # « @plumiotheca/api... » : l'API et les paquets partagés dont elle dépend (contracts).
+      # « @plumiotheca/api... » : l'API et les paquets dont elle dépend ; « ./packages/* » :
+      # tous les paquets partagés, même ceux que l'API n'utilise pas encore.
       - name: Installer les dépendances
-        run: pnpm install --frozen-lockfile --filter "@plumiotheca/api..."
+        run: pnpm install --frozen-lockfile --filter "@plumiotheca/api..." --filter "./packages/*"
 
       - name: Vérifier les types
-        run: pnpm --filter "@plumiotheca/api..." typecheck
+        run: pnpm --filter "@plumiotheca/api..." --filter "./packages/*" typecheck
 
       - name: Compiler
-        run: pnpm --filter "@plumiotheca/api..." build
+        run: pnpm --filter "@plumiotheca/api..." --filter "./packages/*" build
 
       # Appliquer, annuler, réappliquer : le retour arrière doit fonctionner aussi.
       - name: Migrations sur une base vide (aller-retour)
@@ -74,7 +75,7 @@ jobs:
         run: pnpm --filter @plumiotheca/api migration:check
 
       - name: Tests
-        run: pnpm --filter "@plumiotheca/api..." test
+        run: pnpm --filter "@plumiotheca/api..." --filter "./packages/*" test
 
   web:
     name: Web (types et build)

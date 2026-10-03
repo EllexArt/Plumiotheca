@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  // Code partagé avec le navigateur : aucune API de Node dans ce qui est publié.
+  "compilerOptions": { "types": [] },
+  "exclude": ["src/**/*.test.ts"]
+}

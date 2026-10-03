@@ -28,12 +28,13 @@ pnpm dev:api        # API seule (nécessite pnpm infra:up)
 pnpm dev:web        # application web
 ```
 
-| Dossier              | Contenu                                                                |
-| -------------------- | ---------------------------------------------------------------------- |
-| `apps/api`           | API NestJS (squelette : santé, erreurs, journaux, sécurité HTTP)       |
-| `apps/web`           | Application web (prototype en micro-frontends, en cours de réécriture) |
-| `packages/contracts` | Schémas zod partagés entre l'API et le web                             |
-| `docs/`              | Architecture, décisions, revues                                        |
+| Dossier                  | Contenu                                                                      |
+| ------------------------ | ---------------------------------------------------------------------------- |
+| `apps/api`               | API NestJS (squelette : santé, erreurs, journaux, sécurité HTTP)             |
+| `apps/web`               | Application web (prototype en micro-frontends, en cours de réécriture)       |
+| `packages/contracts`     | Schémas zod partagés entre l'API et le web                                   |
+| `packages/editor-schema` | Schéma des chapitres (TipTap) : nœuds autorisés, identifiants de blocs, mots |
+| `docs/`                  | Architecture, décisions, revues                                              |
 
 Un hook Git vérifie lint et formatage des fichiers modifiés à chaque commit (`lint-staged`). C'est un confort : la vraie barrière est la CI. Avec un client Git graphique qui ne trouve pas `pnpm`, voir `SIMPLE_GIT_HOOKS_RC` dans la documentation de simple-git-hooks.
 
