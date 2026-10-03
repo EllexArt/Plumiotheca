@@ -16,5 +16,7 @@ export default defineConfig({
   },
   test: {
     include: ['src/**/*.test.ts', 'test/**/*.test.ts'],
+    // Base PostgreSQL réelle, recréée et migrée avant les tests.
+    globalSetup: ['test/global-setup.ts'],
   },
 });

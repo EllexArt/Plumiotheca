@@ -13,9 +13,21 @@ try {
   process.exit(1);
 }
 
-const app = await NestFactory.create<NestExpressApplication>(AppModule.forRoot(config), {
-  bufferLogs: true,
-  bodyParser: false,
-});
-configureApp(app, config);
-await app.listen(config.PORT, config.HOST);
+try {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule.forRoot(config), {
+    bufferLogs: true,
+    bodyParser: false,
+    // Une erreur d'initialisation (base injoignable…) remonte ici au lieu d'un abort().
+    abortOnError: false,
+  });
+  configureApp(app, config);
+  await app.listen(config.PORT, config.HOST);
+} catch (error) {
+  // Message clair, sans secret : l'hôte et la base, jamais le mot de passe.
+  console.error(
+    `Démarrage impossible (base ${config.DB_HOST}:${config.DB_PORT}/${config.DB_NAME}) : ${
+      (error as Error).message
+    }`,
+  );
+  process.exit(1);
+}

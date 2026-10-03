@@ -52,7 +52,10 @@ L'export est normalisé (listes triées, identifiants techniques retirés, valeu
 
 ```bash
 docker build -f apps/api/Dockerfile -t plumiotheca-api:local .
+set -a; . infra/.env; set +a
 docker run --rm --network plumiotheca_default -p 127.0.0.1:3000:3000 -e TRUST_PROXY=0 \
+  -e DB_HOST=postgres -e DB_PORT=5432 -e DB_USERNAME="$POSTGRES_USER" \
+  -e DB_PASSWORD="$POSTGRES_PASSWORD" -e DB_NAME="$POSTGRES_DB" -e DB_MIGRATE_ON_START=true \
   -e CORS_ORIGINS=http://localhost:5173 -e KEYCLOAK_ISSUER=http://localhost:8080/realms/plumiotheca \
   -e KEYCLOAK_JWKS_URL=http://keycloak:8080/realms/plumiotheca/protocol/openid-connect/certs \
   plumiotheca-api:local

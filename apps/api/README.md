@@ -43,23 +43,45 @@ pnpm --filter @plumiotheca/api typecheck
 
 Validée au démarrage par `src/config/env.ts` : l'API s'arrête avec la liste des variables en cause (sans leur valeur).
 
-| Variable                | Défaut                                     | Rôle                                                                |
-| ----------------------- | ------------------------------------------ | ------------------------------------------------------------------- |
-| `NODE_ENV`              | `development`                              | `production` désactive la documentation OpenAPI                     |
-| `HOST`                  | `127.0.0.1`                                | `0.0.0.0` dans l'image Docker                                       |
-| `PORT`                  | `3000`                                     |                                                                     |
-| `LOG_LEVEL`             | `info`                                     | niveau pino                                                         |
-| `CORS_ORIGINS`          | origines locales de dev                    | liste séparée par des virgules, obligatoire en production           |
-| `TRUST_PROXY`           | `0`                                        | proxys inverses devant l'API, obligatoire en production             |
-| `RATE_LIMIT_PER_MINUTE` | `120`                                      | requêtes par minute et par adresse IP                               |
-| `KEYCLOAK_ISSUER`       | realm local (port 8080)                    | émetteur des jetons vu par le navigateur, obligatoire en production |
-| `KEYCLOAK_JWKS_URL`     | `<émetteur>/protocol/openid-connect/certs` | autre chemin vers les clés (ex. réseau interne d'un conteneur)      |
-| `JWT_AUDIENCE`          | `api`                                      | audience exigée                                                     |
-| `JWT_CLIENTS`           | `web`                                      | clients autorisés (`azp`), séparés par des virgules                 |
+| Variable                 | Défaut                                     | Rôle                                                                |
+| ------------------------ | ------------------------------------------ | ------------------------------------------------------------------- |
+| `NODE_ENV`               | `development`                              | `production` désactive la documentation OpenAPI                     |
+| `HOST`                   | `127.0.0.1`                                | `0.0.0.0` dans l'image Docker                                       |
+| `PORT`                   | `3000`                                     |                                                                     |
+| `LOG_LEVEL`              | `info`                                     | niveau pino                                                         |
+| `CORS_ORIGINS`           | origines locales de dev                    | liste séparée par des virgules, obligatoire en production           |
+| `TRUST_PROXY`            | `0`                                        | proxys inverses devant l'API, obligatoire en production             |
+| `RATE_LIMIT_PER_MINUTE`  | `120`                                      | requêtes par minute et par adresse IP                               |
+| `KEYCLOAK_ISSUER`        | realm local (port 8080)                    | émetteur des jetons vu par le navigateur, obligatoire en production |
+| `KEYCLOAK_JWKS_URL`      | `<émetteur>/protocol/openid-connect/certs` | autre chemin vers les clés (ex. réseau interne d'un conteneur)      |
+| `JWT_AUDIENCE`           | `api`                                      | audience exigée                                                     |
+| `JWT_CLIENTS`            | `web`                                      | clients autorisés (`azp`), séparés par des virgules                 |
+| `DB_HOST`, `DB_PORT`     | `localhost`, `5433`                        | base PostgreSQL (infra de développement par défaut)                 |
+| `DB_USERNAME`, `DB_NAME` | `plumiotheca`                              |                                                                     |
+| `DB_PASSWORD`            | —                                          | obligatoire en production                                           |
+| `DB_SSL`                 | `false`                                    | connexion chiffrée à la base                                        |
+| `DB_CONNECT_RETRIES`     | `5`                                        | essais de connexion au démarrage (2 s d'écart)                      |
+| `DB_MIGRATE_ON_START`    | `true` en développement                    | applique les migrations au démarrage                                |
 
-Les autres variables de `.env.example` (base, Meilisearch, S3, SMTP) seront lues par les prochaines étapes de la M1. Toutes sont générées par `pnpm infra:setup` dans `apps/api/.env` (jamais commité).
+Les autres variables de `.env.example` (Meilisearch, S3, SMTP) seront lues par les prochaines étapes de la M1. Toutes sont générées par `pnpm infra:setup` dans `apps/api/.env` (jamais commité).
 
 Base de données (outils comme DBeaver) : `localhost:5433`, base `plumiotheca`, utilisateur `plumiotheca`, mot de passe `POSTGRES_PASSWORD` dans `infra/.env`.
+
+## Base de données et migrations
+
+TypeORM 1.x, PostgreSQL 18, tables et colonnes en `snake_case`, identifiants UUID v7. Jamais de synchronisation automatique : le schéma ne change que par migration.
+
+```bash
+pnpm --filter @plumiotheca/api migration:generate src/database/migrations/NomDeLaMigration
+# puis l'ajouter à src/database/migrations/index.ts
+pnpm --filter @plumiotheca/api migration:run      # appliquer (code compilé : pnpm build avant)
+pnpm --filter @plumiotheca/api migration:revert   # annuler la dernière
+pnpm --filter @plumiotheca/api migration:check    # échoue si une migration manque (CI)
+```
+
+- En développement, l'API applique les migrations au démarrage (`DB_MIGRATE_ON_START`, désactivé par défaut ailleurs).
+- Base injoignable au démarrage : quelques essais (`DB_CONNECT_RETRIES`), puis arrêt avec un code d'erreur et un message sans mot de passe.
+- Les tests utilisent une base dédiée (`plumiotheca_test`), recréée et migrée à chaque lancement : `pnpm infra:up` d'abord.
 
 ## Image Docker
 

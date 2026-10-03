@@ -66,7 +66,7 @@ Choix fondateurs, validés en octobre 2026 :
 
 | Donnée                                      | Pourquoi                                                  | Durée de conservation                                       |
 | ------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------- |
-| E-mail                                      | connexion, récupération du compte, notifications choisies | durée du compte                                             |
+| E-mail                                      | connexion, récupération du compte, notifications choisies | durée du compte, **dans Keycloak seulement**                |
 | Pseudonyme, profil, pronoms                 | affichage public choisi par la personne                   | durée du compte                                             |
 | Tranche d'âge déclarée                      | protection des mineurs                                    | durée du compte                                             |
 | Contenus (histoires, notes, images, fiches) | service                                                   | durée du compte, puis selon le choix de suppression         |
@@ -74,6 +74,7 @@ Choix fondateurs, validés en octobre 2026 :
 | Décisions de modération                     | DSA, appels                                               | 3 ans, rattachées à un identifiant interne                  |
 | Comptage des lectures anonymes              | statistiques                                              | hachage effacé chaque jour                                  |
 
+- **Dans la base de l'application** : ni e-mail ni mot de passe (ils restent dans Keycloak) ; l'identifiant Keycloak n'est jamais exposé. Le compte porte son statut et le mode de suppression choisi : « effacer » supprime la ligne et ses contenus en cascade ; « anonymiser » garde une ligne « compte supprimé » dont toutes les colonnes personnelles sont vidées, pour que les contributions conservées y restent liées. Les révisions faites par une co-autrice effacée restent, sans auteur.
 - **Suppression de compte** : au moment de supprimer, la personne **choisit** entre tout effacer ou anonymiser ses contributions (notes, fiches d'univers collaboratifs, fan arts offerts) sous la mention « compte supprimé ». Ses histoires et images sont supprimées dans les deux cas. **Œuvres partagées** (histoire co-écrite, fan art offert à une autrice, fiches d'un univers collaboratif) : les co-autrices ou l'autrice destinataire sont prévenues et **décident** de garder l'œuvre (part de la personne signée « compte supprimé ») ou de la retirer ; sans réponse sous 30 jours, l'œuvre est conservée anonymisée. Délai d'exécution : 30 jours maximum ; export de ses données proposé avant.
 - **Pseudonymes** : un ancien pseudonyme n'est réattribuable qu'après 90 jours (anti-usurpation).
 - **Images** : métadonnées (dont la géolocalisation) **toujours supprimées** par ré-encodage côté serveur, pour ne jamais révéler qui se cache derrière un pseudonyme.
@@ -328,3 +329,4 @@ Le code actuel est petit : on **reconstruit au bon endroit** plutôt que de tout
 | 36  | Suppression de compte depuis l'application (choix effacer / anonymiser), qui supprime ensuite le compte Keycloak            | ✅ validé |
 | 37  | NestJS 12 (ESM natif), validation zod native (Standard Schema) sans `nestjs-zod`, Vitest au lieu de Jest                    | ✅ validé |
 | 38  | Preuve de MFA par le claim `amr` du jeton (pas seulement le rôle) ; messages de validation traduits côté API                | ✅ fait   |
+| 39  | E-mail absent de la base de l'application (Keycloak seul) ; identifiants UUID v7 générés par PostgreSQL 18 ; TypeORM 1.x    | proposé   |
