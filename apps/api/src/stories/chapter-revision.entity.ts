@@ -31,7 +31,7 @@ export class ChapterRevision {
   @Column({ type: 'boolean', default: false })
   current!: boolean;
 
-  /** Nom donné par l'autrice à une version (« avant la réécriture »…). */
+  /** Nom donné à une version par la personne qui écrit (« avant la réécriture »…). */
   @Column({ type: 'varchar', length: 100, nullable: true })
   name!: string | null;
 

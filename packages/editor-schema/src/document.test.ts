@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  emptyDocument,
   ensureBlockIds,
   MAX_CHARACTERS,
   parseDocument,
@@ -210,5 +211,24 @@ describe('langues', () => {
   it('compte les mots du chinois, du japonais et du thaï', () => {
     expect(wordCount(data(parseDocument(doc(p('我喜欢读书。')))), 'zh')).toBeGreaterThan(1);
     expect(wordCount(data(parseDocument(doc(p('ฉันชอบอ่านหนังสือ')))), 'th')).toBeGreaterThan(1);
+  });
+});
+
+describe('retouches', () => {
+  it('le message du forçage du sens d’écriture ne recopie pas le caractère', () => {
+    const result = parseDocument(doc(p('a‮b')));
+    expect(result.success).toBe(false);
+    if (!result.success) expect(JSON.stringify(result.issues)).not.toMatch(/[‪-‮]/);
+  });
+
+  it('langue invalide ou en majuscules : pas d’exception', () => {
+    const chapter = data(parseDocument(doc(p('我喜欢读书。'))));
+    expect(() => wordCount(chapter, 'zh-!!')).not.toThrow();
+    expect(wordCount(chapter, 'ZH')).toBeGreaterThan(1);
+  });
+
+  it('le document de départ est valide pour l’éditeur', () => {
+    expect(emptyDocument().content).toHaveLength(1);
+    expect(parseDocument(emptyDocument()).success).toBe(true);
   });
 });

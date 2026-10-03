@@ -254,6 +254,24 @@ describe('contraintes', () => {
     );
   });
 
+  it('un save() d’une entité lue trop tôt n’écrase ni le brouillon ni sa version', async () => {
+    const db = await dataSource();
+    const story = await createStory(db, await createUser(db));
+    const chapters = db.getRepository(Chapter);
+    const created = await chapters.save({ story, position: 1 });
+    const stale = await chapters.findOneByOrFail({ id: created.id });
+    const draft = { type: 'doc', content: [{ type: 'paragraph' }] };
+    await saveDraft(db.manager, created.id, 1, draft);
+    stale.title = 'Titre changé ailleurs';
+    await chapters.save(stale);
+    const after = await chapters.findOneByOrFail({ id: created.id });
+    expect([after.draftVersion, after.draft, after.title]).toEqual([
+      2,
+      draft,
+      'Titre changé ailleurs',
+    ]);
+  });
+
   it('un brouillon de chapitre démarre vide et versionné', async () => {
     const db = await dataSource();
     const story = await createStory(db, await createUser(db));

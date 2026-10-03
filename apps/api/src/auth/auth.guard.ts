@@ -19,10 +19,16 @@ export class AuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const targets = [context.getHandler(), context.getClass()];
-    if (this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, targets)) return true;
-
     const req = context.switchToHttp().getRequest<Request & { user?: AuthUser }>();
     const token = BEARER.exec(req.headers.authorization ?? '')?.[1];
+
+    if (this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, targets)) {
+      // Route publique : la personne connectée est reconnue (ses brouillons, par exemple),
+      // mais un jeton absent, expiré ou invalide la laisse simplement anonyme.
+      if (token) req.user = await this.verifier.verify(token).catch(() => undefined);
+      return true;
+    }
+
     if (!token) {
       throw new ApiProblem(HttpStatus.UNAUTHORIZED, 'Connectez-vous pour continuer.', undefined, {
         'WWW-Authenticate': 'Bearer realm="plumiotheca"',

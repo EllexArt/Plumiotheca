@@ -92,7 +92,9 @@ export function parseDocument(input: unknown): ParseResult {
     // doc → bloc → … : MAX_BLOCK_DEPTH blocs imbriqués, plus le texte et ses marques.
     if (nodes > MAX_NODES) return fail(`Chapitre trop long (${MAX_NODES} éléments au maximum)`);
     if (depth > MAX_BLOCK_DEPTH + 2) {
-      return fail(`Blocs imbriqués sur plus de ${MAX_BLOCK_DEPTH} niveaux`);
+      return fail(
+        `Trop d’imbrications (citations et listes : ${MAX_BLOCK_DEPTH} niveaux, listes : ${MAX_LIST_DEPTH})`,
+      );
     }
     const parsed = UncheckedChapterDocument.safeParse(input);
     if (!parsed.success) {
@@ -207,9 +209,13 @@ const WITHOUT_SPACES = /^(zh|ja|th|lo|km|my|bo)(-|$)/;
  * Chinois, japonais, thaï… : découpage en mots selon la langue.
  */
 export function wordCount(doc: ChapterDocument, language = 'fr'): number {
-  const segmenter = WITHOUT_SPACES.test(language)
-    ? new Intl.Segmenter(language, { granularity: 'word' })
-    : null;
+  const lang = language.toLowerCase();
+  let segmenter: Intl.Segmenter | null = null;
+  try {
+    if (WITHOUT_SPACES.test(lang)) segmenter = new Intl.Segmenter(lang, { granularity: 'word' });
+  } catch {
+    // Code de langue invalide : découpage par espaces.
+  }
   let count = 0;
   for (const [block] of blocks(doc.content)) {
     const text = blockText(block);
@@ -227,4 +233,8 @@ export function readingMinutes(words: number): number {
   return Math.max(1, Math.round(words / 230));
 }
 
-export const emptyDocument = (): ChapterDocument => ({ type: 'doc', content: [] });
+/** Document de départ : un paragraphe vide (ProseMirror exige au moins un bloc). */
+export const emptyDocument = (): ChapterDocument => ({
+  type: 'doc',
+  content: [{ type: 'paragraph' }],
+});
