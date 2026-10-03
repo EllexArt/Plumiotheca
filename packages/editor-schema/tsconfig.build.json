@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.json",
+  // Code partagé avec le navigateur : aucune API propre à Node dans ce qui est publié.
+  // `structuredClone` et `crypto.getRandomValues` existent dans les deux environnements.
+  "compilerOptions": { "types": [], "lib": ["ES2023", "DOM"] },
+  "exclude": ["src/**/*.test.ts"]
+}
