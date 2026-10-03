@@ -24,6 +24,11 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@tiptap/core": "^3.31.3",
+    "@tiptap/extension-text-align": "^3.31.3",
+    "@tiptap/html": "^3.31.3",
+    "@tiptap/pm": "^3.31.3",
+    "@tiptap/starter-kit": "^3.31.3",
     "@types/node": "^24.13.6",
     "typescript": "^5.9.3",
     "vitest": "^5.0.2"
