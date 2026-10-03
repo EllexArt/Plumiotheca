@@ -54,9 +54,9 @@ Plumiotheca est une bibliothèque vivante : on y écrit, on y lit, on s'y entrai
 
 **5.1** On ne publie que ce qu'on a créé soi-même, ou avec l'accord de la personne qui l'a créé. Pas de plagiat, pas de copie d'une histoire publiée ailleurs sous un autre nom.
 
-**5.2** Les fanfictions sont bienvenues : on crédite l'œuvre d'origine et on respecte le choix d'une autrice de Plumiotheca qui n'ouvre pas son univers aux fanfictions.
+**5.2** Les fanfictions sont les bienvenues, qu'elles s'inspirent d'un livre, d'un manga, d'une série, d'un film, d'un jeu, de personnalités publiques (dans le respect de l'article 4.7) ou d'un univers publié sur Plumiotheca. On crédite toujours l'œuvre d'origine, et on respecte le choix d'une autrice ou d'un auteur de Plumiotheca qui n'ouvre pas son univers aux fanfictions.
 
-**5.3** Les images respectent les droits des artistes : pas d'image trouvée sur Internet sans autorisation. Un fan art offert à une autrice reste l'œuvre de son artiste.
+**5.3** Les images respectent les droits des artistes : pas d'image trouvée sur Internet sans autorisation. Un fan art offert à une autrice ou un auteur reste l'œuvre de son artiste.
 
 **5.4** Toute image décrit ce qu'elle montre (description pour les personnes qui ne la voient pas).
 

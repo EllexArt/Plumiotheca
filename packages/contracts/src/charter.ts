@@ -29,7 +29,7 @@ export const CHARTER_ARTICLES = {
   '4.6': 'La fiction peut tout raconter, sans appel au passage à l’acte',
   '4.7': 'Personnes réelles : s’inspirer sans nuire',
   '5.1': 'Publier ses propres créations',
-  '5.2': 'Fanfictions créditées et choix des autrices respectés',
+  '5.2': 'Fanfictions bienvenues, œuvre d’origine créditée',
   '5.3': 'Droits des artistes',
   '5.4': 'Description des images',
   '5.5': 'Images et textes générés par IA déclarés',
