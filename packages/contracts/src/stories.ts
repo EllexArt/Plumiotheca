@@ -8,7 +8,21 @@ const line = (min: number, max: number) =>
     .trim()
     .min(min)
     .max(max)
-    .regex(/^[^\p{Cc}\p{Cf}]*$/u, { message: 'Caractères invisibles ou de contrôle interdits.' });
+    // Ni contrôle ni format invisible, sauf ZWNJ/ZWJ (persan, écritures indiennes, émojis).
+    .regex(/^(?:[^\p{Cc}\p{Cf}]|[\u200C\u200D])*$/u, {
+      message: 'Caractères invisibles ou de contrôle interdits.',
+    });
+
+/** Texte libre (résumé) : retours à la ligne permis ; ni contrôle, ni forçage du sens d'écriture. */
+const freeText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .regex(/^[\n\r\t\P{Cc}]*$/u, { message: 'Caractères de contrôle interdits.' })
+    .regex(/^[^\u202A-\u202E\u2066-\u2069]*$/u, {
+      message: 'Caractère de forçage du sens d’écriture interdit.',
+    });
 
 /** Langue de l'histoire (BCP 47 : « fr », « en », « pt-BR »). */
 export const Language = z.string().regex(/^[a-z]{2,3}(-[A-Z]{2}|-[A-Za-z]{4})?$/, {
@@ -24,12 +38,15 @@ const Tags = z.array(TagName).max(MAX_TAGS, { message: `${MAX_TAGS} tags au maxi
 const Warnings = z
   .array(MajorWarning)
   .max(4)
-  .refine((w) => new Set(w).size === w.length, { message: 'Avertissement en double' });
+  .refine((w) => new Set(w).size === w.length, { message: 'Avertissement en double' })
+  .refine((w) => !w.includes('unspecified') || w.length === 1, {
+    message: '« Je préfère ne pas préciser » ne se combine pas avec d’autres avertissements.',
+  });
 
 /** Nouvelle histoire : toujours un brouillon ; classement et avertissements à choisir avant publication. */
 export const NewStory = z.strictObject({
   title: line(1, 200),
-  summary: z.string().trim().max(4_000).default(''),
+  summary: freeText(4_000).default(''),
   language: Language,
   rating: Rating.nullable().optional(),
   completion: Completion.optional(),
@@ -40,7 +57,7 @@ export type NewStory = z.infer<typeof NewStory>;
 
 /** Champs modifiables (liste blanche) : ni identifiant, ni autrice ou auteur, ni statut, ni compteur. */
 export const UpdateStory = NewStory.partial().extend({
-  summary: z.string().trim().max(4_000).optional(),
+  summary: freeText(4_000).optional(),
 });
 export type UpdateStory = z.infer<typeof UpdateStory>;
 
@@ -82,6 +99,13 @@ export const StoryQuery = z.strictObject({
   limite: z.coerce.number().int().min(1).max(50).default(20),
   langue: Language.optional(),
   classement: Rating.optional(),
+  /** Classements à exclure, séparés par des virgules (ex. « mature » : jusqu'à Ado). */
+  exclureClassement: z
+    .string()
+    .max(100)
+    .transform((s) => s.split(',').filter(Boolean))
+    .pipe(z.array(Rating))
+    .optional(),
   /** Avertissements majeurs à exclure, séparés par des virgules (« Mes limites »). */
   exclure: z
     .string()

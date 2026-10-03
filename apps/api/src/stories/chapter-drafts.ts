@@ -2,6 +2,15 @@ import { HttpStatus } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import { ApiProblem } from '../common/problem.js';
 
+/** Brouillon d'un chapitre (colonne jamais chargée par défaut). */
+export async function loadDraft(db: EntityManager, chapterId: string): Promise<object> {
+  const [row] = await db.query<{ draft: object }[]>('SELECT draft FROM chapters WHERE id = $1', [
+    chapterId,
+  ]);
+  if (!row) throw new Error(`Chapitre ${chapterId} introuvable`);
+  return row.draft;
+}
+
 /**
  * Enregistre le brouillon seulement s'il n'a pas changé depuis sa lecture (version
  * attendue) : deux co-autrices ou co-auteurs ne peuvent pas s'écraser sans le savoir. Renvoie la nouvelle

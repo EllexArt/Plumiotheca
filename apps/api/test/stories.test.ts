@@ -420,3 +420,175 @@ describe('chapitres', () => {
     expect([detail.wordCount, detail.chapterCount]).toEqual([5, 2]);
   });
 });
+
+describe('suites de la revue de #133', () => {
+  it('le brouillon n’est jamais chargé par défaut (lecture publique sans brouillons en mémoire)', async () => {
+    const ctx = await start();
+    const column = ctx.app.get(DataSource).getMetadata(Chapter).findColumnWithPropertyName('draft');
+    expect(column?.isSelect).toBe(false);
+  });
+
+  it('une révision ne change jamais de chapitre ; un chapitre publié a toujours sa révision', async () => {
+    const ctx = await start();
+    const jwt = await readyToken(ctx.app);
+    const { story, chapter } = await publishedStory(ctx, jwt);
+    const other = await newChapter(ctx, jwt, story.id);
+    const db = ctx.app.get(DataSource);
+    await expect(
+      db.query('UPDATE chapter_revisions SET chapter_id = $1 WHERE chapter_id = $2', [
+        other.id,
+        chapter.id,
+      ]),
+    ).rejects.toThrow();
+    await expect(
+      db.query(`UPDATE chapters SET status = 'published' WHERE id = $1`, [other.id]),
+    ).rejects.toThrow();
+    await expect(
+      db.query('UPDATE chapter_revisions SET current = false WHERE chapter_id = $1', [chapter.id]),
+    ).rejects.toThrow();
+  });
+
+  it.each([
+    ['date sans heure', `2020-01-01T00:00:00.000Z|${'-'.repeat(36)}`],
+    ['date libre', `1 2|${randomUUID()}`],
+  ])('curseur forgé (%s) : 400', async (_, raw) => {
+    const ctx = await start();
+    await ctx.http
+      .get(`/api/histoires?apres=${Buffer.from(raw).toString('base64url')}`)
+      .expect(400);
+  });
+
+  it.each([
+    ['un caractère nul dans le résumé', { summary: 'a\u0000b' }],
+    ['un forçage du sens d’écriture dans le résumé', { summary: 'a‮b' }],
+    ['un tag qui se déplie une fois normalisé', { tags: ['ﷺ'.repeat(100)] }],
+    [
+      '« ne pas préciser » combiné à un avertissement',
+      { majorWarnings: ['unspecified', 'character_death'] },
+    ],
+  ])('refuse %s (400)', async (_, body) => {
+    const ctx = await start();
+    const jwt = await readyToken(ctx.app);
+    await ctx.http
+      .post('/api/histoires')
+      .set(...bearer(jwt))
+      .send({ title: 'x', language: 'fr', ...body })
+      .expect(400);
+  });
+
+  it('un titre persan avec ZWNJ est accepté', async () => {
+    const ctx = await start();
+    const jwt = await readyToken(ctx.app);
+    await newStory(ctx, jwt, { title: 'می‌خواهم', language: 'fa' });
+  });
+
+  it('modifications simultanées des tags : jamais d’erreur 500', async () => {
+    const ctx = await start();
+    const jwt = await readyToken(ctx.app);
+    const story = await newStory(ctx, jwt);
+    const results = await Promise.all(
+      Array.from({ length: 6 }, (_, i) =>
+        ctx.http
+          .patch(`/api/histoires/${story.id}`)
+          .set(...bearer(jwt))
+          .send({ tags: [`tag-${i}`, 'commun'] }),
+      ),
+    );
+    expect(results.map((r) => r.status)).toEqual(Array(6).fill(200));
+  });
+
+  it('exclure un classement (« jusqu’à Ado »)', async () => {
+    const ctx = await start();
+    const jwt = await readyToken(ctx.app);
+    const lang = 'ia';
+    const s = await newStory(ctx, jwt, { language: lang, rating: 'mature', majorWarnings: [] });
+    const c = await newChapter(ctx, jwt, s.id);
+    await saveDraft(ctx, jwt, s.id, c.id, doc(p('x')), 1).expect(200);
+    await ctx.http
+      .post(`/api/histoires/${s.id}/chapitres/${c.id}/publication`)
+      .set(...bearer(jwt))
+      .expect(201);
+    await ctx.http
+      .post(`/api/histoires/${s.id}/publication`)
+      .set(...bearer(jwt))
+      .expect(201);
+    const all = StoryPage.parse(
+      (await ctx.http.get(`/api/histoires?langue=${lang}`).expect(200)).body,
+    );
+    expect(all.items.map((x) => x.id)).toContain(s.id);
+    const teen = StoryPage.parse(
+      (await ctx.http.get(`/api/histoires?langue=${lang}&exclureClassement=mature`).expect(200))
+        .body,
+    );
+    expect(teen.items.map((x) => x.id)).not.toContain(s.id);
+  });
+
+  it('un chapitre vide ne se publie pas', async () => {
+    const ctx = await start();
+    const jwt = await readyToken(ctx.app);
+    const story = await newStory(ctx, jwt);
+    const chapter = await newChapter(ctx, jwt, story.id);
+    const res = await ctx.http
+      .post(`/api/histoires/${story.id}/chapitres/${chapter.id}/publication`)
+      .set(...bearer(jwt))
+      .expect(409);
+    expect(expectProblem(res.body, 409).type).toBe('chapitre-vide');
+  });
+
+  it('route publique avec un jeton invalide : traitée en anonyme', async () => {
+    const ctx = await start();
+    const owner = await readyToken(ctx.app);
+    const draft = await newStory(ctx, owner);
+    await ctx.http.get('/api/histoires').set('Authorization', 'Bearer pas.un.jeton').expect(200);
+    await ctx.http
+      .get(`/api/histoires/${draft.id}`)
+      .set('Authorization', 'Bearer pas.un.jeton')
+      .expect(404);
+  });
+
+  it('compte verrouillé (moins de 15 ans découvert) : ses histoires disparaissent du public', async () => {
+    const ctx = await start();
+    const sub = randomUUID();
+    const jwt = await readyToken(ctx.app, { sub });
+    const { story } = await publishedStory(ctx, jwt);
+    await ctx.app
+      .get(DataSource)
+      .getRepository(User)
+      .update({ keycloakId: sub }, { ageBand: 'under-15' });
+    await ctx.http.get(`/api/histoires/${story.id}`).expect(404);
+  });
+
+  it('PATCH : identifiant, compteur et statut refusés', async () => {
+    const ctx = await start();
+    const jwt = await readyToken(ctx.app);
+    const story = await newStory(ctx, jwt);
+    for (const body of [
+      { id: randomUUID() },
+      { wordCount: 9 },
+      { status: 'published' },
+      { authorId: randomUUID() },
+    ]) {
+      await ctx.http
+        .patch(`/api/histoires/${story.id}`)
+        .set(...bearer(jwt))
+        .send(body)
+        .expect(400);
+    }
+  });
+
+  it('dépublier puis republier', async () => {
+    const ctx = await start();
+    const jwt = await readyToken(ctx.app);
+    const { story } = await publishedStory(ctx, jwt);
+    await ctx.http
+      .post(`/api/histoires/${story.id}/depublication`)
+      .set(...bearer(jwt))
+      .expect(201);
+    await ctx.http.get(`/api/histoires/${story.id}`).expect(404);
+    await ctx.http
+      .post(`/api/histoires/${story.id}/publication`)
+      .set(...bearer(jwt))
+      .expect(201);
+    await ctx.http.get(`/api/histoires/${story.id}`).expect(200);
+  });
+});

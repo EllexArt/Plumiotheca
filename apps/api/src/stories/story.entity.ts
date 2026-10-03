@@ -26,6 +26,8 @@ import { Chapter } from './chapter.entity.js';
 )
 @Check('stories_word_count_positive', `"word_count" >= 0`)
 @Index(['author', 'status'])
+// Liste publique : les plus récentes d'abord (parcouru à l'envers par PostgreSQL).
+@Index('stories_public_list', ['publishedAt', 'id'], { where: `"status" = 'published'` })
 export class Story {
   @IdColumn()
   id!: string;

@@ -10,11 +10,12 @@ import type {
 } from '@plumiotheca/contracts';
 import { handleKey } from '@plumiotheca/contracts';
 import { DataSource, type EntityManager } from 'typeorm';
+import { z } from 'zod';
 import { ApiProblem } from '../common/problem.js';
 import { TagsService } from '../tags/tags.service.js';
 import type { User } from '../users/user.entity.js';
 import { Chapter } from './chapter.entity.js';
-import { ownedStory, publicStories, visibleStory } from './story-access.js';
+import { lockStory, ownedStory, publicStories, visibleStory } from './story-access.js';
 import { Story } from './story.entity.js';
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
@@ -23,12 +24,14 @@ const iso = (d: Date | null) => (d ? d.toISOString() : null);
 const encodeCursor = (story: Story) =>
   Buffer.from(`${story.publishedAt!.toISOString()}|${story.id}`).toString('base64url');
 
+const Cursor = z.tuple([z.iso.datetime(), z.uuid()]);
+
 function decodeCursor(cursor: string): [string, string] {
-  const [date, id] = Buffer.from(cursor, 'base64url').toString().split('|');
-  if (!date || !id || Number.isNaN(Date.parse(date)) || !/^[0-9a-f-]{36}$/.test(id)) {
+  const parsed = Cursor.safeParse(Buffer.from(cursor, 'base64url').toString().split('|'));
+  if (!parsed.success) {
     throw new ApiProblem(HttpStatus.BAD_REQUEST, 'Curseur de pagination invalide.');
   }
-  return [date, id];
+  return parsed.data;
 }
 
 @Injectable()
@@ -60,6 +63,8 @@ export class StoriesService {
   async update(account: User, id: string, input: UpdateStory): Promise<StoryDetail> {
     await this.db.transaction(async (tx) => {
       const story = await ownedStory(tx, id, account);
+      // Deux modifications simultanées (double clic, deux onglets) s'enchaînent.
+      await lockStory(tx, id);
       const { tags, ...fields } = input;
       const changes = Object.fromEntries(
         Object.entries(fields).filter(([, value]) => value !== undefined),
@@ -81,13 +86,19 @@ export class StoriesService {
   }
 
   async remove(account: User, id: string): Promise<void> {
-    await ownedStory(this.db.manager, id, account);
-    await this.db.getRepository(Story).delete(id);
+    await this.db.transaction(async (tx) => {
+      await ownedStory(tx, id, account);
+      await lockStory(tx, id);
+      await tx.getRepository(Story).delete(id);
+    });
   }
 
   /** Publier : classement et avertissements choisis, au moins un chapitre publié. */
   async publish(account: User, id: string): Promise<StoryDetail> {
     await this.db.transaction(async (tx) => {
+      await ownedStory(tx, id, account);
+      // Verrou d'abord, puis relecture : l'état ne peut plus changer d'ici la fin.
+      await lockStory(tx, id);
       const story = await ownedStory(tx, id, account);
       const missing: string[] = [];
       if (!story.rating) missing.push('le classement');
@@ -112,8 +123,11 @@ export class StoriesService {
 
   /** Repasser en brouillon : l'histoire disparaît des listes et de la lecture publique. */
   async unpublish(account: User, id: string): Promise<StoryDetail> {
-    await ownedStory(this.db.manager, id, account);
-    await this.db.getRepository(Story).update(id, { status: 'draft' });
+    await this.db.transaction(async (tx) => {
+      await ownedStory(tx, id, account);
+      await lockStory(tx, id);
+      await tx.getRepository(Story).update(id, { status: 'draft' });
+    });
     return this.detail(id, account);
   }
 
@@ -126,8 +140,14 @@ export class StoriesService {
         .innerJoinAndSelect('story.author', 'author'),
     );
     if (query.langue) qb.andWhere('story.language = :langue', { langue: query.langue });
-    if (query.classement)
+    if (query.classement) {
       qb.andWhere('story.rating = :classement', { classement: query.classement });
+    }
+    if (query.exclureClassement?.length) {
+      qb.andWhere('story.rating <> ALL(CAST(:exclus AS rating[]))', {
+        exclus: query.exclureClassement,
+      });
+    }
     if (query.exclure?.length) {
       qb.andWhere('NOT (story.major_warnings && CAST(:exclure AS major_warning[]))', {
         exclure: query.exclure,
@@ -143,7 +163,8 @@ export class StoriesService {
     const rows = await qb
       .orderBy('story.published_at', 'DESC')
       .addOrderBy('story.id', 'DESC')
-      .take(query.limite + 1)
+      // limit (et non take) : la jointure vers l'autrice ou l'auteur ne duplique pas de ligne.
+      .limit(query.limite + 1)
       .getMany();
     const page = rows.slice(0, query.limite);
     return {

@@ -6,7 +6,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, QueryFailedError } from 'typeorm';
 import { describe, expect, it } from 'vitest';
 import { Public } from '../src/auth/decorators.js';
-import { saveDraft } from '../src/stories/chapter-drafts.js';
+import { loadDraft, saveDraft } from '../src/stories/chapter-drafts.js';
 import { ChapterRevision } from '../src/stories/chapter-revision.entity.js';
 import { Chapter } from '../src/stories/chapter.entity.js';
 import { StoryTag } from '../src/stories/story-tag.entity.js';
@@ -246,7 +246,7 @@ describe('contraintes', () => {
       saveDraft(db.manager, chapter.id, 1, { type: 'doc', content: [] }),
     ).rejects.toMatchObject({ problemType: 'brouillon-modifie' });
     const saved = await db.getRepository(Chapter).findOneByOrFail({ id: chapter.id });
-    expect([saved.draftVersion, saved.draft]).toEqual([2, draftB]);
+    expect([saved.draftVersion, await loadDraft(db.manager, chapter.id)]).toEqual([2, draftB]);
     // Renommer le chapitre ne change pas la version du brouillon (pas de faux conflit).
     await db.getRepository(Chapter).update(chapter.id, { title: 'Nouveau titre' });
     expect((await db.getRepository(Chapter).findOneByOrFail({ id: chapter.id })).draftVersion).toBe(
@@ -265,7 +265,7 @@ describe('contraintes', () => {
     stale.title = 'Titre changé ailleurs';
     await chapters.save(stale);
     const after = await chapters.findOneByOrFail({ id: created.id });
-    expect([after.draftVersion, after.draft, after.title]).toEqual([
+    expect([after.draftVersion, await loadDraft(db.manager, created.id), after.title]).toEqual([
       2,
       draft,
       'Titre changé ailleurs',
@@ -277,7 +277,12 @@ describe('contraintes', () => {
     const story = await createStory(db, await createUser(db));
     const chapter = await db.getRepository(Chapter).save({ story, position: 1 });
     const saved = await db.getRepository(Chapter).findOneByOrFail({ id: chapter.id });
-    expect(saved.draft).toEqual({ type: 'doc', content: [] });
+    // Un paragraphe vide : ProseMirror exige au moins un bloc. Jamais chargé par défaut.
+    expect(saved.draft).toBeUndefined();
+    expect(await loadDraft(db.manager, chapter.id)).toEqual({
+      type: 'doc',
+      content: [{ type: 'paragraph' }],
+    });
     expect(saved.draftVersion).toBe(1);
   });
 

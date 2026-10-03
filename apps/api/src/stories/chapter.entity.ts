@@ -4,7 +4,7 @@ import { CreatedAt, IdColumn, UpdatedAt } from '../database/columns.js';
 import { Story } from './story.entity.js';
 
 /** Document TipTap vide : point de départ d'un brouillon. */
-export const EMPTY_DOCUMENT = { type: 'doc', content: [] } as const;
+export const EMPTY_DOCUMENT = { type: 'doc', content: [{ type: 'paragraph' }] } as const;
 
 /**
  * Chapitre. Le brouillon (`draft`) se retravaille librement ; les lecteurs voient la
@@ -44,7 +44,14 @@ export class Chapter {
   // des migrations verrait une différence à chaque fois.
   // `update: false` : ni `save()` ni `update()` ne peuvent écrire le brouillon (un `save()`
   // d'une entité lue trop tôt l'écraserait) ; seule saveDraft() le fait, en SQL direct.
-  @Column({ type: 'jsonb', default: () => `'{"type": "doc", "content": []}'`, update: false })
+  // `select: false` : jamais chargé par défaut (jusqu'à 1 Mo par chapitre) ; seules les
+  // routes du brouillon le lisent (loadDraft). Défaut : un paragraphe vide, comme l'éditeur.
+  @Column({
+    type: 'jsonb',
+    default: () => `'{"type": "doc", "content": [{"type": "paragraph"}]}'`,
+    update: false,
+    select: false,
+  })
   draft!: object;
 
   /**

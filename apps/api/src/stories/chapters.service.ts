@@ -18,16 +18,15 @@ import {
 import { DataSource, type EntityManager } from 'typeorm';
 import { ApiProblem, ValidationFailed } from '../common/problem.js';
 import type { User } from '../users/user.entity.js';
-import { saveDraft } from './chapter-drafts.js';
+import { loadDraft, saveDraft } from './chapter-drafts.js';
 import { ChapterRevision } from './chapter-revision.entity.js';
 import { Chapter } from './chapter.entity.js';
 import { StoriesService } from './stories.service.js';
-import { ownedStory, visibleStory } from './story-access.js';
+import { lockStory, ownedStory, visibleStory } from './story-access.js';
 import { Story } from './story.entity.js';
 
-/** Verrouille l'histoire le temps d'une transaction (numérotation des chapitres). */
-const lockStory = (tx: EntityManager, storyId: string) =>
-  tx.query('SELECT id FROM stories WHERE id = $1 FOR UPDATE', [storyId]);
+/** Un chapitre très long tient en un chapitre : au-delà, découper l'histoire. */
+export const MAX_CHAPTERS = 2_000;
 
 /**
  * Chapitre de CETTE histoire, sinon 404 : un identifiant de chapitre pris dans une autre
@@ -77,6 +76,14 @@ export class ChaptersService {
     const id = await this.db.transaction(async (tx) => {
       await ownedStory(tx, storyId, account);
       await lockStory(tx, storyId);
+      const count = await tx.getRepository(Chapter).countBy({ story: { id: storyId } });
+      if (count >= MAX_CHAPTERS) {
+        throw new ApiProblem(
+          HttpStatus.CONFLICT,
+          `Une histoire compte ${MAX_CHAPTERS} chapitres au plus : commencez un tome suivant.`,
+          'trop-de-chapitres',
+        );
+      }
       const [{ next }] = await tx.query<[{ next: number }]>(
         'SELECT coalesce(max(position), 0) + 1 AS next FROM chapters WHERE story_id = $1',
         [storyId],
@@ -92,13 +99,14 @@ export class ChaptersService {
   async draft(account: User, storyId: string, chapterId: string): Promise<ChapterDraft> {
     const story = await ownedStory(this.db.manager, storyId, account);
     const chapter = await chapterOf(this.db.manager, storyId, chapterId);
+    const draft = await loadDraft(this.db.manager, chapterId);
     return {
       id: chapter.id,
       title: chapter.title,
       status: chapter.status,
-      draft: chapter.draft,
+      draft,
       draftVersion: chapter.draftVersion,
-      wordCount: wordCount(chapter.draft as ChapterDocument, story.language),
+      wordCount: wordCount(draft as ChapterDocument, story.language),
     };
   }
 
@@ -110,10 +118,11 @@ export class ChaptersService {
     input: SaveDraft,
   ): Promise<SavedDraft> {
     const story = await ownedStory(this.db.manager, storyId, account);
-    const current = await chapterOf(this.db.manager, storyId, chapterId);
+    await chapterOf(this.db.manager, storyId, chapterId);
     const received = validDocument(input.draft);
     // Les doublons d'identifiants (copier-coller) se départagent avec le brouillon précédent.
-    const draft = ensureBlockIds(received, { previous: current.draft as ChapterDocument });
+    const previous = (await loadDraft(this.db.manager, chapterId)) as ChapterDocument;
+    const draft = ensureBlockIds(received, { previous });
     const draftVersion = await saveDraft(this.db.manager, chapterId, input.version, draft);
     const changed = JSON.stringify(draft) !== JSON.stringify(received);
     return {
@@ -143,16 +152,24 @@ export class ChaptersService {
   async publish(account: User, storyId: string, chapterId: string): Promise<StoryDetail> {
     await this.db.transaction(async (tx) => {
       const story = await ownedStory(tx, storyId, account);
+      await lockStory(tx, storyId);
       await chapterOf(tx, storyId, chapterId);
       await tx.query('SELECT id FROM chapters WHERE id = $1 FOR UPDATE', [chapterId]);
       const chapter = await tx.getRepository(Chapter).findOneByOrFail({ id: chapterId });
-      const content = validDocument(chapter.draft);
+      const content = validDocument(await loadDraft(tx, chapterId));
       const words = wordCount(content, story.language);
+      if (!words) {
+        throw new ApiProblem(
+          HttpStatus.CONFLICT,
+          'Ce chapitre est vide : écrivez-le avant de le publier.',
+          'chapitre-vide',
+        );
+      }
       await tx
         .getRepository(ChapterRevision)
         .update({ chapter: { id: chapterId }, current: true }, { current: false });
       await tx.getRepository(ChapterRevision).insert({
-        chapter: { id: chapterId },
+        chapterId,
         kind: 'published',
         current: true,
         content,
@@ -173,6 +190,7 @@ export class ChaptersService {
   async unpublish(account: User, storyId: string, chapterId: string): Promise<StoryDetail> {
     await this.db.transaction(async (tx) => {
       await ownedStory(tx, storyId, account);
+      await lockStory(tx, storyId);
       await chapterOf(tx, storyId, chapterId);
       await tx
         .getRepository(ChapterRevision)
@@ -248,7 +266,7 @@ export class ChaptersService {
     if (!chapter) throw new NotFoundException();
     const revision = await this.db
       .getRepository(ChapterRevision)
-      .findOneBy({ chapter: { id: chapterId }, current: true });
+      .findOneBy({ chapterId, current: true });
     if (!revision) throw new NotFoundException();
     return {
       id: chapter.id,

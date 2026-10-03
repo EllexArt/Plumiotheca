@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { ApiProblem } from '../common/problem.js';
 import type { EntityManager } from 'typeorm';
 import { StoryTag } from '../stories/story-tag.entity.js';
 import { Tag } from './tag.entity.js';
@@ -14,6 +15,14 @@ export class TagsService {
     const wanted = new Map<string, string>();
     for (const name of names) {
       const normalized = normalizeTag(name);
+      // Certains caractères se déplient une fois normalisés (« ﷺ » : 18 lettres).
+      if (normalized.length > 100) {
+        throw new ApiProblem(
+          HttpStatus.BAD_REQUEST,
+          'Tag trop long : 100 caractères au plus.',
+          'tag-trop-long',
+        );
+      }
       if (normalized && !wanted.has(normalized)) wanted.set(normalized, name.trim());
     }
     await tx.getRepository(StoryTag).delete({ storyId });

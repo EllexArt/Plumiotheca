@@ -53,3 +53,8 @@ export async function ownedStory(db: EntityManager, id: string, account: User): 
   }
   return story;
 }
+
+/** Verrouille l'histoire le temps d'une transaction (numérotation, publication, tags). */
+export async function lockStory(tx: EntityManager, storyId: string): Promise<void> {
+  await tx.query('SELECT id FROM stories WHERE id = $1 FOR UPDATE', [storyId]);
+}
