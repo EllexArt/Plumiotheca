@@ -86,9 +86,14 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
   if (auth.error) {
     return (
       <Page title="Connexion nécessaire" width="narrow">
-        <Alert tone="warning" title="Le service de connexion ne répond pas.">
-          <p>Réessayez dans un instant.</p>
-        </Alert>
+        {/* Échec du départ vers Keycloak : déjà annoncé par le bandeau du cadre. */}
+        {!['signinRedirect', 'signoutRedirect'].includes(
+          (auth.error as { source?: string }).source ?? '',
+        ) && (
+          <Alert tone="warning" title="Le service de connexion ne répond pas.">
+            <p>Réessayez dans un instant.</p>
+          </Alert>
+        )}
         <div>
           <Button variant="primary" onClick={() => void signin()}>
             Se connecter

@@ -77,6 +77,10 @@ export async function request(
   if (!response.ok) {
     const json: unknown = await response.json().catch(() => null);
     const problem = Problem.safeParse(json);
+    // Relais ou passerelle sans réponse de l'API (redémarrage) : même message que le réseau.
+    if (!problem.success && [502, 503, 504].includes(response.status)) {
+      throw new ApiError({ ...unreachable(), status: response.status });
+    }
     throw new ApiError(
       problem.success
         ? problem.data
@@ -97,7 +101,7 @@ export async function request(
       type: 'reponse-inattendue',
       title:
         'Plumiotheca a répondu de façon inattendue. Rechargez la page ; si cela continue, signalez-le à l’équipe.',
-      status: 502,
+      status: 500,
     });
   }
   return parsed.data;

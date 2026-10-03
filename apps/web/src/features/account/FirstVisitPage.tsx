@@ -41,8 +41,9 @@ const TAKEN = 'Ce pseudonyme est déjà pris. Essayez une variante.';
 const STEP_CHANGES = ['age-minimum', 'deja-fait', 'charte-perimee'];
 
 /**
- * Première visite (décisions 34, 42) : âge déclaré d'abord (rien d'autre à remplir avant
- * moins de 15 ans), pseudonyme public, charte. Ni nom, ni date de naissance.
+ * Première visite (décisions 34, 42) : âge déclaré en premier champ, pseudonyme public,
+ * charte. Le contrat demande encore pseudonyme et charte à tous, même avant un refus pour
+ * moins de 15 ans (issue de suivi). Ni nom, ni date de naissance.
  */
 export function FirstVisitPage() {
   const navigate = useNavigate();
@@ -119,7 +120,9 @@ export function FirstVisitPage() {
     error.type !== 'pseudonyme-indisponible' &&
     error.type !== 'age-minimum' &&
     !error.fieldError('handle')
-      ? error.message
+      ? error.type === 'charte-perimee'
+        ? 'La charte vient d’être mise à jour. Rechargez la page pour lire la nouvelle version.'
+        : error.message
       : undefined;
 
   return (

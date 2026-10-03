@@ -115,7 +115,7 @@ describe('première visite', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Bienvenue sur Plumiotheca' }),
     ).toBeInTheDocument();
-    // Premier champ du formulaire : l'âge (rien d'autre à remplir avant un refus).
+    // Premier champ du formulaire : l'âge.
     const form = screen.getByRole('button', { name: 'Commencer' }).closest('form')!;
     expect(within(form).getAllByRole('group')[0]).toHaveAccessibleName(/Quel âge avez-vous/);
     expect(form.querySelector('input')).toHaveAttribute('type', 'radio');
@@ -363,5 +363,43 @@ describe('retour après connexion', () => {
     [undefined, '/'],
   ])('%s → %s', (value, expected) => {
     expect(safeReturnTo(value)).toBe(expected);
+  });
+});
+
+describe('refus et incidents à la première visite', () => {
+  it('accueil déjà fait dans un autre onglet (409 deja-fait) : le site s’ouvre', async () => {
+    signedIn();
+    let step = 'first-visit';
+    mockApi((url, init) => {
+      if (url === '/api/moi/compte') return { body: account({ step }) };
+      if (url.endsWith('/disponibilite')) return { body: { available: true } };
+      if (init.method === 'POST') {
+        step = 'ready';
+        return problem(409, 'deja-fait', 'La première visite est déjà faite.');
+      }
+    });
+    renderApp('/bienvenue');
+    await fillFirstVisit(/18 ans ou plus/, 'Elise');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Explorer' })).toBeInTheDocument();
+  });
+
+  it('charte mise à jour pendant la saisie : rechargement demandé', async () => {
+    signedIn();
+    mockApi((url, init) => {
+      if (url === '/api/moi/compte') return { body: firstVisit };
+      if (url.endsWith('/disponibilite')) return { body: { available: true } };
+      if (init.method === 'POST')
+        return problem(409, 'charte-perimee', 'Relisez la nouvelle version.');
+    });
+    renderApp('/bienvenue');
+    await fillFirstVisit(/18 ans ou plus/, 'Elise');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Rechargez la page');
+  });
+
+  it('API qui redémarre (502 du relais) : message « ne répond pas »', async () => {
+    signedIn();
+    mockApi(() => ({ status: 502, body: '' }));
+    renderApp('/mes-lectures');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Plumiotheca ne répond pas.');
   });
 });

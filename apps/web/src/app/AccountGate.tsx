@@ -30,7 +30,15 @@ export function AccountGate({ children }: { children: ReactNode }) {
       <Alert tone="danger" live title="Votre compte n’a pas pu être chargé.">
         <p>{account.error.message}</p>
         <div>
-          <Button size="small" pending={account.isFetching} onClick={() => void account.refetch()}>
+          <Button
+            size="small"
+            pending={account.isFetching}
+            onClick={() =>
+              void account.refetch().then((result) => {
+                if (!result.isError) document.getElementById('contenu')?.focus();
+              })
+            }
+          >
             Réessayer
           </Button>
         </div>

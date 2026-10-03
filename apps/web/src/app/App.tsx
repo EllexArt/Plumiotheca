@@ -13,7 +13,9 @@ const queryClient = new QueryClient({
       // réponse de l'API (404, 403, réponse hors contrat…) ne changera pas en réessayant.
       retry: (failures, error) =>
         failures < 2 &&
-        (!(error instanceof ApiError) || error.type === 'reseau' || error.status === 503),
+        (!(error instanceof ApiError) ||
+          error.type === 'reseau' ||
+          [502, 503, 504].includes(error.status)),
       refetchOnWindowFocus: false,
     },
   },

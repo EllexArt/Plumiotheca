@@ -226,7 +226,8 @@
     gap: var(--space-1);
   }
 
-  .actions > * {
+  .actions > button,
+  .actions > a {
     padding: 0 var(--space-3);
   }
 
