@@ -46,9 +46,9 @@ Plumiotheca est une bibliothèque vivante : on y écrit, on y lit, on s'y entrai
 
 **4.5** Les violences extrêmes, l'automutilation, le suicide ou les troubles alimentaires peuvent être racontés, avec les avertissements adaptés ; jamais présentés comme un mode d'emploi ou un encouragement. Si ces sujets vous touchent personnellement, vous n'êtes pas seul·e : 3114 (prévention du suicide, 24 h/24), Fil Santé Jeunes (0 800 235 236), 3018 (cyberharcèlement), 119 (enfance en danger).
 
-**4.6** Pas de contenu illégal, d'apologie du terrorisme ou de crimes contre l'humanité, ni de promotion d'activités dangereuses.
+**4.6** La fiction peut tout raconter : mafia, guerre, crimes, méchants abominables, y compris de leur point de vue et sans morale finale. Ce qui est interdit, c'est ce qui sort de la fiction pour agir dans le monde réel : appeler à commettre un crime ou un attentat, glorifier un acte terroriste ou un crime contre l'humanité réels, donner un mode d'emploi réellement utilisable (fabriquer une arme, une drogue…), ou publier un contenu illégal en lui-même.
 
-**4.7** Les fictions mettant en scène des personnes réelles (célébrités, personnalités) sont permises sans contenu sexuel, sans diffamation et sans les présenter comme vraies ; aucune personne réelle de votre entourage, et aucun montage réaliste (photo, voix) d'une personne réelle.
+**4.7** S'inspirer de sa propre vie est au cœur de l'écriture : autofiction et récits personnels sont les bienvenus, tout comme les fictions sur des personnalités publiques. Quand une histoire met en scène des personnes réelles, on veille à ne pas leur nuire : pas de contenu sexuel les impliquant, rien qui permette d'identifier un proche qui n'a rien demandé, pas d'accusation inventée présentée comme vraie, et aucun montage réaliste (photo, voix, vidéo) d'une personne réelle.
 
 ## 5. Création, droits et images
 
