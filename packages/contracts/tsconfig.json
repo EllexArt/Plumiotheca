@@ -2,7 +2,9 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    // Types de Node pour les tests uniquement (voir tsconfig.build.json).
+    "types": ["node"]
   },
   "include": ["src"]
 }

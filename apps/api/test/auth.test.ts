@@ -4,7 +4,7 @@ import { errors } from 'jose';
 import { describe, expect, it } from 'vitest';
 import { CurrentUser, RequireRoles } from '../src/auth/decorators.js';
 import type { AuthUser } from '../src/auth/auth-user.js';
-import { expectProblem, foreignKey, start as startApp, token } from './support.js';
+import { expectProblem, foreignKey, readyToken, start as startApp, token } from './support.js';
 
 /** Routes d'essai protégées, déclarées seulement dans les tests. */
 @Controller('essai-roles')
@@ -110,28 +110,30 @@ describe('authentification', () => {
 
 describe('rôles et double authentification', () => {
   const moderator = (amr: string[]) => token({ realm_access: { roles: ['moderation'] }, amr });
+  const ready = (app: Parameters<typeof readyToken>[0], claims: Parameters<typeof readyToken>[1]) =>
+    readyToken(app, claims);
 
   it('refuse la modération sans le rôle (403)', async () => {
-    const { http } = await start();
+    const { app, http } = await start();
     const res = await http
       .get('/api/essai-roles/moderation')
-      .set(...bearer(await token({ amr: ['pwd', 'otp'] })))
+      .set(...bearer(await ready(app, { amr: ['pwd', 'otp'] })))
       .expect(403);
     expect(expectProblem(res.body, 403).type).toBe('interdit');
   });
 
   it('refuse la modération sans second facteur pendant cette connexion (403)', async () => {
-    const { http } = await start();
+    const { app, http } = await start();
     const res = await http
       .get('/api/essai-roles/moderation')
-      .set(...bearer(await moderator(['pwd'])))
+      .set(...bearer(await ready(app, { realm_access: { roles: ['moderation'] }, amr: ['pwd'] })))
       .expect(403);
     expect(expectProblem(res.body, 403).type).toBe('mfa-requise');
   });
 
   it('refuse aussi une session sans « amr » (ancienne session, mot de passe oublié)', async () => {
-    const { http } = await start();
-    const jwt = await token({ realm_access: { roles: ['moderation'] }, amr: undefined });
+    const { app, http } = await start();
+    const jwt = await ready(app, { realm_access: { roles: ['moderation'] }, amr: undefined });
     await http
       .get('/api/essai-roles/moderation')
       .set(...bearer(jwt))
@@ -139,16 +141,20 @@ describe('rôles et double authentification', () => {
   });
 
   it('accepte la modération avec code TOTP validé', async () => {
-    const { http } = await start();
+    const { app, http } = await start();
     await http
       .get('/api/essai-roles/moderation')
-      .set(...bearer(await moderator(['pwd', 'otp'])))
+      .set(
+        ...bearer(
+          await ready(app, { realm_access: { roles: ['moderation'] }, amr: ['pwd', 'otp'] }),
+        ),
+      )
       .expect(200);
   });
 
   it('sans second facteur, la modération ne figure pas dans les rôles effectifs', async () => {
-    const { http } = await start();
-    const jwt = await token({ realm_access: { roles: ['jardinage-tags', 'moderation'] } });
+    const { app, http } = await start();
+    const jwt = await ready(app, { realm_access: { roles: ['jardinage-tags', 'moderation'] } });
     const res = await http
       .get('/api/essai-roles/tags')
       .set(...bearer(jwt))
@@ -166,8 +172,8 @@ describe('rôles et double authentification', () => {
   });
 
   it('les jardiniers des tags n’ont pas besoin de second facteur', async () => {
-    const { http } = await start();
-    const jwt = await token({ realm_access: { roles: ['jardinage-tags'] } });
+    const { app, http } = await start();
+    const jwt = await ready(app, { realm_access: { roles: ['jardinage-tags'] } });
     await http
       .get('/api/essai-roles/tags')
       .set(...bearer(jwt))

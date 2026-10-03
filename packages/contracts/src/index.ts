@@ -10,6 +10,8 @@ import { z } from 'zod';
 // et lus par un lecteur d'écran tels quels. Le champ `code` reste stable pour adapter un message.
 z.config(z.locales.fr());
 
+export * from './account.js';
+export * from './charter.js';
 export * from './domain.js';
 export * from './errors.js';
 export * from './health.js';

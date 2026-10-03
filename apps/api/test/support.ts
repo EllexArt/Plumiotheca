@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import { CHARTER_VERSION } from '@plumiotheca/contracts';
+import { DataSource } from 'typeorm';
 import { Module, type Type } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -17,6 +19,7 @@ import { afterEach, beforeEach, expect } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { loadConfig } from '../src/config/env.js';
 import { configureApp } from '../src/setup.js';
+import { User } from '../src/users/user.entity.js';
 import { testDbEnv } from './db-env.js';
 
 export const ISSUER = 'http://localhost:8080/realms/plumiotheca';
@@ -90,3 +93,24 @@ export const expectProblem = (body: unknown, status: number) => {
   expect(problem.status).toBe(status);
   return problem;
 };
+
+/**
+ * Jeton d'une personne dont le compte est prêt (première visite faite, charte acceptée) :
+ * pour tester les routes ordinaires sans refaire le parcours d'arrivée.
+ */
+export async function readyToken(
+  app: NestExpressApplication,
+  claims: JWTPayload & Record<string, unknown> = {},
+) {
+  const sub = claims.sub ?? randomUUID();
+  const handle = `essai-${sub.slice(0, 8)}`;
+  await app.get(DataSource).getRepository(User).insert({
+    keycloakId: sub,
+    handle,
+    handleKey: handle,
+    ageBand: '18+',
+    charterVersion: CHARTER_VERSION,
+    charterAcceptedAt: new Date(),
+  });
+  return token({ ...claims, sub });
+}

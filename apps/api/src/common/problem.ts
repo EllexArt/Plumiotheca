@@ -10,6 +10,7 @@ import {
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 import type { Problem, ValidationIssue } from '@plumiotheca/contracts';
 import type { Request, Response } from 'express';
+import { EntityNotFoundError } from 'typeorm';
 import { pathOnly } from './logger.js';
 
 /** Titres affichables, par statut. Le type sert d'identifiant stable côté web. */
@@ -99,10 +100,13 @@ export class ProblemFilter implements ExceptionFilter {
     const res = ctx.getResponse<Response>();
 
     const bodyError = bodyParserStatus(exception);
+    // Introuvable en base : 404, sans les critères de recherche que TypeORM met dans son message.
     const status =
       exception instanceof HttpException
         ? exception.getStatus()
-        : (bodyError ?? HttpStatus.INTERNAL_SERVER_ERROR);
+        : exception instanceof EntityNotFoundError
+          ? HttpStatus.NOT_FOUND
+          : (bodyError ?? HttpStatus.INTERNAL_SERVER_ERROR);
 
     // Les ApiProblem de 5xx sont journalisées là où elles naissent, avec leur cause.
     if (status >= 500 && !(exception instanceof ApiProblem)) {

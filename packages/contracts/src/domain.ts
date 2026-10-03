@@ -2,9 +2,16 @@ import { z } from 'zod';
 
 // Valeurs métier partagées par l'API (colonnes de la base) et le web (formulaires, filtres).
 
-/** Tranche d'âge déclarée à la première visite (décision 34) ; jamais de date de naissance. */
+/** Tranche d'âge autorisée sur Plumiotheca (15 ans minimum) ; jamais de date de naissance. */
 export const AgeBand = z.enum(['15-17', '18+']);
 export type AgeBand = z.infer<typeof AgeBand>;
+
+/**
+ * Réponse à la question de l'âge, à la première visite (décision 34). « Moins de 15 ans »
+ * est conservé pour verrouiller le compte : on ne peut pas recommencer en changeant d'âge.
+ */
+export const DeclaredAge = z.enum(['under-15', '15-17', '18+']);
+export type DeclaredAge = z.infer<typeof DeclaredAge>;
 
 /** Classement d'une histoire. « Explicite » est reporté (décision 22) : absent à dessein. */
 export const Rating = z.enum(['general', 'teen', 'mature']);
