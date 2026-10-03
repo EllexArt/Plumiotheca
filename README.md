@@ -6,6 +6,7 @@ Une plateforme pour lire, écrire et partager des histoires et des univers : des
 
 - Architecture cible et décisions : [docs/architecture.md](docs/architecture.md)
 - Feuille de route : [tableau du projet](https://github.com/users/EllexArt/projects/2) · [résumé](docs/backlog.md)
+- Contribuer (git flow : `develop`, `release/…`, `main`) : [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ## Développer
 
