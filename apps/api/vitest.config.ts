@@ -12,6 +12,9 @@ export default defineConfig({
       '@plumiotheca/contracts': fileURLToPath(
         new URL('../../packages/contracts/src/index.ts', import.meta.url),
       ),
+      '@plumiotheca/editor-schema': fileURLToPath(
+        new URL('../../packages/editor-schema/src/index.ts', import.meta.url),
+      ),
     },
   },
   test: {

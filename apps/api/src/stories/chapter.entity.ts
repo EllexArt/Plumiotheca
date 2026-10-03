@@ -3,9 +3,6 @@ import { Check, Column, Entity, JoinColumn, ManyToOne, type Relation, Unique } f
 import { CreatedAt, IdColumn, UpdatedAt } from '../database/columns.js';
 import { Story } from './story.entity.js';
 
-/** Document TipTap vide : point de départ d'un brouillon. */
-export const EMPTY_DOCUMENT = { type: 'doc', content: [] } as const;
-
 /**
  * Chapitre. Le brouillon (`draft`) se retravaille librement ; les lecteurs voient la
  * révision publiée courante (voir ChapterRevision), figée, tant qu'une nouvelle version
@@ -42,14 +39,23 @@ export class Chapter {
   /** Brouillon en cours (JSON ProseMirror/TipTap, blocs à identifiant stable). */
   // Écrit sous la forme normalisée par PostgreSQL (espaces compris), sinon la vérification
   // des migrations verrait une différence à chaque fois.
-  @Column({ type: 'jsonb', default: () => `'{"type": "doc", "content": []}'` })
+  // `update: false` : ni `save()` ni `update()` ne peuvent écrire le brouillon (un `save()`
+  // d'une entité lue trop tôt l'écraserait) ; seule saveDraft() le fait, en SQL direct.
+  // `select: false` : jamais chargé par défaut (jusqu'à 1 Mo par chapitre) ; seules les
+  // routes du brouillon le lisent (loadDraft). Défaut : un paragraphe vide, comme l'éditeur.
+  @Column({
+    type: 'jsonb',
+    default: () => `'{"type": "doc", "content": [{"type": "paragraph"}]}'`,
+    update: false,
+    select: false,
+  })
   draft!: object;
 
   /**
    * Version du brouillon, incrémentée par la seule sauvegarde du brouillon (pas par un
    * changement de titre ou d'ordre) : voir saveDraft(), jamais `save()` pour le brouillon.
    */
-  @Column({ type: 'integer', default: 1 })
+  @Column({ type: 'integer', default: 1, update: false })
   draftVersion!: number;
 
   @Column({ type: 'integer', default: 0 })

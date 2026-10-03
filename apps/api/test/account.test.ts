@@ -329,7 +329,7 @@ describe('pseudonyme et profil', () => {
     await http
       .patch('/api/moi/compte/profil')
       .set(...bearer(jwt))
-      .send({ displayName: 'Élise‮esilé' })
+      .send({ displayName: 'Élise\u202Eesilé' })
       .expect(400);
     await http
       .patch('/api/moi/compte/profil')

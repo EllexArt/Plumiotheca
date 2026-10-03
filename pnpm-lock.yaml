@@ -223,6 +223,9 @@ importers:
       '@plumiotheca/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@plumiotheca/editor-schema':
+        specifier: workspace:*
+        version: link:../../packages/editor-schema
       helmet:
         specifier: ^8.3.0
         version: 8.3.0
