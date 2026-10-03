@@ -2,6 +2,7 @@ import type { DataSourceOptions } from 'typeorm';
 import type { Config } from '../config/env.js';
 import { ChapterRevision } from '../stories/chapter-revision.entity.js';
 import { Chapter } from '../stories/chapter.entity.js';
+import { StoryTag } from '../stories/story-tag.entity.js';
 import { Story } from '../stories/story.entity.js';
 import { Tag } from '../tags/tag.entity.js';
 import { HandleRelease } from '../users/handle-release.entity.js';
@@ -9,7 +10,7 @@ import { User } from '../users/user.entity.js';
 import { migrations } from './migrations/index.js';
 import { SnakeNamingStrategy } from './naming.strategy.js';
 
-export const entities = [User, HandleRelease, Story, Chapter, ChapterRevision, Tag];
+export const entities = [User, HandleRelease, Story, StoryTag, Chapter, ChapterRevision, Tag];
 
 /** Connexion PostgreSQL commune à l'API, à la ligne de commande et aux tests. */
 export function dataSourceOptions(config: Config): DataSourceOptions {

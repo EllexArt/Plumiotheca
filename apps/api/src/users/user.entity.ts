@@ -1,5 +1,5 @@
 import { AccountStatus, AgeBand, DeletionMode } from '@plumiotheca/contracts';
-import { Column, Entity, Index } from 'typeorm';
+import { Check, Column, Entity, Index } from 'typeorm';
 import { CreatedAt, IdColumn, UpdatedAt } from '../database/columns.js';
 
 /**
@@ -12,6 +12,15 @@ import { CreatedAt, IdColumn, UpdatedAt } from '../database/columns.js';
  *   colonnes personnelles remises à NULL, pour que les contributions gardées y restent liées.
  */
 @Entity('users')
+// Un compte actif est toujours lié à Keycloak ; un compte supprimé ne garde aucune donnée
+// personnelle (liste tenue dans PERSONAL_FIELDS, vérifiée par les tests).
+@Check('users_active_has_keycloak_id', `"status" = 'deleted' OR "keycloak_id" IS NOT NULL`)
+@Check(
+  'users_deleted_is_empty',
+  `"status" <> 'deleted' OR ("keycloak_id" IS NULL AND "handle" IS NULL AND "handle_key" IS NULL
+    AND "display_name" IS NULL AND "pronouns" IS NULL AND "bio" IS NULL AND "age_band" IS NULL
+    AND "charter_version" IS NULL AND "charter_accepted_at" IS NULL)`,
+)
 export class User {
   @IdColumn()
   id!: string;
@@ -71,3 +80,34 @@ export class User {
   @UpdatedAt()
   updatedAt!: Date;
 }
+
+/**
+ * Colonnes personnelles, vidées à l'anonymisation. Toute nouvelle colonne de `users` doit
+ * être classée ici ou dans NON_PERSONAL_FIELDS (un test échoue sinon).
+ */
+export const PERSONAL_FIELDS = [
+  'keycloakId',
+  'handle',
+  'handleKey',
+  'displayName',
+  'pronouns',
+  'bio',
+  'ageBand',
+  'charterVersion',
+  'charterAcceptedAt',
+] as const satisfies readonly (keyof User)[];
+
+export const NON_PERSONAL_FIELDS = [
+  'id',
+  'status',
+  'deletionRequestedAt',
+  'deletionMode',
+  'createdAt',
+  'updatedAt',
+] as const satisfies readonly (keyof User)[];
+
+/** Valeurs d'un compte anonymisé (« compte supprimé »). */
+export const anonymizedUser = (): Partial<User> => ({
+  ...Object.fromEntries(PERSONAL_FIELDS.map((field) => [field, null])),
+  status: 'deleted',
+});

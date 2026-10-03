@@ -62,8 +62,12 @@ jobs:
       - name: Compiler
         run: pnpm --filter "@plumiotheca/api..." build
 
-      - name: Migrations sur une base vide
-        run: pnpm --filter @plumiotheca/api migration:run
+      # Appliquer, annuler, réappliquer : le retour arrière doit fonctionner aussi.
+      - name: Migrations sur une base vide (aller-retour)
+        run: |
+          pnpm --filter @plumiotheca/api migration:run
+          pnpm --filter @plumiotheca/api migration:revert
+          pnpm --filter @plumiotheca/api migration:run
 
       # Échoue si les entités ont changé sans migration correspondante.
       - name: Aucune migration ne manque

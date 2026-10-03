@@ -82,6 +82,9 @@ pnpm --filter @plumiotheca/api migration:check    # échoue si une migration man
 - En développement, l'API applique les migrations au démarrage (`DB_MIGRATE_ON_START`, désactivé par défaut ailleurs).
 - Base injoignable au démarrage : quelques essais (`DB_CONNECT_RETRIES`), puis arrêt avec un code d'erreur et un message sans mot de passe.
 - Les tests utilisent une base dédiée (`plumiotheca_test`), recréée et migrée à chaque lancement : `pnpm infra:up` d'abord.
+- Brouillon d'un chapitre : toujours `saveDraft()` (mise à jour conditionnelle sur `draft_version`, 409 si le brouillon a changé ailleurs), jamais `save()`.
+- Erreurs de PostgreSQL journalisées sans message ni pile (ils peuvent citer la valeur reçue) : code SQLSTATE, contrainte et table seulement.
+- Production : migrations lancées par une tâche unique avant le déploiement, pas au démarrage de chaque instance (TypeORM ne verrouille pas les migrations concurrentes, voir #67).
 
 ## Image Docker
 

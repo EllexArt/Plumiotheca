@@ -64,17 +64,19 @@ Choix fondateurs, validés en octobre 2026 :
 
 À intégrer au modèle de données dès le jalon M1 (#13), pas en fin de projet.
 
-| Donnée                                      | Pourquoi                                                  | Durée de conservation                                       |
-| ------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------- |
-| E-mail                                      | connexion, récupération du compte, notifications choisies | durée du compte, **dans Keycloak seulement**                |
-| Pseudonyme, profil, pronoms                 | affichage public choisi par la personne                   | durée du compte                                             |
-| Tranche d'âge déclarée                      | protection des mineurs                                    | durée du compte                                             |
-| Contenus (histoires, notes, images, fiches) | service                                                   | durée du compte, puis selon le choix de suppression         |
-| Journaux techniques                         | sécurité, débogage                                        | 30 jours, **sans e-mail ni contenu** (masquage automatique) |
-| Décisions de modération                     | DSA, appels                                               | 3 ans, rattachées à un identifiant interne                  |
-| Comptage des lectures anonymes              | statistiques                                              | hachage effacé chaque jour                                  |
+| Donnée                                       | Pourquoi                                                  | Durée de conservation                                       |
+| -------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------- |
+| E-mail                                       | connexion, récupération du compte, notifications choisies | durée du compte, **dans Keycloak seulement**                |
+| Pseudonyme, profil, pronoms                  | affichage public choisi par la personne                   | durée du compte                                             |
+| Tranche d'âge déclarée                       | protection des mineurs                                    | durée du compte                                             |
+| Contenus (histoires, notes, images, fiches)  | service                                                   | durée du compte, puis selon le choix de suppression         |
+| Journaux techniques                          | sécurité, débogage                                        | 30 jours, **sans e-mail ni contenu** (masquage automatique) |
+| Décisions de modération                      | DSA, appels                                               | 3 ans, rattachées à un identifiant interne                  |
+| Ancien pseudonyme (sans lien vers le compte) | empêcher l'usurpation                                     | 90 jours après l'abandon                                    |
+| Comptage des lectures anonymes               | statistiques                                              | hachage effacé chaque jour                                  |
 
-- **Dans la base de l'application** : ni e-mail ni mot de passe (ils restent dans Keycloak) ; l'identifiant Keycloak n'est jamais exposé. Le compte porte son statut et le mode de suppression choisi : « effacer » supprime la ligne et ses contenus en cascade ; « anonymiser » garde une ligne « compte supprimé » dont toutes les colonnes personnelles sont vidées, pour que les contributions conservées y restent liées. Les révisions faites par une co-autrice effacée restent, sans auteur.
+- **Dans la base de l'application** : ni e-mail ni mot de passe (ils restent dans Keycloak) ; l'identifiant Keycloak n'est jamais exposé. Le compte porte son statut et le mode de suppression choisi : « effacer » supprime la ligne et ses contenus en cascade ; « anonymiser » garde une ligne « compte supprimé » dont toutes les colonnes personnelles sont vidées, pour que les contributions conservées y restent liées. Les révisions faites par une co-autrice effacée restent, sans auteur. La base refuse un compte « supprimé » qui garderait une donnée personnelle ; la liste des colonnes personnelles est tenue dans le code et vérifiée par les tests.
+- **E-mails sortants** (notifications, suppression de compte) : l'API lit l'adresse dans Keycloak au moment de l'envoi, avec un compte de service limité à la lecture des comptes (puis à leur suppression pour #70), secret hors dépôt ; si Keycloak est indisponible, l'envoi est réessayé par la file de tâches.
 - **Suppression de compte** : au moment de supprimer, la personne **choisit** entre tout effacer ou anonymiser ses contributions (notes, fiches d'univers collaboratifs, fan arts offerts) sous la mention « compte supprimé ». Ses histoires et images sont supprimées dans les deux cas. **Œuvres partagées** (histoire co-écrite, fan art offert à une autrice, fiches d'un univers collaboratif) : les co-autrices ou l'autrice destinataire sont prévenues et **décident** de garder l'œuvre (part de la personne signée « compte supprimé ») ou de la retirer ; sans réponse sous 30 jours, l'œuvre est conservée anonymisée. Délai d'exécution : 30 jours maximum ; export de ses données proposé avant.
 - **Pseudonymes** : un ancien pseudonyme n'est réattribuable qu'après 90 jours (anti-usurpation).
 - **Images** : métadonnées (dont la géolocalisation) **toujours supprimées** par ré-encodage côté serveur, pour ne jamais révéler qui se cache derrière un pseudonyme.
@@ -289,44 +291,44 @@ Le code actuel est petit : on **reconstruit au bon endroit** plutôt que de tout
 
 ## 10. Décisions prises
 
-| #   | Décision                                                                                                                    | Statut    |
-| --- | --------------------------------------------------------------------------------------------------------------------------- | --------- |
-| 1   | Monorepo unique `EllexArt/Plumiotheca` (historiques conservés)                                                              | ✅ fait   |
-| 2   | Une seule application web (abandon des micro-frontends)                                                                     | ✅ validé |
-| 3   | Backend NestJS + TypeORM + PostgreSQL                                                                                       | ✅ validé |
-| 4   | Éditeur TipTap, contenu stocké en JSON ProseMirror                                                                          | ✅ validé |
-| 5   | pnpm workspaces + `packages/contracts` (zod partagé)                                                                        | ✅ validé |
-| 6   | Keycloak conservé, validation JWT par JWKS, PKCE côté web                                                                   | ✅ validé |
-| 7   | Stockage S3 : Garage (MinIO archivé) pour les images                                                                        | ✅ validé |
-| 8   | CSS Modules + tokens + Radix (pas de Tailwind)                                                                              | ✅ validé |
-| 9   | Univers : solo, collaboratif, ouvert sur invitation, fanfictions — au choix du propriétaire                                 | ✅ validé |
-| 10  | Identité « Lampe de chevet », palette Lueur + 3 ambiances au choix                                                          | ✅ validé |
-| 11  | Concept « bibliothèque vivante » avec vocabulaire simple ; notes de lecture en marge discrètes                              | ✅ validé |
-| 12  | Compteurs publics : lecteurs, en cours de lecture, recommandations                                                          | ✅ validé |
-| 13  | Recherche à facettes avec Meilisearch, personnages et relations structurés                                                  | proposé   |
-| 14  | Avertissements : modèle mixte (majeurs obligatoires + liste fine facultative)                                               | ✅ validé |
-| 15  | Tags : normalisation automatique + jardiniers des tags bénévoles                                                            | ✅ validé |
-| 16  | Accessibilité RGAA 4 / WCAG 2.2 AA, incluse dans la définition de « terminé »                                               | ✅ validé |
-| 17  | Web d’abord : site responsive, ordinateur prioritaire, pas d’application native (PWA plus tard)                             | ✅ validé |
-| 18  | Aucune messagerie privée ; échanges uniquement publics ou modérés                                                           | ✅ validé |
-| 19  | Écriture anonyme, âge déclaré, 15 ans minimum, aucune pièce d'identité                                                      | ✅ validé |
-| 20  | Cercles d'entraide : bêta-lecture et défis, sans discussions                                                                | ✅ validé |
-| 21  | Galerie avec fan arts validés par l'autrice ; images IA autorisées mais déclarées et filtrables                             | ✅ validé |
-| 22  | Classement maximum « Mature » au lancement ; « Explicite » reporté (preuve de majorité anonyme + avis juridique)            | ✅ validé |
-| 23  | Modération à trois niveaux (conception, animatrices, équipe) avec décisions motivées et appel                               | ✅ validé |
-| 24  | Tranche d'âge déclarée (15-17 / 18+) ; Mature visible des 15-17 ans avec avertissements                                     | ✅ validé |
-| 25  | Bêta-lecture uniquement dans les cercles, retours visibles du cercle et signalables                                         | ✅ validé |
-| 26  | Suppression de compte : choix entre effacement et anonymisation des contributions                                           | ✅ validé |
-| 27  | « J'ai aimé » : compteur privé, visible de l'autrice                                                                        | ✅ validé |
-| 28  | Fandoms d'œuvres publiées : entité sans propriétaire gérée par les jardiniers des tags                                      | ✅ validé |
-| 29  | Données personnelles conçues dès M1 (inventaire, durées, journaux sans données personnelles, images sans métadonnées)       | ✅ validé |
-| 30  | File de tâches pg-boss ; sécurité HTTP, limitation de débit et durcissement des comptes dès le squelette                    | proposé   |
-| 31  | Pas de bêta publique avant M6 ; aucune image Docker publiée avant la réécriture de l'API                                    | ✅ validé |
-| 32  | Suppression de compte : pour les œuvres partagées, les co-autrices décident (garder anonymisé ou retirer)                   | ✅ validé |
-| 33  | Pseudonyme public stocké dans l'application (modifiable, réattribution après 90 jours) ; l'identifiant Keycloak reste privé | ✅ validé |
-| 34  | Tranche d'âge déclarée à la première visite dans l'application, pas à l'inscription Keycloak                                | ✅ validé |
-| 35  | MFA de la modération : codes de secours à l'activation + réinitialisation par un administrateur                             | ✅ validé |
-| 36  | Suppression de compte depuis l'application (choix effacer / anonymiser), qui supprime ensuite le compte Keycloak            | ✅ validé |
-| 37  | NestJS 12 (ESM natif), validation zod native (Standard Schema) sans `nestjs-zod`, Vitest au lieu de Jest                    | ✅ validé |
-| 38  | Preuve de MFA par le claim `amr` du jeton (pas seulement le rôle) ; messages de validation traduits côté API                | ✅ fait   |
-| 39  | E-mail absent de la base de l'application (Keycloak seul) ; identifiants UUID v7 générés par PostgreSQL 18 ; TypeORM 1.x    | proposé   |
+| #   | Décision                                                                                                                                                       | Statut    |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| 1   | Monorepo unique `EllexArt/Plumiotheca` (historiques conservés)                                                                                                 | ✅ fait   |
+| 2   | Une seule application web (abandon des micro-frontends)                                                                                                        | ✅ validé |
+| 3   | Backend NestJS + TypeORM + PostgreSQL                                                                                                                          | ✅ validé |
+| 4   | Éditeur TipTap, contenu stocké en JSON ProseMirror                                                                                                             | ✅ validé |
+| 5   | pnpm workspaces + `packages/contracts` (zod partagé)                                                                                                           | ✅ validé |
+| 6   | Keycloak conservé, validation JWT par JWKS, PKCE côté web                                                                                                      | ✅ validé |
+| 7   | Stockage S3 : Garage (MinIO archivé) pour les images                                                                                                           | ✅ validé |
+| 8   | CSS Modules + tokens + Radix (pas de Tailwind)                                                                                                                 | ✅ validé |
+| 9   | Univers : solo, collaboratif, ouvert sur invitation, fanfictions — au choix du propriétaire                                                                    | ✅ validé |
+| 10  | Identité « Lampe de chevet », palette Lueur + 3 ambiances au choix                                                                                             | ✅ validé |
+| 11  | Concept « bibliothèque vivante » avec vocabulaire simple ; notes de lecture en marge discrètes                                                                 | ✅ validé |
+| 12  | Compteurs publics : lecteurs, en cours de lecture, recommandations                                                                                             | ✅ validé |
+| 13  | Recherche à facettes avec Meilisearch, personnages et relations structurés                                                                                     | proposé   |
+| 14  | Avertissements : modèle mixte (majeurs obligatoires + liste fine facultative)                                                                                  | ✅ validé |
+| 15  | Tags : normalisation automatique + jardiniers des tags bénévoles                                                                                               | ✅ validé |
+| 16  | Accessibilité RGAA 4 / WCAG 2.2 AA, incluse dans la définition de « terminé »                                                                                  | ✅ validé |
+| 17  | Web d’abord : site responsive, ordinateur prioritaire, pas d’application native (PWA plus tard)                                                                | ✅ validé |
+| 18  | Aucune messagerie privée ; échanges uniquement publics ou modérés                                                                                              | ✅ validé |
+| 19  | Écriture anonyme, âge déclaré, 15 ans minimum, aucune pièce d'identité                                                                                         | ✅ validé |
+| 20  | Cercles d'entraide : bêta-lecture et défis, sans discussions                                                                                                   | ✅ validé |
+| 21  | Galerie avec fan arts validés par l'autrice ; images IA autorisées mais déclarées et filtrables                                                                | ✅ validé |
+| 22  | Classement maximum « Mature » au lancement ; « Explicite » reporté (preuve de majorité anonyme + avis juridique)                                               | ✅ validé |
+| 23  | Modération à trois niveaux (conception, animatrices, équipe) avec décisions motivées et appel                                                                  | ✅ validé |
+| 24  | Tranche d'âge déclarée (15-17 / 18+) ; Mature visible des 15-17 ans avec avertissements                                                                        | ✅ validé |
+| 25  | Bêta-lecture uniquement dans les cercles, retours visibles du cercle et signalables                                                                            | ✅ validé |
+| 26  | Suppression de compte : choix entre effacement et anonymisation des contributions                                                                              | ✅ validé |
+| 27  | « J'ai aimé » : compteur privé, visible de l'autrice                                                                                                           | ✅ validé |
+| 28  | Fandoms d'œuvres publiées : entité sans propriétaire gérée par les jardiniers des tags                                                                         | ✅ validé |
+| 29  | Données personnelles conçues dès M1 (inventaire, durées, journaux sans données personnelles, images sans métadonnées)                                          | ✅ validé |
+| 30  | File de tâches pg-boss ; sécurité HTTP, limitation de débit et durcissement des comptes dès le squelette                                                       | proposé   |
+| 31  | Pas de bêta publique avant M6 ; aucune image Docker publiée avant la réécriture de l'API                                                                       | ✅ validé |
+| 32  | Suppression de compte : pour les œuvres partagées, les co-autrices décident (garder anonymisé ou retirer)                                                      | ✅ validé |
+| 33  | Pseudonyme public stocké dans l'application (modifiable, réattribution après 90 jours) ; l'identifiant Keycloak reste privé                                    | ✅ validé |
+| 34  | Tranche d'âge déclarée à la première visite dans l'application, pas à l'inscription Keycloak                                                                   | ✅ validé |
+| 35  | MFA de la modération : codes de secours à l'activation + réinitialisation par un administrateur                                                                | ✅ validé |
+| 36  | Suppression de compte depuis l'application (choix effacer / anonymiser), qui supprime ensuite le compte Keycloak                                               | ✅ validé |
+| 37  | NestJS 12 (ESM natif), validation zod native (Standard Schema) sans `nestjs-zod`, Vitest au lieu de Jest                                                       | ✅ validé |
+| 38  | Preuve de MFA par le claim `amr` du jeton (pas seulement le rôle) ; messages de validation traduits côté API                                                   | ✅ fait   |
+| 39  | E-mail absent de la base de l'application (Keycloak seul, lu au besoin par un compte de service aux droits minimaux) ; UUID v7 par PostgreSQL 18 ; TypeORM 1.x | ✅ validé |

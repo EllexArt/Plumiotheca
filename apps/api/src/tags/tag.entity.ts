@@ -1,5 +1,5 @@
 import { TagKind } from '@plumiotheca/contracts';
-import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
+import { Check, Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
 import { CreatedAt, IdColumn } from '../database/columns.js';
 
 /**
@@ -7,6 +7,8 @@ import { CreatedAt, IdColumn } from '../database/columns.js';
  * (la recherche porte toujours sur celui-ci) ; un sous-tag hérite de son parent.
  */
 @Entity('tags')
+@Check('tags_not_own_canonical', `"canonical_id" <> "id"`)
+@Check('tags_not_own_parent', `"parent_id" <> "id"`)
 export class Tag {
   @IdColumn()
   id!: string;
@@ -24,10 +26,12 @@ export class Tag {
   kind!: TagKind;
 
   /** Tag canonique dont celui-ci est un synonyme (NULL : il est lui-même canonique). */
+  @Index()
   @ManyToOne(() => Tag, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn()
   canonical!: Tag | null;
 
+  @Index()
   @ManyToOne(() => Tag, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn()
   parent!: Tag | null;

@@ -5,14 +5,11 @@ import {
   Entity,
   Index,
   JoinColumn,
-  JoinTable,
-  ManyToMany,
   ManyToOne,
   OneToMany,
   type Relation,
 } from 'typeorm';
 import { CreatedAt, IdColumn, UpdatedAt } from '../database/columns.js';
-import { Tag } from '../tags/tag.entity.js';
 import { User } from '../users/user.entity.js';
 import { Chapter } from './chapter.entity.js';
 
@@ -21,8 +18,13 @@ import { Chapter } from './chapter.entity.js';
  * (décision 26) ; les co-autrices arrivent avec les univers (M5).
  */
 @Entity('stories')
-// Une histoire publiée a toujours ses avertissements majeurs renseignés.
-@Check('published_has_warnings', `"status" <> 'published' OR "major_warnings" IS NOT NULL`)
+// Une histoire publiée a toujours un classement et des avertissements majeurs choisis
+// explicitement (jamais « Tout public » par défaut).
+@Check(
+  'stories_published_is_classified',
+  `"status" <> 'published' OR ("rating" IS NOT NULL AND "major_warnings" IS NOT NULL)`,
+)
+@Check('stories_word_count_positive', `"word_count" >= 0`)
 @Index(['author', 'status'])
 export class Story {
   @IdColumn()
@@ -42,8 +44,9 @@ export class Story {
   @Column({ type: 'varchar', length: 12 })
   language!: string;
 
-  @Column({ type: 'enum', enum: Rating.options, enumName: 'rating', default: 'general' })
-  rating!: Rating;
+  /** NULL tant que l'autrice ne l'a pas choisi ; obligatoire pour publier. */
+  @Column({ type: 'enum', enum: Rating.options, enumName: 'rating', nullable: true })
+  rating!: Rating | null;
 
   @Column({ type: 'enum', enum: StoryStatus.options, enumName: 'story_status', default: 'draft' })
   status!: StoryStatus;
@@ -69,14 +72,6 @@ export class Story {
   /** Total des chapitres publiés, recalculé à la publication. */
   @Column({ type: 'integer', default: 0 })
   wordCount!: number;
-
-  @ManyToMany(() => Tag)
-  @JoinTable({
-    name: 'story_tags',
-    joinColumn: { name: 'story_id' },
-    inverseJoinColumn: { name: 'tag_id' },
-  })
-  tags!: Relation<Tag[]>;
 
   @OneToMany(() => Chapter, (chapter) => chapter.story)
   chapters!: Relation<Chapter[]>;

@@ -19,6 +19,9 @@ updates:
       # Les types de Node suivent la version réellement utilisée (.nvmrc).
       - dependency-name: '@types/node'
         update-types: ['version-update:semver-major']
+      # TypeORM 1.1 utilise encore une fonction de pg retirée en version 9.
+      - dependency-name: 'pg'
+        update-types: ['version-update:semver-major']
 
   # Met à jour les SHA des actions épinglées dans .github/workflows.
   - package-ecosystem: github-actions

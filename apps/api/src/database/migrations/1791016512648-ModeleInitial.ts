@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class ModeleInitial1791015708112 implements MigrationInterface {
-  name = 'ModeleInitial1791015708112';
+export class ModeleInitial1791016512648 implements MigrationInterface {
+  name = 'ModeleInitial1791016512648';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
@@ -30,6 +30,24 @@ export class ModeleInitial1791015708112 implements MigrationInterface {
                 "deletion_mode" "public"."deletion_mode",
                 "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
                 "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+                CONSTRAINT "users_deleted_is_empty" CHECK (
+                    "status" <> 'deleted'
+                    OR (
+                        "keycloak_id" IS NULL
+                        AND "handle" IS NULL
+                        AND "handle_key" IS NULL
+                        AND "display_name" IS NULL
+                        AND "pronouns" IS NULL
+                        AND "bio" IS NULL
+                        AND "age_band" IS NULL
+                        AND "charter_version" IS NULL
+                        AND "charter_accepted_at" IS NULL
+                    )
+                ),
+                CONSTRAINT "users_active_has_keycloak_id" CHECK (
+                    "status" = 'deleted'
+                    OR "keycloak_id" IS NOT NULL
+                ),
                 CONSTRAINT "PK_a3ffb1c0c8416b9fc6f907b7433" PRIMARY KEY ("id")
             )
         `);
@@ -40,24 +58,6 @@ export class ModeleInitial1791015708112 implements MigrationInterface {
     await queryRunner.query(`
             CREATE UNIQUE INDEX "IDX_4b0ff48556ade4edef9f6cb03e" ON "users" ("handle_key")
             WHERE handle_key IS NOT NULL
-        `);
-    await queryRunner.query(`
-            CREATE TYPE "public"."tag_kind" AS ENUM('freeform', 'warning')
-        `);
-    await queryRunner.query(`
-            CREATE TABLE "tags" (
-                "id" uuid NOT NULL DEFAULT uuidv7(),
-                "name" character varying(100) NOT NULL,
-                "normalized" character varying(100) NOT NULL,
-                "kind" "public"."tag_kind" NOT NULL DEFAULT 'freeform',
-                "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-                "canonical_id" uuid,
-                "parent_id" uuid,
-                CONSTRAINT "PK_e7dc17249a1148a1970748eda99" PRIMARY KEY ("id")
-            )
-        `);
-    await queryRunner.query(`
-            CREATE UNIQUE INDEX "IDX_e87cc16da3653d2b2dbb9c741c" ON "tags" ("normalized")
         `);
     await queryRunner.query(`
             CREATE TYPE "public"."rating" AS ENUM('general', 'teen', 'mature')
@@ -82,7 +82,7 @@ export class ModeleInitial1791015708112 implements MigrationInterface {
                 "title" character varying(200) NOT NULL,
                 "summary" text NOT NULL DEFAULT '',
                 "language" character varying(12) NOT NULL,
-                "rating" "public"."rating" NOT NULL DEFAULT 'general',
+                "rating" "public"."rating",
                 "status" "public"."story_status" NOT NULL DEFAULT 'draft',
                 "completion" "public"."completion" NOT NULL DEFAULT 'in_progress',
                 "major_warnings" "public"."major_warning" array,
@@ -91,9 +91,13 @@ export class ModeleInitial1791015708112 implements MigrationInterface {
                 "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
                 "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
                 "author_id" uuid NOT NULL,
-                CONSTRAINT "published_has_warnings" CHECK (
+                CONSTRAINT "stories_word_count_positive" CHECK ("word_count" >= 0),
+                CONSTRAINT "stories_published_is_classified" CHECK (
                     "status" <> 'published'
-                    OR "major_warnings" IS NOT NULL
+                    OR (
+                        "rating" IS NOT NULL
+                        AND "major_warnings" IS NOT NULL
+                    )
                 ),
                 CONSTRAINT "PK_bb6f880b260ed96c452b32a39f0" PRIMARY KEY ("id")
             )
@@ -111,14 +115,16 @@ export class ModeleInitial1791015708112 implements MigrationInterface {
                 "title" character varying(200) NOT NULL DEFAULT '',
                 "status" "public"."chapter_status" NOT NULL DEFAULT 'draft',
                 "draft" jsonb NOT NULL DEFAULT '{"type": "doc", "content": []}',
-                "version" integer NOT NULL,
+                "draft_version" integer NOT NULL DEFAULT '1',
                 "word_count" integer NOT NULL DEFAULT '0',
                 "published_at" TIMESTAMP WITH TIME ZONE,
                 "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
                 "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
                 "story_id" uuid NOT NULL,
-                "published_revision_id" uuid,
                 CONSTRAINT "chapters_story_position" UNIQUE ("story_id", "position") DEFERRABLE INITIALLY DEFERRED,
+                CONSTRAINT "chapters_draft_version_positive" CHECK ("draft_version" >= 1),
+                CONSTRAINT "chapters_word_count_positive" CHECK ("word_count" >= 0),
+                CONSTRAINT "chapters_position_positive" CHECK ("position" >= 1),
                 CONSTRAINT "PK_a2bbdbb4bdc786fe0cb0fcfc4a0" PRIMARY KEY ("id")
             )
         `);
@@ -129,17 +135,66 @@ export class ModeleInitial1791015708112 implements MigrationInterface {
             CREATE TABLE "chapter_revisions" (
                 "id" uuid NOT NULL DEFAULT uuidv7(),
                 "kind" "public"."revision_kind" NOT NULL,
+                "current" boolean NOT NULL DEFAULT false,
                 "name" character varying(100),
                 "content" jsonb NOT NULL,
                 "word_count" integer NOT NULL DEFAULT '0',
                 "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
                 "chapter_id" uuid NOT NULL,
                 "created_by_id" uuid,
+                CONSTRAINT "chapter_revisions_word_count_positive" CHECK ("word_count" >= 0),
+                CONSTRAINT "chapter_revisions_current_is_published" CHECK (
+                    NOT "current"
+                    OR "kind" = 'published'
+                ),
                 CONSTRAINT "PK_a9c9c0401f71c6c4180a8d68b72" PRIMARY KEY ("id")
             )
         `);
     await queryRunner.query(`
+            CREATE INDEX "IDX_f85d895f8db23df2f21e9b277b" ON "chapter_revisions" ("created_by_id")
+        `);
+    await queryRunner.query(`
+            CREATE UNIQUE INDEX "chapter_revisions_one_current" ON "chapter_revisions" ("chapter_id")
+            WHERE "current"
+        `);
+    await queryRunner.query(`
             CREATE INDEX "IDX_47e6dbee61bccf610eca6d04bf" ON "chapter_revisions" ("chapter_id", "created_at")
+        `);
+    await queryRunner.query(`
+            CREATE TYPE "public"."tag_kind" AS ENUM('freeform', 'warning')
+        `);
+    await queryRunner.query(`
+            CREATE TABLE "tags" (
+                "id" uuid NOT NULL DEFAULT uuidv7(),
+                "name" character varying(100) NOT NULL,
+                "normalized" character varying(100) NOT NULL,
+                "kind" "public"."tag_kind" NOT NULL DEFAULT 'freeform',
+                "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+                "canonical_id" uuid,
+                "parent_id" uuid,
+                CONSTRAINT "tags_not_own_parent" CHECK ("parent_id" <> "id"),
+                CONSTRAINT "tags_not_own_canonical" CHECK ("canonical_id" <> "id"),
+                CONSTRAINT "PK_e7dc17249a1148a1970748eda99" PRIMARY KEY ("id")
+            )
+        `);
+    await queryRunner.query(`
+            CREATE UNIQUE INDEX "IDX_e87cc16da3653d2b2dbb9c741c" ON "tags" ("normalized")
+        `);
+    await queryRunner.query(`
+            CREATE INDEX "IDX_ac8350f87df117f48e2c9d6b5c" ON "tags" ("canonical_id")
+        `);
+    await queryRunner.query(`
+            CREATE INDEX "IDX_bd19ddcde86ca1882599dbace1" ON "tags" ("parent_id")
+        `);
+    await queryRunner.query(`
+            CREATE TABLE "story_tags" (
+                "story_id" uuid NOT NULL,
+                "tag_id" uuid NOT NULL,
+                CONSTRAINT "PK_e1ec4350081fa242b2d34b44e03" PRIMARY KEY ("story_id", "tag_id")
+            )
+        `);
+    await queryRunner.query(`
+            CREATE INDEX "IDX_24edf1076b3af707856d5fcccd" ON "story_tags" ("tag_id")
         `);
     await queryRunner.query(`
             CREATE TABLE "handle_releases" (
@@ -150,17 +205,21 @@ export class ModeleInitial1791015708112 implements MigrationInterface {
             )
         `);
     await queryRunner.query(`
-            CREATE TABLE "story_tags" (
-                "story_id" uuid NOT NULL,
-                "tag_id" uuid NOT NULL,
-                CONSTRAINT "PK_e1ec4350081fa242b2d34b44e03" PRIMARY KEY ("story_id", "tag_id")
-            )
+            ALTER TABLE "stories"
+            ADD CONSTRAINT "FK_1e6ca6b1e366a7575873f2d1c30" FOREIGN KEY ("author_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION
         `);
     await queryRunner.query(`
-            CREATE INDEX "IDX_818bd0326f1417b77cb55f0b80" ON "story_tags" ("story_id")
+            ALTER TABLE "chapters"
+            ADD CONSTRAINT "FK_728a399398eaeec7bebbb6c8de9" FOREIGN KEY ("story_id") REFERENCES "stories"("id") ON DELETE CASCADE ON UPDATE NO ACTION
         `);
     await queryRunner.query(`
-            CREATE INDEX "IDX_24edf1076b3af707856d5fcccd" ON "story_tags" ("tag_id")
+            ALTER TABLE "chapter_revisions"
+            ADD CONSTRAINT "FK_8315ca8db6ef468d9ccbe60a31f" FOREIGN KEY ("chapter_id") REFERENCES "chapters"("id") ON DELETE CASCADE ON UPDATE NO ACTION
+        `);
+    await queryRunner.query(`
+            ALTER TABLE "chapter_revisions"
+            ADD CONSTRAINT "FK_f85d895f8db23df2f21e9b277b2" FOREIGN KEY ("created_by_id") REFERENCES "users"("id") ON DELETE
+            SET NULL ON UPDATE NO ACTION
         `);
     await queryRunner.query(`
             ALTER TABLE "tags"
@@ -173,34 +232,12 @@ export class ModeleInitial1791015708112 implements MigrationInterface {
             SET NULL ON UPDATE NO ACTION
         `);
     await queryRunner.query(`
-            ALTER TABLE "stories"
-            ADD CONSTRAINT "FK_1e6ca6b1e366a7575873f2d1c30" FOREIGN KEY ("author_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION
-        `);
-    await queryRunner.query(`
-            ALTER TABLE "chapters"
-            ADD CONSTRAINT "FK_728a399398eaeec7bebbb6c8de9" FOREIGN KEY ("story_id") REFERENCES "stories"("id") ON DELETE CASCADE ON UPDATE NO ACTION
-        `);
-    await queryRunner.query(`
-            ALTER TABLE "chapters"
-            ADD CONSTRAINT "FK_087e09576b515243937e9435164" FOREIGN KEY ("published_revision_id") REFERENCES "chapter_revisions"("id") ON DELETE
-            SET NULL ON UPDATE NO ACTION
-        `);
-    await queryRunner.query(`
-            ALTER TABLE "chapter_revisions"
-            ADD CONSTRAINT "FK_8315ca8db6ef468d9ccbe60a31f" FOREIGN KEY ("chapter_id") REFERENCES "chapters"("id") ON DELETE CASCADE ON UPDATE NO ACTION
-        `);
-    await queryRunner.query(`
-            ALTER TABLE "chapter_revisions"
-            ADD CONSTRAINT "FK_f85d895f8db23df2f21e9b277b2" FOREIGN KEY ("created_by_id") REFERENCES "users"("id") ON DELETE
-            SET NULL ON UPDATE NO ACTION
+            ALTER TABLE "story_tags"
+            ADD CONSTRAINT "FK_818bd0326f1417b77cb55f0b80f" FOREIGN KEY ("story_id") REFERENCES "stories"("id") ON DELETE CASCADE ON UPDATE NO ACTION
         `);
     await queryRunner.query(`
             ALTER TABLE "story_tags"
-            ADD CONSTRAINT "FK_818bd0326f1417b77cb55f0b80f" FOREIGN KEY ("story_id") REFERENCES "stories"("id") ON DELETE CASCADE ON UPDATE CASCADE
-        `);
-    await queryRunner.query(`
-            ALTER TABLE "story_tags"
-            ADD CONSTRAINT "FK_24edf1076b3af707856d5fcccd3" FOREIGN KEY ("tag_id") REFERENCES "tags"("id") ON DELETE CASCADE ON UPDATE CASCADE
+            ADD CONSTRAINT "FK_24edf1076b3af707856d5fcccd3" FOREIGN KEY ("tag_id") REFERENCES "tags"("id") ON DELETE RESTRICT ON UPDATE NO ACTION
         `);
   }
 
@@ -212,13 +249,16 @@ export class ModeleInitial1791015708112 implements MigrationInterface {
             ALTER TABLE "story_tags" DROP CONSTRAINT "FK_818bd0326f1417b77cb55f0b80f"
         `);
     await queryRunner.query(`
+            ALTER TABLE "tags" DROP CONSTRAINT "FK_bd19ddcde86ca1882599dbace11"
+        `);
+    await queryRunner.query(`
+            ALTER TABLE "tags" DROP CONSTRAINT "FK_ac8350f87df117f48e2c9d6b5c3"
+        `);
+    await queryRunner.query(`
             ALTER TABLE "chapter_revisions" DROP CONSTRAINT "FK_f85d895f8db23df2f21e9b277b2"
         `);
     await queryRunner.query(`
             ALTER TABLE "chapter_revisions" DROP CONSTRAINT "FK_8315ca8db6ef468d9ccbe60a31f"
-        `);
-    await queryRunner.query(`
-            ALTER TABLE "chapters" DROP CONSTRAINT "FK_087e09576b515243937e9435164"
         `);
     await queryRunner.query(`
             ALTER TABLE "chapters" DROP CONSTRAINT "FK_728a399398eaeec7bebbb6c8de9"
@@ -227,25 +267,37 @@ export class ModeleInitial1791015708112 implements MigrationInterface {
             ALTER TABLE "stories" DROP CONSTRAINT "FK_1e6ca6b1e366a7575873f2d1c30"
         `);
     await queryRunner.query(`
-            ALTER TABLE "tags" DROP CONSTRAINT "FK_bd19ddcde86ca1882599dbace11"
-        `);
-    await queryRunner.query(`
-            ALTER TABLE "tags" DROP CONSTRAINT "FK_ac8350f87df117f48e2c9d6b5c3"
+            DROP TABLE "handle_releases"
         `);
     await queryRunner.query(`
             DROP INDEX "public"."IDX_24edf1076b3af707856d5fcccd"
         `);
     await queryRunner.query(`
-            DROP INDEX "public"."IDX_818bd0326f1417b77cb55f0b80"
-        `);
-    await queryRunner.query(`
             DROP TABLE "story_tags"
         `);
     await queryRunner.query(`
-            DROP TABLE "handle_releases"
+            DROP INDEX "public"."IDX_bd19ddcde86ca1882599dbace1"
+        `);
+    await queryRunner.query(`
+            DROP INDEX "public"."IDX_ac8350f87df117f48e2c9d6b5c"
+        `);
+    await queryRunner.query(`
+            DROP INDEX "public"."IDX_e87cc16da3653d2b2dbb9c741c"
+        `);
+    await queryRunner.query(`
+            DROP TABLE "tags"
+        `);
+    await queryRunner.query(`
+            DROP TYPE "public"."tag_kind"
         `);
     await queryRunner.query(`
             DROP INDEX "public"."IDX_47e6dbee61bccf610eca6d04bf"
+        `);
+    await queryRunner.query(`
+            DROP INDEX "public"."chapter_revisions_one_current"
+        `);
+    await queryRunner.query(`
+            DROP INDEX "public"."IDX_f85d895f8db23df2f21e9b277b"
         `);
     await queryRunner.query(`
             DROP TABLE "chapter_revisions"
@@ -276,15 +328,6 @@ export class ModeleInitial1791015708112 implements MigrationInterface {
         `);
     await queryRunner.query(`
             DROP TYPE "public"."rating"
-        `);
-    await queryRunner.query(`
-            DROP INDEX "public"."IDX_e87cc16da3653d2b2dbb9c741c"
-        `);
-    await queryRunner.query(`
-            DROP TABLE "tags"
-        `);
-    await queryRunner.query(`
-            DROP TYPE "public"."tag_kind"
         `);
     await queryRunner.query(`
             DROP INDEX "public"."IDX_4b0ff48556ade4edef9f6cb03e"
