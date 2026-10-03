@@ -78,7 +78,7 @@ Plumiotheca est une bibliothèque vivante : on y écrit, on y lit, on s'y entrai
 
 **7.2** L'équipe de Plumiotheca décide, selon la gravité et la répétition : rappel de la règle, retrait d'un contenu, avertissement, limitation temporaire (par exemple ne plus commenter), suspension temporaire, fermeture du compte. Les décisions sont prises par des personnes, jamais par un automatisme seul. Chaque décision vous est expliquée : les faits, l'article de cette charte concerné et la façon de faire appel.
 
-**7.3** Vous pouvez faire appel de toute décision dans les six mois, depuis la notification reçue ; l'appel est examiné par une autre personne que celle qui a décidé. La personne qui a signalé un contenu peut, elle aussi, contester la décision prise sur son signalement. Vous gardez par ailleurs vos recours extérieurs (médiation, justice).
+**7.3** Vous pouvez demander le réexamen de toute décision dans les six mois, depuis la notification reçue, en expliquant votre point de vue. La personne qui a signalé un contenu peut, elle aussi, contester la décision prise sur son signalement. Le réexamen reprend tout le dossier avec un regard neuf ; il est confié à une autre personne que celle qui a décidé dès que l'équipe le permet. Vous gardez par ailleurs vos recours extérieurs (médiation, justice).
 
 **7.4** En cas de danger pour une personne (menace, détresse, mineur en danger), l'équipe peut agir immédiatement et alerter les services compétents (119, services de secours, plateforme PHAROS).
 

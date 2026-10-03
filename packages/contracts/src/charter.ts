@@ -39,7 +39,7 @@ export const CHARTER_ARTICLES = {
   '6.4': 'Signalements ouverts à tous',
   '7.1': 'Pouvoirs des animatrices de cercle',
   '7.2': 'Décisions motivées de l’équipe',
-  '7.3': 'Droit d’appel',
+  '7.3': 'Droit au réexamen',
   '7.4': 'Action immédiate en cas de danger',
   '8.1': 'Évolution de la charte',
 } as const;
