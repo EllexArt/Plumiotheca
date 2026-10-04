@@ -12,6 +12,7 @@ vi.mock('react-oidc-context', () => ({
 afterEach(() => {
   cleanup();
   localStorage.clear();
+  sessionStorage.clear();
   vi.unstubAllGlobals();
   vi.clearAllMocks();
   signedOut();

@@ -67,3 +67,5 @@ L'éditeur simple est **remplacé par l'éditeur TipTap** (#25, ancienne PR #146
 | 20  | Gardé : `FormData` + schéma zod partagé (formulaire non contrôlé, simple) ; écart noté.                                                                                                                                  |
 
 Copie de secours locale effacée à la déconnexion (question 4, appliqué en attendant la réponse).
+
+**Réponses de la propriétaire du projet (4 octobre 2026)** : avertissements majeurs par un choix actif (décision 50, appliqué) ; copie de secours gardée dans la session de l'onglet seulement (`sessionStorage`, décision 51) : effacée à l'enregistrement, à la déconnexion et à la fermeture de l'onglet.

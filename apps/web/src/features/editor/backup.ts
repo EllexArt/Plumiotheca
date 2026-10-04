@@ -1,9 +1,10 @@
 import type { JSONContent } from '@tiptap/react';
 
 /**
- * Copie de secours locale du brouillon en cours (onglet fermé, coupure réseau). Elle reste
- * dans ce navigateur seulement, et disparaît après un enregistrement réussi ou à la
- * déconnexion (appareil partagé).
+ * Copie de secours du brouillon en cours (coupure réseau, rechargement de la page). Elle
+ * reste dans la session de l'onglet seulement (sessionStorage, décision 51) : jamais
+ * envoyée, effacée après un enregistrement réussi, à la déconnexion et à la fermeture de
+ * l'onglet.
  */
 export interface Backup {
   version: number;
@@ -15,7 +16,7 @@ const PREFIX = 'plumiotheca.brouillon.';
 
 export function readBackup(chapterId: string): Backup | null {
   try {
-    const raw = localStorage.getItem(PREFIX + chapterId);
+    const raw = sessionStorage.getItem(PREFIX + chapterId);
     return raw ? (JSON.parse(raw) as Backup) : null;
   } catch {
     return null;
@@ -24,8 +25,8 @@ export function readBackup(chapterId: string): Backup | null {
 
 export function writeBackup(chapterId: string, backup: Backup | null) {
   try {
-    if (backup) localStorage.setItem(PREFIX + chapterId, JSON.stringify(backup));
-    else localStorage.removeItem(PREFIX + chapterId);
+    if (backup) sessionStorage.setItem(PREFIX + chapterId, JSON.stringify(backup));
+    else sessionStorage.removeItem(PREFIX + chapterId);
   } catch {
     // Stockage plein ou indisponible : la sauvegarde serveur reste la référence.
   }
@@ -34,8 +35,8 @@ export function writeBackup(chapterId: string, backup: Backup | null) {
 /** À la déconnexion : aucune copie de texte ne reste sur l'appareil. */
 export function clearBackups() {
   try {
-    for (const key of Object.keys(localStorage)) {
-      if (key.startsWith(PREFIX)) localStorage.removeItem(key);
+    for (const key of Object.keys(sessionStorage)) {
+      if (key.startsWith(PREFIX)) sessionStorage.removeItem(key);
     }
   } catch {
     // Stockage indisponible : rien à effacer.

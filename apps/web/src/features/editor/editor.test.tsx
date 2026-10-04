@@ -182,7 +182,7 @@ describe('page de l’éditeur', () => {
         },
       ],
     };
-    localStorage.setItem(
+    sessionStorage.setItem(
       `plumiotheca.brouillon.${CH}`,
       JSON.stringify({ version: 3, doc: local, at: '2026-10-04T09:00:00.000Z' }),
     );
@@ -198,13 +198,13 @@ describe('page de l’éditeur', () => {
       version: 3,
       draft: { content: [{ content: [{ text: 'Version perdue retrouvée.' }] }] },
     });
-    expect(localStorage.getItem(`plumiotheca.brouillon.${CH}`)).toBeNull();
+    expect(sessionStorage.getItem(`plumiotheca.brouillon.${CH}`)).toBeNull();
   });
 
   it('copie locale identique au brouillon : rien n’est proposé', async () => {
     signedIn();
     api();
-    localStorage.setItem(
+    sessionStorage.setItem(
       `plumiotheca.brouillon.${CH}`,
       JSON.stringify({ version: 3, doc: draft.draft, at: '2026-10-04T09:00:00.000Z' }),
     );
