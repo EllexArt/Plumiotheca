@@ -112,7 +112,7 @@ describe('lecture', () => {
     mockApi(() => undefined);
     renderApp(`/histoires/${STORY}`);
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'Cette histoire introuvable' }),
+      await screen.findByRole('heading', { level: 1, name: 'Histoire introuvable' }),
     ).toBeInTheDocument();
   });
 });

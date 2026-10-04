@@ -17,6 +17,9 @@ afterEach(() => {
   signedOut();
 });
 
+// jsdom n'implémente pas scrollTo (retour en haut à chaque page).
+window.scrollTo = () => {};
+
 // jsdom n'implémente pas matchMedia (thème du système, mouvement réduit).
 if (!window.matchMedia) {
   window.matchMedia = (query: string) =>

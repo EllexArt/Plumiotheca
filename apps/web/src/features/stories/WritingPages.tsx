@@ -1,12 +1,12 @@
-import { MajorWarning, NewStory, Rating } from '@plumiotheca/contracts';
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { Button, ButtonLink } from '../../shared/ui/Button';
 import { Alert, Loading, Tag } from '../../shared/ui/Feedback';
-import { Checkbox, RadioGroup, TextArea, TextField } from '../../shared/ui/Field';
+import { TextField } from '../../shared/ui/Field';
 import { Page } from '../../shared/ui/Page';
 import { useMyStories, useStory, useWriterActions } from './api';
-import { plural, ratingHint, ratingLabel, warningLabel } from './labels';
+import { plural, ratingLabel } from './labels';
+import { StoryForm } from './StoryForm';
 import styles from './Writing.module.css';
 
 const statusLabel = { draft: 'brouillon', published: 'publiée', archived: 'archivée' } as const;
@@ -54,112 +54,27 @@ export function WritePage() {
   );
 }
 
-type Errors = Partial<Record<'title' | 'summary' | 'rating' | 'majorWarnings' | 'tags', string>>;
-
-const WARNINGS = MajorWarning.options.filter((w) => w !== 'unspecified');
-
 /** Nouvelle histoire : titre, résumé, classement, avertissements, tags. */
 export function NewStoryPage() {
   const navigate = useNavigate();
   const { createStory } = useWriterActions();
-  const [errors, setErrors] = useState<Errors>({});
-
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (createStory.isPending) return;
-    const form = new FormData(event.currentTarget);
-    const unspecified = form.get('nonPrecise') === 'on';
-    const parsed = NewStory.safeParse({
-      title: form.get('title'),
-      summary: form.get('summary'),
-      language: 'fr',
-      rating: form.get('rating') || null,
-      majorWarnings: unspecified ? ['unspecified'] : form.getAll('warnings'),
-      tags: String(form.get('tags') ?? '')
-        .split(',')
-        .map((t) => t.trim())
-        .filter(Boolean),
-    });
-    if (!parsed.success) {
-      const next: Errors = {};
-      for (const issue of parsed.error.issues) {
-        const key = String(issue.path[0]) as keyof Errors;
-        next[key] ??= issue.message;
-      }
-      setErrors(next);
-      // Focus sur le premier champ en erreur, une fois les messages affichés.
-      const formElement = event.currentTarget;
-      requestAnimationFrame(() =>
-        formElement
-          .querySelector<HTMLElement>('[aria-invalid="true"], [aria-describedby*="erreur"]')
-          ?.focus(),
-      );
-      return;
-    }
-    setErrors({});
-    createStory.mutate(parsed.data, {
-      onSuccess: (story) => void navigate(`/ecrire/histoires/${story.id}`, { replace: true }),
-    });
-  };
-
   return (
     <Page
       title="Nouvelle histoire"
       width="narrow"
       lead="Tout se modifie ensuite. L’histoire reste un brouillon, visible de vous seule ou seul, jusqu’à sa publication."
     >
-      <form className={styles.form} onSubmit={submit} noValidate>
-        <TextField label="Titre" name="title" required maxLength={200} error={errors.title} />
-        <TextArea
-          label="Résumé"
-          name="summary"
-          hint="Quelques lignes pour donner envie, sans tout dévoiler."
-          maxLength={4000}
-          error={errors.summary}
-        />
-        <RadioGroup
-          label="Classement"
-          name="rating"
-          hint="Obligatoire pour publier ; un classement honnête est une règle de la charte (4.1)."
-          error={errors.rating}
-          choices={Rating.options.map((r) => ({
-            value: r,
-            label: ratingLabel[r],
-            hint: ratingHint[r],
-          }))}
-        />
-        <fieldset className={styles.fieldset}>
-          <legend className={styles.legend}>Avertissements majeurs</legend>
-          <p className={styles.meta}>
-            Cochez ceux qui s’appliquent ; aucune case cochée : aucun avertissement majeur.
-          </p>
-          {WARNINGS.map((w) => (
-            <Checkbox key={w} name="warnings" value={w} label={warningLabel[w]} />
-          ))}
-          <Checkbox
-            name="nonPrecise"
-            label="Je préfère ne pas préciser"
-            hint="Les personnes qui lisent seront prévenues que des avertissements ne sont pas précisés."
-            error={errors.majorWarnings}
-          />
-        </fieldset>
-        <TextField
-          label="Tags"
-          name="tags"
-          hint="Séparés par des virgules : fantasy, slow burn, found family…"
-          error={errors.tags}
-        />
-        {createStory.isError && (
-          <Alert tone="danger" live title="L’histoire n’a pas pu être créée.">
-            <p>{createStory.error.message}</p>
-          </Alert>
-        )}
-        <div>
-          <Button type="submit" variant="primary" pending={createStory.isPending}>
-            {createStory.isPending ? 'Création…' : 'Créer l’histoire'}
-          </Button>
-        </div>
-      </form>
+      <StoryForm
+        submitLabel="Créer l’histoire"
+        pendingLabel="Création…"
+        pending={createStory.isPending}
+        error={createStory.error?.message}
+        onSubmit={(values) =>
+          createStory.mutate(values, {
+            onSuccess: (story) => void navigate(`/ecrire/histoires/${story.id}`, { replace: true }),
+          })
+        }
+      />
     </Page>
   );
 }
@@ -233,6 +148,24 @@ export function ManageStoryPage() {
           <p>Elle apparaît maintenant dans Explorer.</p>
         </Alert>
       )}
+
+      <details className={styles.details}>
+        <summary>
+          Modifier les informations (titre, résumé, classement, avertissements, tags)
+        </summary>
+        <StoryForm
+          key={s.updatedAt}
+          story={s}
+          submitLabel="Enregistrer les informations"
+          pendingLabel="Enregistrement…"
+          pending={actions.updateStory.isPending}
+          error={actions.updateStory.error?.message}
+          onSubmit={(values) => actions.updateStory.mutate(values)}
+        />
+        {actions.updateStory.isSuccess && (
+          <Alert tone="success" live title="Informations enregistrées." />
+        )}
+      </details>
 
       <section className={styles.section} aria-labelledby="chapitres">
         <h2 id="chapitres">Chapitres</h2>

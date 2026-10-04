@@ -7,6 +7,9 @@ const align = (attrs?: { textAlign?: string | null }): CSSProperties | undefined
     ? { textAlign: attrs.textAlign as CSSProperties['textAlign'] }
     : undefined;
 
+/** Ancre d'un bloc (notes, reprise de lecture), préfixée pour ne rencontrer aucun id de la page. */
+export const anchor = (id: string | null | undefined) => (id ? `b-${id}` : undefined);
+
 function inline(nodes: Inline[] | undefined): ReactNode {
   return nodes?.map((node, i) => {
     if (node.type === 'hardBreak') return <br key={i} />;
@@ -25,7 +28,7 @@ function block(node: Block, key: number): ReactNode {
   switch (node.type) {
     case 'paragraph':
       return (
-        <p key={key} id={node.attrs?.id ?? undefined} style={align(node.attrs)}>
+        <p key={key} id={anchor(node.attrs?.id)} style={align(node.attrs)}>
           {inline(node.content)}
         </p>
       );
@@ -33,7 +36,7 @@ function block(node: Block, key: number): ReactNode {
       // Le titre du chapitre est le h1 : niveaux 2 et 3 dans le texte.
       const Tag = node.attrs.level === 2 ? 'h2' : 'h3';
       return (
-        <Tag key={key} id={node.attrs.id ?? undefined} style={align(node.attrs)}>
+        <Tag key={key} id={anchor(node.attrs.id)} style={align(node.attrs)}>
           {inline(node.content)}
         </Tag>
       );
@@ -43,13 +46,13 @@ function block(node: Block, key: number): ReactNode {
       return <hr key={key} aria-label="Changement de scène" className={styles.scene} />;
     case 'blockquote':
       return (
-        <blockquote key={key} id={node.attrs?.id ?? undefined}>
+        <blockquote key={key} id={anchor(node.attrs?.id)}>
           {node.content.map(block)}
         </blockquote>
       );
     case 'bulletList':
       return (
-        <ul key={key} id={node.attrs?.id ?? undefined}>
+        <ul key={key} id={anchor(node.attrs?.id)}>
           {node.content.map((item, i) => (
             <li key={i}>{item.content.map(block)}</li>
           ))}
@@ -57,7 +60,7 @@ function block(node: Block, key: number): ReactNode {
       );
     case 'orderedList':
       return (
-        <ol key={key} id={node.attrs?.id ?? undefined} start={node.attrs?.start}>
+        <ol key={key} id={anchor(node.attrs?.id)} start={node.attrs?.start}>
           {node.content.map((item, i) => (
             <li key={i}>{item.content.map(block)}</li>
           ))}

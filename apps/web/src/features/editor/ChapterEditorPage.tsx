@@ -1,55 +1,38 @@
+import { ChapterDraft } from '@plumiotheca/contracts';
 import { wordCount, type ChapterDocument } from '@plumiotheca/editor-schema';
-import { EditorContent, useEditor, type JSONContent } from '@tiptap/react';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  EditorContent,
+  useEditor,
+  type Editor as TiptapEditor,
+  type JSONContent,
+} from '@tiptap/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useBlocker, useNavigate, useParams } from 'react-router';
 import { ApiError } from '../../shared/api/client';
+import { useApi } from '../../shared/api/useApi';
 import { Button } from '../../shared/ui/Button';
 import { Alert, Loading } from '../../shared/ui/Feedback';
 import { TextField } from '../../shared/ui/Field';
 import { Page } from '../../shared/ui/Page';
-import { useDraft, useStory, useWriterActions } from '../stories/api';
+import { storyKeys, useDraft, useStory, useWriterActions } from '../stories/api';
 import { formatNumber } from '../stories/labels';
+import { readBackup, writeBackup, type Backup } from './backup';
 import styles from './ChapterEditor.module.css';
 import { editorExtensions } from './extensions';
 import { Toolbar } from './Toolbar';
 
 /** Délai de la sauvegarde automatique après la dernière frappe. */
 const AUTOSAVE_MS = 2000;
-
-/** Copie de secours locale (onglet fermé, coupure réseau) : jamais une donnée partagée. */
-interface Backup {
-  version: number;
-  doc: JSONContent;
-  at: string;
-}
-const backupKey = (chapterId: string) => `plumiotheca.brouillon.${chapterId}`;
-
-function readBackup(chapterId: string): Backup | null {
-  try {
-    const raw = localStorage.getItem(backupKey(chapterId));
-    return raw ? (JSON.parse(raw) as Backup) : null;
-  } catch {
-    return null;
-  }
-}
-function writeBackup(chapterId: string, backup: Backup | null) {
-  try {
-    if (backup) localStorage.setItem(backupKey(chapterId), JSON.stringify(backup));
-    else localStorage.removeItem(backupKey(chapterId));
-  } catch {
-    // Stockage plein ou indisponible : la sauvegarde serveur reste la référence.
-  }
-}
+/** Nouvel essai après une erreur passagère (réseau, API indisponible). */
+const RETRY_MS = 10_000;
 
 const time = () => new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
-type SaveState =
-  | { kind: 'idle' }
-  | { kind: 'dirty' }
-  | { kind: 'saving' }
-  | { kind: 'saved'; at: string }
-  | { kind: 'conflict' }
-  | { kind: 'error'; message: string };
+type Progress =
+  { kind: 'idle' } | { kind: 'dirty' } | { kind: 'saving' } | { kind: 'saved'; at: string };
+type Problem = { kind: 'conflict' } | { kind: 'error'; message: string } | null;
+type Draft = ChapterDraft;
 
 /**
  * Éditeur de chapitre (#25) : mise en forme de base, sauvegarde automatique avec version
@@ -65,11 +48,158 @@ export function ChapterEditorPage() {
         <Alert tone="danger" title="Ce chapitre n’a pas pu être chargé.">
           <p>{draft.error.message}</p>
         </Alert>
+        <p>
+          <Link to={`/ecrire/histoires/${storyId}`}>Retour à l’histoire</Link>
+        </p>
       </Page>
     );
   }
   // Une clé par chapitre : changer de chapitre recrée l'éditeur.
   return <Editor key={chapterId} storyId={storyId} chapterId={chapterId} initial={draft.data} />;
+}
+
+/**
+ * Sauvegarde du brouillon : une seule à la fois (une demande pendant un envoi attend sa fin,
+ * puis part avec la bonne version), cache du brouillon tenu à jour, erreurs gardées jusqu'à
+ * la réussite suivante, nouvel essai automatique après une erreur passagère.
+ */
+function useDraftSaver(
+  editor: TiptapEditor | null,
+  { storyId, chapterId, initial }: { storyId: string; chapterId: string; initial: Draft },
+) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  const { saveDraft } = useWriterActions(storyId);
+  const [progress, setProgress] = useState<Progress>({ kind: 'idle' });
+  const [problem, setProblem] = useState<Problem>(null);
+  const [words, setWords] = useState(initial.wordCount);
+  const version = useRef(initial.draftVersion);
+  const dirty = useRef(false);
+  const conflict = useRef(false);
+  const inFlight = useRef<Promise<boolean> | null>(null);
+  const timer = useRef<number>(undefined);
+  // Les minuteurs et onUpdate (mémorisé par TipTap au premier rendu) passent par cette
+  // référence pour toujours appeler la version à jour de persist().
+  const persistRef = useRef<() => Promise<boolean>>(() => Promise.resolve(true));
+
+  const schedule = useCallback((ms: number, run: () => void) => {
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(run, ms);
+  }, []);
+
+  /** Garde le cache du brouillon à jour : rouvrir le chapitre montre la dernière version. */
+  const remember = useCallback(
+    (doc: unknown, draftVersion: number, count: number) =>
+      queryClient.setQueryData<Draft>(storyKeys.draft(storyId, chapterId), (old) =>
+        old ? { ...old, draft: doc, draftVersion, wordCount: count } : old,
+      ),
+    [queryClient, storyId, chapterId],
+  );
+
+  const persist = useCallback(async (): Promise<boolean> => {
+    while (inFlight.current) await inFlight.current;
+    if (!editor || conflict.current) return !dirty.current;
+    if (!dirty.current) return true;
+    window.clearTimeout(timer.current);
+    const doc = editor.getJSON();
+    dirty.current = false;
+    setProgress({ kind: 'saving' });
+    const run = (async () => {
+      try {
+        const saved = await saveDraft.mutateAsync({
+          chapterId,
+          draft: doc,
+          version: version.current,
+        });
+        version.current = saved.draftVersion;
+        setWords(saved.wordCount);
+        // L'API a complété des identifiants de blocs : on reprend son document, sans bouger
+        // le curseur, pour que les identifiants restent les mêmes à la sauvegarde suivante.
+        if (saved.draft && !dirty.current) {
+          const { from, to } = editor.state.selection;
+          editor.commands.setContent(saved.draft as JSONContent, { emitUpdate: false });
+          const max = editor.state.doc.content.size;
+          editor.commands.setTextSelection({ from: Math.min(from, max), to: Math.min(to, max) });
+        }
+        remember(saved.draft ?? doc, saved.draftVersion, saved.wordCount);
+        setProblem(null);
+        if (dirty.current) {
+          setProgress({ kind: 'dirty' });
+          return false;
+        }
+        writeBackup(chapterId, null);
+        setProgress({ kind: 'saved', at: time() });
+        return true;
+      } catch (error) {
+        dirty.current = true;
+        setProgress({ kind: 'dirty' });
+        if (error instanceof ApiError && error.status === 409) {
+          conflict.current = true;
+          setProblem({ kind: 'conflict' });
+        } else if (error instanceof ApiError && error.status === 400) {
+          setProblem({ kind: 'error', message: error.message });
+        } else {
+          setProblem({
+            kind: 'error',
+            message:
+              'Enregistrement impossible pour l’instant. Votre texte est gardé dans ce navigateur ; nouvel essai automatique dans quelques secondes.',
+          });
+          schedule(RETRY_MS, () => void persistRef.current());
+        }
+        return false;
+      } finally {
+        inFlight.current = null;
+      }
+    })();
+    inFlight.current = run;
+    return run;
+  }, [editor, saveDraft, chapterId, remember, schedule]);
+
+  useEffect(() => {
+    persistRef.current = persist;
+  }, [persist]);
+
+  /** À chaque frappe : copie de secours, compteur, sauvegarde différée. */
+  const changed = useCallback(
+    (doc: JSONContent, language: string) => {
+      dirty.current = true;
+      setProgress({ kind: 'dirty' });
+      setWords(wordCount(doc as ChapterDocument, language));
+      writeBackup(chapterId, { version: version.current, doc, at: new Date().toISOString() });
+      if (!conflict.current) schedule(AUTOSAVE_MS, () => void persistRef.current());
+    },
+    [chapterId, schedule],
+  );
+
+  /** Relit le brouillon enregistré (résolution d'un conflit). */
+  const latest = () => api(ChapterDraft, `/histoires/${storyId}/chapitres/${chapterId}/brouillon`);
+
+  /** Conflit : ma version remplace celle qui a été enregistrée ailleurs. */
+  const keepMine = async () => {
+    const saved = await latest();
+    version.current = saved.draftVersion;
+    conflict.current = false;
+    dirty.current = true;
+    setProblem(null);
+    await persist();
+  };
+
+  /** Conflit : on reprend la version enregistrée ailleurs (la mienne reste en copie locale). */
+  const loadSaved = async () => {
+    const saved = await latest();
+    editor?.commands.setContent(saved.draft as JSONContent, { emitUpdate: false });
+    version.current = saved.draftVersion;
+    conflict.current = false;
+    dirty.current = false;
+    remember(saved.draft, saved.draftVersion, saved.wordCount);
+    setWords(saved.wordCount);
+    setProblem(null);
+    setProgress({ kind: 'idle' });
+  };
+
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+
+  return { persist, changed, progress, problem, words, dirty, keepMine, loadSaved };
 }
 
 function Editor({
@@ -79,20 +209,16 @@ function Editor({
 }: {
   storyId: string;
   chapterId: string;
-  initial: NonNullable<ReturnType<typeof useDraft>['data']>;
+  initial: Draft;
 }) {
   const story = useStory(storyId);
   const actions = useWriterActions(storyId);
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const language = story.data?.language ?? 'fr';
+
   const [title, setTitle] = useState(initial.title);
-  const [save, setSave] = useState<SaveState>({ kind: 'idle' });
-  const [words, setWords] = useState(initial.wordCount);
-  const version = useRef(initial.draftVersion);
-  const dirty = useRef(false);
-  const timer = useRef<number>(undefined);
-  // onUpdate est mémorisé par TipTap au premier rendu : il passe par cette référence
-  // pour toujours appeler la version à jour de persist().
-  const persistRef = useRef<() => Promise<boolean>>(() => Promise.resolve(true));
+  const [savedTitle, setSavedTitle] = useState(initial.title);
   const [backup, setBackup] = useState<Backup | null>(() => {
     const found = readBackup(chapterId);
     // Copie locale plus récente que le brouillon enregistré : on la propose.
@@ -102,8 +228,8 @@ function Editor({
       ? found
       : null;
   });
-  const language = story.data?.language ?? 'fr';
 
+  const changedRef = useRef<(doc: JSONContent, language: string) => void>(() => {});
   const editor = useEditor({
     extensions: editorExtensions,
     content: initial.draft as JSONContent,
@@ -118,83 +244,71 @@ function Editor({
         spellcheck: 'true',
       },
     },
-    onUpdate: ({ editor: e }) => {
-      const doc = e.getJSON();
-      dirty.current = true;
-      setSave({ kind: 'dirty' });
-      setWords(wordCount(doc as ChapterDocument, language));
-      writeBackup(chapterId, { version: version.current, doc, at: new Date().toISOString() });
-      window.clearTimeout(timer.current);
-      timer.current = window.setTimeout(() => void persistRef.current(), AUTOSAVE_MS);
-    },
+    onUpdate: ({ editor: e }) => changedRef.current(e.getJSON(), language),
   });
+  const saver = useDraftSaver(editor, { storyId, chapterId, initial });
+  useEffect(() => {
+    changedRef.current = saver.changed;
+  }, [saver.changed]);
 
-  /** Enregistre le brouillon ; vrai si tout est enregistré. */
-  const persist = useCallback(async (): Promise<boolean> => {
-    if (!editor || !dirty.current) return true;
-    window.clearTimeout(timer.current);
-    const doc = editor.getJSON();
-    dirty.current = false;
-    setSave({ kind: 'saving' });
+  /** Titre : enregistré seulement s'il a changé ; vrai si rien n'est en attente. */
+  const saveTitle = useCallback(async (): Promise<boolean> => {
+    const next = title.trim();
+    if (next === savedTitle) return true;
     try {
-      const saved = await actions.saveDraft.mutateAsync({
-        chapterId,
-        draft: doc,
-        version: version.current,
-      });
-      version.current = saved.draftVersion;
-      setWords(saved.wordCount);
-      // L'API a complété des identifiants de blocs : on reprend son document, sans bouger
-      // le curseur, pour que les identifiants restent les mêmes à la sauvegarde suivante.
-      if (saved.draft && !dirty.current) {
-        const { from, to } = editor.state.selection;
-        editor.commands.setContent(saved.draft as JSONContent, { emitUpdate: false });
-        const max = editor.state.doc.content.size;
-        editor.commands.setTextSelection({ from: Math.min(from, max), to: Math.min(to, max) });
-      }
-      if (!dirty.current) writeBackup(chapterId, null);
-      setSave(dirty.current ? { kind: 'dirty' } : { kind: 'saved', at: time() });
-      return !dirty.current;
-    } catch (error) {
-      dirty.current = true;
-      if (error instanceof ApiError && error.status === 409) setSave({ kind: 'conflict' });
-      else {
-        setSave({
-          kind: 'error',
-          message:
-            error instanceof ApiError && error.status === 400
-              ? error.message
-              : 'Enregistrement impossible pour l’instant. Votre texte est gardé dans ce navigateur ; nouvel essai à la prochaine modification.',
-        });
-      }
+      await actions.renameChapter.mutateAsync({ chapterId, title: next });
+      setSavedTitle(next);
+      queryClient.setQueryData<Draft>(storyKeys.draft(storyId, chapterId), (old) =>
+        old ? { ...old, title: next } : old,
+      );
+      return true;
+    } catch {
       return false;
     }
-  }, [editor, actions.saveDraft, chapterId]);
+  }, [title, savedTitle, actions.renameChapter, chapterId, queryClient, storyId]);
+
+  // Texte ou titre en attente d'enregistrement (lu par le blocage de navigation et
+  // l'avertissement de fermeture, hors du rendu).
+  const pending = useRef(false);
   useEffect(() => {
-    persistRef.current = persist;
-  }, [persist]);
+    pending.current = saver.dirty.current || title.trim() !== savedTitle;
+  });
 
   // Quitter la page pour une autre page du site : on enregistre d'abord.
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      dirty.current && currentLocation.pathname !== nextLocation.pathname,
+  // Fonction stable : une nouvelle fonction à chaque rendu réinitialiserait le blocage
+  // pendant l'enregistrement.
+  const shouldBlock = useCallback(
+    ({
+      currentLocation,
+      nextLocation,
+    }: {
+      currentLocation: { pathname: string };
+      nextLocation: { pathname: string };
+    }) => pending.current && currentLocation.pathname !== nextLocation.pathname,
+    [],
   );
+  const blocker = useBlocker(shouldBlock);
+  const leaving = useRef(false);
   useEffect(() => {
-    if (blocker.state !== 'blocked') return;
-    void persist().then((ok) => (ok ? blocker.proceed() : blocker.reset()));
-  }, [blocker, persist]);
+    // Garde-fou relâché seulement quand le routeur a fini (sinon un rendu intermédiaire,
+    // encore « bloqué », relancerait proceed()).
+    if (blocker.state === 'unblocked') leaving.current = false;
+    if (blocker.state !== 'blocked' || leaving.current) return;
+    leaving.current = true;
+    void Promise.all([saver.persist(), saveTitle()]).then(([text, name]) => {
+      if (text && name) blocker.proceed();
+      else blocker.reset();
+    });
+  }, [blocker, saver, saveTitle]);
 
   // Fermer l'onglet avec des modifications en attente : le navigateur demande confirmation
   // (la copie locale garde de toute façon le texte).
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
-      if (dirty.current) event.preventDefault();
+      if (pending.current) event.preventDefault();
     };
     window.addEventListener('beforeunload', warn);
-    return () => {
-      window.removeEventListener('beforeunload', warn);
-      window.clearTimeout(timer.current);
-    };
+    return () => window.removeEventListener('beforeunload', warn);
   }, []);
 
   if (!editor) return <Loading label="Ouverture de l’éditeur…" />;
@@ -205,27 +319,29 @@ function Editor({
     setBackup(null);
   };
 
+  const saving = saver.progress.kind === 'saving';
   const publish = async () => {
     if (actions.publishChapter.isPending) return;
-    if (!(await persist())) return;
+    const [text, name] = await Promise.all([saver.persist(), saveTitle()]);
+    if (!text || !name) return;
     actions.publishChapter.mutate(chapterId, {
       onSuccess: () => void navigate(`/ecrire/histoires/${storyId}`),
     });
   };
 
   const status =
-    save.kind === 'dirty'
-      ? 'Modifications non enregistrées…'
-      : save.kind === 'saving'
+    saver.progress.kind === 'dirty'
+      ? 'Modifications non enregistrées'
+      : saver.progress.kind === 'saving'
         ? 'Enregistrement…'
-        : save.kind === 'saved'
-          ? `Enregistré à ${save.at}`
+        : saver.progress.kind === 'saved'
+          ? `Enregistré à ${saver.progress.at}`
           : '';
 
   return (
     <Page
-      title={title || 'Chapitre sans titre'}
-      documentTitle={`${title || 'Chapitre'} (écriture)`}
+      title={savedTitle || 'Chapitre sans titre'}
+      documentTitle={`${savedTitle || 'Chapitre'} (écriture)`}
       lead={
         story.data
           ? `${story.data.title} · ${initial.status === 'published' ? 'publié (vous modifiez le brouillon)' : 'brouillon'}`
@@ -256,32 +372,45 @@ function Editor({
       )}
 
       <div className={styles.bar}>
-        <output className={styles.status}>{status}</output>
-        <span className={styles.words}>{formatNumber(words)} mots</span>
-        <Button variant="secondary" pending={save.kind === 'saving'} onClick={() => void persist()}>
+        {/* Visible, mais pas annoncé à chaque pause : seules les erreurs le sont (alertes). */}
+        <p className={styles.status}>{status}</p>
+        <span className={styles.words}>{formatNumber(saver.words)} mots</span>
+        <Button variant="secondary" pending={saving} onClick={() => void saver.persist()}>
           Enregistrer
         </Button>
         <Button
           variant="primary"
-          pending={actions.publishChapter.isPending}
+          pending={saving || actions.publishChapter.isPending}
           onClick={() => void publish()}
         >
           {initial.status === 'published' ? 'Publier la nouvelle version' : 'Publier le chapitre'}
         </Button>
       </div>
 
-      {save.kind === 'conflict' && (
-        <Alert tone="warning" live title="Ce chapitre a été modifié ailleurs.">
+      {saver.problem?.kind === 'conflict' && (
+        <Alert tone="warning" live title="Ce chapitre a été enregistré ailleurs entre-temps.">
           <p>
-            Un autre onglet (ou une co-autrice, un co-auteur) a enregistré une autre version. Votre
-            texte est gardé dans ce navigateur : rechargez la page, puis reprenez votre version si
-            besoin.
+            Un autre onglet, une co-autrice ou un co-auteur a enregistré une autre version. Votre
+            texte est gardé dans ce navigateur. Que voulez-vous faire ?
           </p>
+          <div className={styles.row}>
+            <Button size="small" variant="primary" onClick={() => void saver.keepMine()}>
+              Garder ma version
+            </Button>
+            <Button size="small" onClick={() => void saver.loadSaved()}>
+              Charger la version enregistrée
+            </Button>
+          </div>
         </Alert>
       )}
-      {save.kind === 'error' && (
+      {saver.problem?.kind === 'error' && (
         <Alert tone="danger" live title="Le brouillon n’a pas été enregistré.">
-          <p>{save.message}</p>
+          <p>{saver.problem.message}</p>
+        </Alert>
+      )}
+      {actions.renameChapter.isError && (
+        <Alert tone="danger" live title="Le titre n’a pas été enregistré.">
+          <p>{actions.renameChapter.error.message}</p>
         </Alert>
       )}
       {actions.publishChapter.isError && (
@@ -295,11 +424,7 @@ function Editor({
         value={title}
         maxLength={200}
         onChange={(e) => setTitle(e.target.value)}
-        onBlur={() => {
-          if (title.trim() !== initial.title) {
-            actions.renameChapter.mutate({ chapterId, title: title.trim() });
-          }
-        }}
+        onBlur={() => void saveTitle()}
       />
 
       <div className={styles.editor}>

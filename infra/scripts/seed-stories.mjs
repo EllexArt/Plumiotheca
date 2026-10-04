@@ -7,6 +7,13 @@ import { infraEnv, root } from './keycloak-admin.mjs';
 import { login } from './oidc-test.mjs';
 
 const API = process.env.API_URL ?? 'http://localhost:3000';
+// Les jetons des comptes de démonstration ne partent que vers une API locale.
+if (
+  !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(API) &&
+  process.env.SEED_ALLOW_REMOTE !== '1'
+) {
+  throw new Error(`API_URL non locale (${API}) : SEED_ALLOW_REMOTE=1 pour l'autoriser.`);
+}
 const password = infraEnv().DEMO_PASSWORD;
 if (!password) throw new Error('DEMO_PASSWORD absent de infra/.env : lancez « pnpm infra:seed ».');
 const charterVersion = readFileSync(join(root, 'packages/contracts/src/charter.ts'), 'utf8').match(
@@ -60,10 +67,13 @@ const doc = (text) => ({
 
 async function publish(call, story) {
   const mine = await call('GET', '/moi/histoires');
-  if (mine.some((s) => s.title === story.title)) {
+  const existing = mine.find((s) => s.title === story.title);
+  if (existing?.status === 'published' && existing.chapterCount === story.chapters.length) {
     console.log(`• ${story.title} : déjà là`);
     return;
   }
+  // Reste d'un essai interrompu (brouillon incomplet) : on recommence proprement.
+  if (existing) await call('DELETE', `/histoires/${existing.id}`);
   const { chapters, ...fields } = story;
   const created = await call('POST', '/histoires', { language: 'fr', ...fields });
   for (const chapter of chapters) {

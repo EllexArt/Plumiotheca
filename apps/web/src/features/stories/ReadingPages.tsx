@@ -1,5 +1,5 @@
 import type { StorySummary } from '@plumiotheca/contracts';
-import type { ChapterDocument } from '@plumiotheca/editor-schema';
+import { parseDocument } from '@plumiotheca/editor-schema';
 import { Link, useParams } from 'react-router';
 import { ApiError } from '../../shared/api/client';
 import { ButtonLink } from '../../shared/ui/Button';
@@ -18,15 +18,25 @@ import {
 } from './labels';
 import styles from './Reading.module.css';
 
+const missing = {
+  story: {
+    title: 'Histoire introuvable',
+    lead: 'Elle a peut-être été retirée ou dépubliée.',
+    failed: 'Cette histoire n’a pas pu être chargée.',
+  },
+  chapter: {
+    title: 'Chapitre introuvable',
+    lead: 'Il a peut-être été retiré ou dépublié.',
+    failed: 'Ce chapitre n’a pas pu être chargé.',
+  },
+};
+
 /** Erreur de chargement : « introuvable » ou message de l'API. */
-function LoadError({ error, what }: { error: Error; what: string }) {
+function LoadError({ error, what }: { error: Error; what: keyof typeof missing }) {
+  const text = missing[what];
   if (error instanceof ApiError && error.status === 404) {
     return (
-      <Page
-        title={`${what} introuvable`}
-        width="narrow"
-        lead="Elle a peut-être été retirée ou dépubliée."
-      >
+      <Page title={text.title} width="narrow" lead={text.lead}>
         <div>
           <ButtonLink to="/" variant="primary">
             Revenir aux histoires
@@ -37,7 +47,7 @@ function LoadError({ error, what }: { error: Error; what: string }) {
   }
   return (
     <Page title="Chargement impossible" width="narrow">
-      <Alert tone="danger" live title={`${what} n’a pas pu être chargée.`}>
+      <Alert tone="danger" live title={text.failed}>
         <p>{error.message}</p>
       </Alert>
     </Page>
@@ -130,7 +140,7 @@ export function StoryPage() {
   usePageTitle(story.data?.title ?? 'Histoire');
 
   if (story.isPending) return <Loading label="Chargement de l’histoire…" />;
-  if (story.isError) return <LoadError error={story.error} what="Cette histoire" />;
+  if (story.isError) return <LoadError error={story.error} what="story" />;
   const s = story.data;
   const published = s.chapters.filter((c) => c.status === 'published');
   const first = published[0];
@@ -185,13 +195,14 @@ export function StoryPage() {
           <h2 id="sommaire">Sommaire</h2>
           {published.length ? (
             <ol>
-              {published.map((chapter) => (
+              {published.map((chapter, i) => (
                 <li key={chapter.id}>
                   <Link to={`/histoires/${s.id}/chapitres/${chapter.id}`}>
-                    <span className={styles.tocNumber}>{chapter.number}</span>
-                    <span className={styles.tocTitle}>
-                      {chapter.title || `Chapitre ${chapter.number}`}
-                    </span>
+                    <span className={styles.tocNumber}>
+                      <span className="visually-hidden">Chapitre </span>
+                      {i + 1}
+                    </span>{' '}
+                    <span className={styles.tocTitle}>{chapter.title || `Chapitre ${i + 1}`}</span>
                   </Link>
                 </li>
               ))}
@@ -216,7 +227,7 @@ export function ReaderPage() {
   usePageTitle(title);
 
   if (chapter.isPending) return <Loading label="Chargement du chapitre…" />;
-  if (chapter.isError) return <LoadError error={chapter.error} what="Ce chapitre" />;
+  if (chapter.isError) return <LoadError error={chapter.error} what="chapter" />;
   const c = chapter.data;
 
   return (
@@ -230,7 +241,16 @@ export function ReaderPage() {
         <p className={styles.eyebrow}>Chapitre {c.number}</p>
         <h1 className={styles.chapterTitle}>{c.title || `Chapitre ${c.number}`}</h1>
       </div>
-      <ChapterContent doc={c.content as ChapterDocument} />
+      {(() => {
+        const doc = parseDocument(c.content);
+        return doc.success ? (
+          <ChapterContent doc={doc.data} />
+        ) : (
+          <Alert tone="danger" title="Ce chapitre ne peut pas s’afficher.">
+            <p>Son contenu est illisible. Signalez-le à l’équipe.</p>
+          </Alert>
+        );
+      })()}
       <nav className={styles.chapterNav} aria-label="Chapitres">
         {c.previousId && (
           <ButtonLink to={`/histoires/${storyId}/chapitres/${c.previousId}`} variant="secondary">

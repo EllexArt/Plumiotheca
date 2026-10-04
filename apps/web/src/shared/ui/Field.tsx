@@ -147,12 +147,13 @@ export function RadioGroup({
   hint,
   error,
   choices,
+  defaultChoice,
   required,
   ...input
-}: Omit<FieldText, 'status'> & { choices: Choice[] } & Omit<
-    ComponentProps<'input'>,
-    'type' | 'id' | 'value'
-  >) {
+}: Omit<FieldText, 'status'> & {
+  choices: Choice[];
+  /** Valeur cochée au départ. */ defaultChoice?: string | undefined;
+} & Omit<ComponentProps<'input'>, 'type' | 'id' | 'value' | 'defaultValue'>) {
   const { id, ids, describedBy } = useDescriptions(hint, error, undefined);
   return (
     <fieldset className={styles.field}>
@@ -175,6 +176,9 @@ export function RadioGroup({
                 id={inputId}
                 type="radio"
                 value={choice.value}
+                defaultChecked={
+                  defaultChoice === undefined ? undefined : choice.value === defaultChoice
+                }
                 required={required}
                 aria-describedby={[optionHint, describedBy].filter(Boolean).join(' ') || undefined}
                 {...input}
