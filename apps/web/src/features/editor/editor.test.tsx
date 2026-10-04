@@ -253,3 +253,21 @@ describe('éditeur : contenus que l’API refuserait', () => {
     expect(JSON.stringify(editor.getJSON())).toBe(before);
   });
 });
+
+describe('éditeur : même limite d’imbrication que l’API', () => {
+  const quotes = (depth: number): unknown =>
+    depth === 0
+      ? { type: 'paragraph', content: [{ type: 'text', text: 'au fond' }] }
+      : { type: 'blockquote', content: [quotes(depth - 1)] };
+
+  it.each([
+    [8, true],
+    [9, false],
+  ])('%i citations imbriquées : éditeur %s, comme parseDocument', (depth, ok) => {
+    const json = { type: 'doc', content: [quotes(depth as number)] };
+    expect(parseDocument(json).success).toBe(ok);
+    const editor = makeEditor({ type: 'doc', content: [{ type: 'paragraph' }] });
+    editor.commands.setContent(json as never);
+    expect(editor.getText().includes('au fond')).toBe(ok);
+  });
+});

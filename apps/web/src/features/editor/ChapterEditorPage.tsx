@@ -18,7 +18,7 @@ import { TextField } from '../../shared/ui/Field';
 import { Page } from '../../shared/ui/Page';
 import { storyKeys, useDraft, useStory, useWriterActions } from '../stories/api';
 import { formatNumber } from '../stories/labels';
-import { readBackup, writeBackup, type Backup } from './backup';
+import { backupToPropose, writeBackup, writeProposed, type Backup } from './backup';
 import styles from './ChapterEditor.module.css';
 import { editorExtensions } from './extensions';
 import { MOD, Toolbar } from './Toolbar';
@@ -47,7 +47,8 @@ function adopt(editor: TiptapEditor, json: JSONContent) {
   const { anchor, head } = state.selection;
   tr.setSelection(TextSelection.create(tr.doc, Math.min(anchor, max), Math.min(head, max)));
   if (state.storedMarks) tr.setStoredMarks(state.storedMarks);
-  editor.view.dispatch(tr.setMeta('addToHistory', false));
+  // preventUpdate : ce n'est pas une frappe (sinon « non enregistré » et publication annulée).
+  editor.view.dispatch(tr.setMeta('addToHistory', false).setMeta('preventUpdate', true));
 }
 
 /**
@@ -226,7 +227,8 @@ function useDraftSaver(
     setProgress({ kind: 'idle' });
     if (!mine) return null;
     const aside = { version: saved.draftVersion, doc: mine, at: new Date().toISOString() };
-    writeBackup(chapterId, aside);
+    writeBackup(chapterId, null);
+    writeProposed(chapterId, aside);
     return aside;
   };
 
@@ -252,12 +254,10 @@ function Editor({
 
   const [title, setTitle] = useState(initial.title);
   const [savedTitle, setSavedTitle] = useState(initial.title);
-  const [backup, setBackup] = useState<Backup | null>(() => {
-    const found = readBackup(chapterId);
-    // Copie différente du brouillon enregistré : on la propose, même si elle part d'une
-    // version plus ancienne (conflit, frappe pendant un envoi).
-    return found && JSON.stringify(found.doc) !== JSON.stringify(initial.draft) ? found : null;
-  });
+  // Texte non enregistré retrouvé : rangé à part (la frappe ne l'écrase pas) jusqu'à un choix.
+  const [backup, setBackup] = useState<Backup | null>(() =>
+    backupToPropose(chapterId, initial.draft),
+  );
 
   const changedRef = useRef<(doc: JSONContent, language: string) => void>(() => {});
   const editor = useEditor({
@@ -354,6 +354,7 @@ function Editor({
   const restore = () => {
     if (!backup) return;
     editor.commands.setContent(backup.doc, { emitUpdate: true });
+    writeProposed(chapterId, null);
     setBackup(null);
   };
 
@@ -401,7 +402,7 @@ function Editor({
             <Button
               size="small"
               onClick={() => {
-                writeBackup(chapterId, null);
+                writeProposed(chapterId, null);
                 setBackup(null);
               }}
             >

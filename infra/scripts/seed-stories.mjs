@@ -68,15 +68,12 @@ const doc = (text) => ({
 async function publish(call, story) {
   const mine = await call('GET', '/moi/histoires');
   const existing = mine.find((s) => s.title === story.title);
-  if (existing?.status === 'published' && existing.chapterCount === story.chapters.length) {
+  // Seul un brouillon incomplet (essai interrompu) est recommencé ; le reste est laissé tel quel.
+  const incomplete = existing?.status === 'draft' && existing.chapterCount < story.chapters.length;
+  if (existing && !incomplete) {
     console.log(`• ${story.title} : déjà là`);
     return;
   }
-  if (existing?.status === 'published') {
-    console.log(`• ${story.title} : déjà publiée (laissée telle quelle)`);
-    return;
-  }
-  // Reste d'un essai interrompu (brouillon incomplet) : on recommence proprement.
   if (existing) await call('DELETE', `/histoires/${existing.id}`);
   const { chapters, ...fields } = story;
   const created = await call('POST', '/histoires', { language: 'fr', ...fields });

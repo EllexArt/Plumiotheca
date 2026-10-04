@@ -33,12 +33,14 @@ const cleanInline = (text: string) => text.replace(/\v/g, ' ').replace(FORBIDDEN
 
 /**
  * Le document respecte-t-il les limites d'imbrication de l'API (blocs : MAX_BLOCK_DEPTH,
- * listes : MAX_LIST_DEPTH) ? Mesure identique à parseDocument : profondeur du texte sous
- * le document, et nombre de listes emboîtées.
+ * listes : MAX_LIST_DEPTH) ? Même mesure que parseDocument : profondeur de chaque nœud
+ * sous le document, et nombre de listes emboîtées.
  */
 export function withinLimits(doc: PMNode): boolean {
   const walk = (node: PMNode, level: number, lists: number): boolean => {
-    if (node.isInline) return level <= MAX_BLOCK_DEPTH + 2;
+    // Comme measure() : tout nœud compte (un séparateur ou un paragraphe vide aussi).
+    if (level > MAX_BLOCK_DEPTH + 2) return false;
+    if (node.isInline) return true;
     const list = node.type.name === 'bulletList' || node.type.name === 'orderedList';
     const depth = list ? lists + 1 : lists;
     if (depth > MAX_LIST_DEPTH) return false;

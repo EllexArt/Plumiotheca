@@ -1,7 +1,7 @@
 import type { Editor } from '@tiptap/core';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { account, expectAccessible, mockApi, renderApp, signedIn } from '../../test/render';
 import { storyKeys } from './api';
 
@@ -406,5 +406,104 @@ describe('éditeur : gardes « aucune perte » (contre-vérification)', () => {
     editor.commands.insertContentAt(end(editor), ' x');
     await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
     expect(await screen.findByText(/Caractère de contrôle interdit/)).toBeInTheDocument();
+  });
+});
+
+describe('éditeur : seconde contre-vérification', () => {
+  function api(put: () => { status?: number; body?: unknown }) {
+    return mockApi((url, init) => {
+      if (url === '/api/moi/compte') return { body: account() };
+      if (url.endsWith('/brouillon') && init.method === 'PUT') return put();
+      if (url.endsWith('/brouillon')) return { body: draft('Début.', 3) };
+      if (url.endsWith('/publication')) return { status: 201, body: detail() };
+      if (url === `/api/histoires/${STORY}`) return { body: detail() };
+    });
+  }
+  const end = (editor: Editor) => editor.state.doc.content.size - 1;
+  const lost = {
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        attrs: { id: 'bloc-serveur' },
+        content: [{ type: 'text', text: 'Version perdue.' }],
+      },
+    ],
+  };
+
+  it('copie proposée : la frappe et la sauvegarde ne l’écrasent pas, elle reste après un rechargement', async () => {
+    signedIn();
+    sessionStorage.setItem(
+      `plumiotheca.brouillon.${CH}`,
+      JSON.stringify({ version: 3, doc: lost, at: '2026-10-04T09:00:00.000Z' }),
+    );
+    const calls = api(() => ({ body: { draftVersion: 4, wordCount: 2, draft: null } }));
+    const first = renderApp(`/ecrire/histoires/${STORY}/chapitres/${CH}`);
+    expect(
+      await screen.findByText('Une version non enregistrée a été retrouvée.'),
+    ).toBeInTheDocument();
+    // On écrit sans choisir, puis on enregistre.
+    const editor = await editorOf();
+    editor.commands.insertContentAt(end(editor), ' suite');
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(screen.getByText(/^Enregistré à/)).toBeInTheDocument());
+    expect(calls.filter((c) => c.method === 'PUT')).toHaveLength(1);
+    first.unmount();
+    // Rechargement : la copie est toujours proposée, et se reprend.
+    renderApp(`/ecrire/histoires/${STORY}/chapitres/${CH}`);
+    await userEvent.click(await screen.findByRole('button', { name: 'Reprendre cette version' }));
+    expect((await editorOf()).getText()).toBe('Version perdue.');
+    expect(sessionStorage.getItem(`plumiotheca.brouillon.${CH}.proposee`)).toBeNull();
+  });
+
+  it('identifiants complétés par l’API, sans frappe : « Enregistré », et « Publier » publie', async () => {
+    signedIn();
+    // L'API a départagé un identifiant : son document diffère de celui de l'éditeur.
+    const completed = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          attrs: { id: 'bloc-complete' },
+          content: [{ type: 'text', text: 'Début. fin' }],
+        },
+      ],
+    };
+    const calls = api(() => ({ body: { draftVersion: 4, wordCount: 2, draft: completed } }));
+    renderApp(`/ecrire/histoires/${STORY}/chapitres/${CH}`);
+    const editor = await editorOf();
+    editor.commands.insertContentAt(end(editor), ' fin');
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(screen.getByText(/^Enregistré à/)).toBeInTheDocument());
+    // La reprise du document n'est pas une frappe : aucune sauvegarde automatique ne suit.
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+    expect(calls.filter((c) => c.method === 'PUT')).toHaveLength(1);
+    expect(screen.getByText(/^Enregistré à/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Publier le chapitre' }));
+    await waitFor(() => expect(calls.some((c) => c.url.endsWith('/publication'))).toBe(true));
+    expect(calls.filter((c) => c.method === 'PUT')).toHaveLength(1);
+  }, 10_000);
+
+  it('quitter alors que l’enregistrement est impossible : confirmation (non → on reste, oui → on part)', async () => {
+    signedIn();
+    api(() => ({
+      status: 400,
+      body: { type: 'validation', title: 'Requête invalide', status: 400 },
+    }));
+    const confirm = vi
+      .spyOn(window, 'confirm')
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(true);
+    renderApp(`/ecrire/histoires/${STORY}/chapitres/${CH}`);
+    const editor = await editorOf();
+    editor.commands.insertContentAt(end(editor), ' x');
+    await userEvent.click(screen.getByRole('link', { name: 'Retour à l’histoire' }));
+    await waitFor(() => expect(confirm).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole('textbox', { name: 'Texte du chapitre' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('link', { name: 'Retour à l’histoire' }));
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Les jardins suspendus' }),
+    ).toBeInTheDocument();
+    expect(confirm).toHaveBeenCalledTimes(2);
   });
 });
