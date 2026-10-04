@@ -1,15 +1,12 @@
 import { MajorWarning, NewStory, Rating } from '@plumiotheca/contracts';
-import type { ChapterDocument } from '@plumiotheca/editor-schema';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { ApiError } from '../../shared/api/client';
 import { Button, ButtonLink } from '../../shared/ui/Button';
 import { Alert, Loading, Tag } from '../../shared/ui/Feedback';
 import { Checkbox, RadioGroup, TextArea, TextField } from '../../shared/ui/Field';
 import { Page } from '../../shared/ui/Page';
-import { useDraft, useMyStories, useStory, useWriterActions } from './api';
-import { formatNumber, plural, ratingHint, ratingLabel, warningLabel } from './labels';
-import { documentToText, textToDocument } from './plainDocument';
+import { useMyStories, useStory, useWriterActions } from './api';
+import { plural, ratingHint, ratingLabel, warningLabel } from './labels';
 import styles from './Writing.module.css';
 
 const statusLabel = { draft: 'brouillon', published: 'publiée', archived: 'archivée' } as const;
@@ -277,155 +274,6 @@ export function ManageStoryPage() {
           </Alert>
         )}
       </section>
-    </Page>
-  );
-}
-
-/**
- * Éditeur simple d'un chapitre (l'éditeur riche TipTap arrive avec #25) : sauvegarde
- * automatique deux secondes après la dernière frappe, version contrôlée par l'API.
- */
-export function ChapterEditorPage() {
-  const { storyId = '', chapterId = '' } = useParams();
-  const draft = useDraft(storyId, chapterId);
-  const story = useStory(storyId);
-  const actions = useWriterActions(storyId);
-  const navigate = useNavigate();
-
-  const [text, setText] = useState<string | null>(null);
-  const [title, setTitle] = useState<string | null>(null);
-  const [version, setVersion] = useState(0);
-  const [words, setWords] = useState(0);
-  const [status, setStatus] = useState<string>();
-  const [dirty, setDirty] = useState(false);
-  const timer = useRef<number>(undefined);
-
-  // Première lecture du brouillon : le texte devient celui de l'éditeur.
-  if (draft.data && text === null) {
-    setText(documentToText(draft.data.draft as ChapterDocument));
-    setTitle(draft.data.title);
-    setVersion(draft.data.draftVersion);
-    setWords(draft.data.wordCount);
-  }
-
-  const save = async (): Promise<boolean> => {
-    if (text === null) return false;
-    try {
-      const saved = await actions.saveDraft.mutateAsync({
-        chapterId,
-        draft: textToDocument(text),
-        version,
-      });
-      setVersion(saved.draftVersion);
-      setWords(saved.wordCount);
-      setDirty(false);
-      setStatus(
-        `Enregistré à ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
-      );
-      return true;
-    } catch (error) {
-      setStatus(
-        error instanceof ApiError && error.status === 409
-          ? 'Ce chapitre a été modifié ailleurs (autre onglet ?). Rechargez la page avant de continuer.'
-          : 'Enregistrement impossible pour l’instant ; votre texte est toujours là.',
-      );
-      return false;
-    }
-  };
-
-  // Sauvegarde automatique.
-  useEffect(() => {
-    if (!dirty) return;
-    window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => void save(), 2000);
-    return () => window.clearTimeout(timer.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, dirty]);
-
-  // Fermeture de l'onglet avec un texte non enregistré : le navigateur prévient.
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
-    window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
-  }, [dirty]);
-
-  if (draft.isPending || text === null) return <Loading label="Chargement du chapitre…" />;
-  if (draft.isError) {
-    return (
-      <Page title="Chapitre introuvable" width="narrow">
-        <Alert tone="danger" title="Ce chapitre n’a pas pu être chargé.">
-          <p>{draft.error.message}</p>
-        </Alert>
-      </Page>
-    );
-  }
-
-  const publish = async () => {
-    if (actions.publishChapter.isPending) return;
-    if (dirty && !(await save())) return;
-    actions.publishChapter.mutate(chapterId, {
-      onSuccess: () => void navigate(`/ecrire/histoires/${storyId}`),
-    });
-  };
-
-  return (
-    <Page
-      title={title || 'Chapitre sans titre'}
-      documentTitle={`${title || 'Chapitre'} (écriture)`}
-      lead={
-        story.data
-          ? `${story.data.title} · ${draft.data.status === 'published' ? 'publié (vous modifiez le brouillon)' : 'brouillon'}`
-          : undefined
-      }
-    >
-      <div className={styles.toolbar}>
-        <output className={styles.status}>
-          {dirty ? 'Modifications non enregistrées…' : status}
-        </output>
-        <span className={styles.meta}>{formatNumber(words)} mots enregistrés</span>
-        <Button
-          variant="secondary"
-          pending={actions.saveDraft.isPending}
-          onClick={() => void save()}
-        >
-          Enregistrer
-        </Button>
-        <Button
-          variant="primary"
-          pending={actions.publishChapter.isPending}
-          onClick={() => void publish()}
-        >
-          {draft.data.status === 'published'
-            ? 'Publier la nouvelle version'
-            : 'Publier le chapitre'}
-        </Button>
-      </div>
-      {actions.publishChapter.isError && (
-        <Alert tone="danger" live title="Le chapitre n’a pas pu être publié.">
-          <p>{actions.publishChapter.error.message}</p>
-        </Alert>
-      )}
-      <TextField
-        label="Titre du chapitre"
-        value={title ?? ''}
-        maxLength={200}
-        onChange={(e) => setTitle(e.target.value)}
-        onBlur={() => actions.renameChapter.mutate({ chapterId, title: (title ?? '').trim() })}
-      />
-      <TextArea
-        label="Texte"
-        hint="Une ligne vide entre deux paragraphes ; « *** » seul sur une ligne pour un changement de scène. Enregistrement automatique."
-        className={styles.editor}
-        value={text}
-        onChange={(e) => {
-          setText(e.target.value);
-          setDirty(true);
-        }}
-      />
-      <p>
-        <Link to={`/ecrire/histoires/${storyId}`}>Retour à l’histoire</Link>
-      </p>
     </Page>
   );
 }
