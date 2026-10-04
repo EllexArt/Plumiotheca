@@ -5,7 +5,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { account, expectAccessible, mockApi, renderApp, signedIn } from '../../test/render';
-import { BLOCK_TYPES, editorExtensions } from './extensions';
+import { BLOCK_TYPES, cleanPastedText, editorExtensions, withinLimits } from './extensions';
 
 const editors: Editor[] = [];
 afterEach(() => editors.splice(0).forEach((e) => e.destroy()));
@@ -211,5 +211,43 @@ describe('page de l’éditeur', () => {
     renderApp(`/ecrire/histoires/${STORY}/chapitres/${CH}`);
     await screen.findByRole('toolbar', { name: 'Mise en forme' });
     expect(screen.queryByText('Une version non enregistrée a été retrouvée.')).toBeNull();
+  });
+});
+
+describe('éditeur : contenus que l’API refuserait', () => {
+  it('collage : caractères de contrôle et de forçage du sens d’écriture retirés', () => {
+    // jsdom n'a pas d'événements de presse-papiers : ProseMirror n'en lit que le type.
+    globalThis.ClipboardEvent ??= class extends Event {} as unknown as typeof ClipboardEvent;
+    expect(cleanPastedText('a\u202Bb\u202Cc\vd\u0007e\u2066f')).toBe('abc\nde' + 'f');
+    const editor = makeEditor({ type: 'doc', content: [{ type: 'paragraph' }] });
+    editor.view.pasteText('Salut\u202E toi\u0007');
+    expect(editor.getText()).toBe('Salut toi');
+    editor.view.pasteHTML('<p>Bonjour\u202B là</p>');
+    expect(parseDocument(editor.getJSON()).success).toBe(true);
+  });
+
+  /** Listes emboîtées sur `depth` niveaux. */
+  const list = (depth: number): unknown => ({
+    type: 'bulletList',
+    content: [
+      {
+        type: 'listItem',
+        content: [
+          { type: 'paragraph', content: [{ type: 'text', text: `niveau ${depth}` }] },
+          ...(depth > 1 ? [list(depth - 1)] : []),
+        ],
+      },
+    ],
+  });
+
+  it('imbrication : jamais au-delà des limites de l’API (Tab de trop sans effet)', () => {
+    const four = { type: 'doc', content: [list(4)] };
+    const five = { type: 'doc', content: [list(5)] };
+    const editor = makeEditor(four);
+    expect(withinLimits(editor.state.doc)).toBe(true);
+    expect(parseDocument(editor.getJSON()).success).toBe(true);
+    const before = JSON.stringify(editor.getJSON());
+    editor.commands.setContent(five as never);
+    expect(JSON.stringify(editor.getJSON())).toBe(before);
   });
 });

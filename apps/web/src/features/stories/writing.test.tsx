@@ -245,3 +245,166 @@ describe('éditeur : sauvegardes sans perte', () => {
     expect(putBodies(calls)).toHaveLength(1);
   });
 });
+
+describe('éditeur : gardes « aucune perte » (contre-vérification)', () => {
+  type PutReply =
+    { status?: number; body?: unknown } | Promise<{ status?: number; body?: unknown }>;
+  function api(put: (n: number) => PutReply, extra?: (url: string, init: RequestInit) => unknown) {
+    let n = 0;
+    return mockApi((url, init) => {
+      const more = extra?.(url, init);
+      if (more) return more as { body: unknown };
+      if (url === '/api/moi/compte') return { body: account() };
+      if (url.endsWith('/brouillon') && init.method === 'PUT') return put(++n);
+      if (url.endsWith('/brouillon')) return { body: draft('Début.', 3) };
+      if (url.endsWith('/publication')) return { status: 201, body: detail() };
+      if (url.includes('/chapitres/') && init.method === 'PATCH') return { status: 204 };
+      if (url === `/api/histoires/${STORY}`) return { body: detail() };
+    });
+  }
+  const saved = (version: number, doc: unknown = null) => ({
+    body: { draftVersion: version, wordCount: 3, draft: doc },
+  });
+  const end = (editor: Editor) => editor.state.doc.content.size - 1;
+
+  it('frappe pendant un envoi, sans second clic : pas d’« Enregistré » trompeur, la sauvegarde automatique suit', async () => {
+    signedIn();
+    const first = deferred<{ body: unknown }>();
+    const calls = api((n) => (n === 1 ? first.promise : saved(5)));
+    renderApp(`/ecrire/histoires/${STORY}/chapitres/${CH}`);
+    const editor = await editorOf();
+    editor.commands.insertContentAt(end(editor), ' A');
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    editor.commands.insertContentAt(end(editor), ' B');
+    first.resolve(saved(4));
+    await waitFor(() => expect(putBodies(calls)).toHaveLength(1));
+    expect(screen.queryByText(/^Enregistré à/)).toBeNull();
+    // Copie de secours réécrite avec la nouvelle version.
+    const backup = JSON.parse(sessionStorage.getItem(`plumiotheca.brouillon.${CH}`) ?? '{}') as {
+      version?: number;
+    };
+    expect(backup.version).toBe(4);
+    await waitFor(() => expect(putBodies(calls)).toHaveLength(2), { timeout: 4000 });
+    expect(putBodies(calls)[1]!.version).toBe(4);
+    expect(JSON.stringify(putBodies(calls)[1]!.draft)).toContain('Début. A B');
+    await waitFor(() => expect(screen.getByText(/^Enregistré à/)).toBeInTheDocument());
+  });
+
+  it('document complété par l’API pendant une frappe : le texte tapé n’est pas écrasé', async () => {
+    signedIn();
+    const first = deferred<{ body: unknown }>();
+    const calls = api((n) => (n === 1 ? first.promise : saved(5)));
+    renderApp(`/ecrire/histoires/${STORY}/chapitres/${CH}`);
+    const editor = await editorOf();
+    editor.commands.insertContentAt(end(editor), ' A');
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    editor.commands.insertContentAt(end(editor), ' B');
+    first.resolve(saved(4, draft('Début. A', 4).draft));
+    await waitFor(() => expect(putBodies(calls)).toHaveLength(1));
+    expect(editor.getText()).toContain('Début. A B');
+    await waitFor(() => expect(putBodies(calls)).toHaveLength(2), { timeout: 4000 });
+    expect(JSON.stringify(putBodies(calls)[1]!.draft)).toContain('Début. A B');
+  });
+
+  it('publier sans avoir enregistré : la modification part d’abord, puis la publication', async () => {
+    signedIn();
+    const calls = api(() => saved(4));
+    renderApp(`/ecrire/histoires/${STORY}/chapitres/${CH}`);
+    const editor = await editorOf();
+    editor.commands.insertContentAt(end(editor), ' fin');
+    await userEvent.click(screen.getByRole('button', { name: 'Publier le chapitre' }));
+    await waitFor(() => expect(calls.some((c) => c.url.endsWith('/publication'))).toBe(true));
+    const order = calls
+      .filter((c) => c.method !== 'GET')
+      .map((c) => (c.method === 'PUT' ? 'brouillon' : 'publication'));
+    expect(order).toEqual(['brouillon', 'publication']);
+  });
+
+  it('conflit puis « Charger la version enregistrée » : mon texte reste proposé en reprise', async () => {
+    signedIn();
+    const calls = api(
+      () => ({ status: 409, body: { type: 'brouillon-modifie', title: 'Conflit', status: 409 } }),
+      (url, init) =>
+        url.endsWith('/brouillon') &&
+        (init.method ?? 'GET') === 'GET' &&
+        calls.filter((c) => c.url.endsWith('/brouillon') && c.method === 'GET').length > 1
+          ? { body: draft('Version d’ailleurs.', 7) }
+          : undefined,
+    );
+    renderApp(`/ecrire/histoires/${STORY}/chapitres/${CH}`);
+    const editor = await editorOf();
+    editor.commands.insertContentAt(end(editor), ' mien');
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Charger la version enregistrée' }),
+    );
+    await waitFor(() => expect(editor.getText()).toBe('Version d’ailleurs.'));
+    expect(
+      await screen.findByText('Une version non enregistrée a été retrouvée.'),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Reprendre cette version' }));
+    expect(editor.getText()).toBe('Début. mien');
+  });
+
+  it('conflit puis rechargement de la page : la copie de l’onglet est proposée, avec un avertissement', async () => {
+    signedIn();
+    api(() => ({
+      status: 409,
+      body: { type: 'brouillon-modifie', title: 'Conflit', status: 409 },
+    }));
+    const first = renderApp(`/ecrire/histoires/${STORY}/chapitres/${CH}`);
+    const editor = await editorOf();
+    editor.commands.insertContentAt(end(editor), ' mien');
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    await screen.findByRole('button', { name: 'Garder ma version' });
+    first.unmount();
+    // Rechargement : le serveur a avancé (v7).
+    mockApi((url) => {
+      if (url === '/api/moi/compte') return { body: account() };
+      if (url.endsWith('/brouillon')) return { body: draft('Version d’ailleurs.', 7) };
+      if (url === `/api/histoires/${STORY}`) return { body: detail() };
+    });
+    renderApp(`/ecrire/histoires/${STORY}/chapitres/${CH}`);
+    expect(
+      await screen.findByText('Une version non enregistrée a été retrouvée.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/reprendre celle-ci la remplacera/)).toBeInTheDocument();
+  });
+
+  it('titre : enregistré une fois quand il change, rien si on sort du champ sans changement', async () => {
+    signedIn();
+    const calls = api(() => saved(4));
+    renderApp(`/ecrire/histoires/${STORY}/chapitres/${CH}`);
+    await editorOf();
+    const field = screen.getByRole('textbox', { name: 'Titre du chapitre' });
+    await userEvent.click(field);
+    await userEvent.tab();
+    expect(calls.filter((c) => c.method === 'PATCH')).toHaveLength(0);
+    await userEvent.clear(field);
+    await userEvent.type(field, 'Le second toit');
+    await userEvent.tab();
+    await waitFor(() => expect(calls.filter((c) => c.method === 'PATCH')).toHaveLength(1));
+    expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ title: 'Le second toit' });
+    await userEvent.click(field);
+    await userEvent.tab();
+    expect(calls.filter((c) => c.method === 'PATCH')).toHaveLength(1);
+  });
+
+  it('refus 400 : la raison donnée par l’API est affichée', async () => {
+    signedIn();
+    api(() => ({
+      status: 400,
+      body: {
+        type: 'validation',
+        title: 'Requête invalide',
+        status: 400,
+        errors: [{ path: 'draft', message: 'Caractère de contrôle interdit', code: 'custom' }],
+      },
+    }));
+    renderApp(`/ecrire/histoires/${STORY}/chapitres/${CH}`);
+    const editor = await editorOf();
+    editor.commands.insertContentAt(end(editor), ' x');
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    expect(await screen.findByText(/Caractère de contrôle interdit/)).toBeInTheDocument();
+  });
+});

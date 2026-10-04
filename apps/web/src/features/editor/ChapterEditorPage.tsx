@@ -7,6 +7,7 @@ import {
   type Editor as TiptapEditor,
   type JSONContent,
 } from '@tiptap/react';
+import { TextSelection } from '@tiptap/pm/state';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useBlocker, useNavigate, useParams } from 'react-router';
 import { ApiError } from '../../shared/api/client';
@@ -20,7 +21,7 @@ import { formatNumber } from '../stories/labels';
 import { readBackup, writeBackup, type Backup } from './backup';
 import styles from './ChapterEditor.module.css';
 import { editorExtensions } from './extensions';
-import { Toolbar } from './Toolbar';
+import { MOD, Toolbar } from './Toolbar';
 
 /** Délai de la sauvegarde automatique après la dernière frappe. */
 const AUTOSAVE_MS = 2000;
@@ -33,6 +34,21 @@ type Progress =
   { kind: 'idle' } | { kind: 'dirty' } | { kind: 'saving' } | { kind: 'saved'; at: string };
 type Problem = { kind: 'conflict' } | { kind: 'error'; message: string } | null;
 type Draft = ChapterDraft;
+
+/**
+ * Remplace le document par celui de l'API (identifiants complétés) sans étape d'annulation
+ * ni perte de la sélection et des marques en attente (Ctrl+B avant de taper).
+ */
+function adopt(editor: TiptapEditor, json: JSONContent) {
+  const { state } = editor;
+  const doc = state.schema.nodeFromJSON(json);
+  const tr = state.tr.replaceWith(0, state.doc.content.size, doc.content);
+  const max = tr.doc.content.size;
+  const { anchor, head } = state.selection;
+  tr.setSelection(TextSelection.create(tr.doc, Math.min(anchor, max), Math.min(head, max)));
+  if (state.storedMarks) tr.setStoredMarks(state.storedMarks);
+  editor.view.dispatch(tr.setMeta('addToHistory', false));
+}
 
 /**
  * Éditeur de chapitre (#25) : mise en forme de base, sauvegarde automatique avec version
@@ -78,8 +94,8 @@ function useDraftSaver(
   const conflict = useRef(false);
   const inFlight = useRef<Promise<boolean> | null>(null);
   const timer = useRef<number>(undefined);
-  // Les minuteurs et onUpdate (mémorisé par TipTap au premier rendu) passent par cette
-  // référence pour toujours appeler la version à jour de persist().
+  // Les minuteurs passent par cette référence pour toujours appeler la version à jour de
+  // persist() (un minuteur garde sinon la fonction du rendu où il a été posé).
   const persistRef = useRef<() => Promise<boolean>>(() => Promise.resolve(true));
 
   const schedule = useCallback((ms: number, run: () => void) => {
@@ -115,15 +131,17 @@ function useDraftSaver(
         setWords(saved.wordCount);
         // L'API a complété des identifiants de blocs : on reprend son document, sans bouger
         // le curseur, pour que les identifiants restent les mêmes à la sauvegarde suivante.
-        if (saved.draft && !dirty.current) {
-          const { from, to } = editor.state.selection;
-          editor.commands.setContent(saved.draft as JSONContent, { emitUpdate: false });
-          const max = editor.state.doc.content.size;
-          editor.commands.setTextSelection({ from: Math.min(from, max), to: Math.min(to, max) });
-        }
+        if (saved.draft && !dirty.current) adopt(editor, saved.draft as JSONContent);
         remember(saved.draft ?? doc, saved.draftVersion, saved.wordCount);
         setProblem(null);
         if (dirty.current) {
+          // Frappe pendant l'envoi : la copie de secours suit la nouvelle version, et la
+          // sauvegarde suivante (déjà programmée) partira avec elle.
+          writeBackup(chapterId, {
+            version: saved.draftVersion,
+            doc: editor.getJSON(),
+            at: new Date().toISOString(),
+          });
           setProgress({ kind: 'dirty' });
           return false;
         }
@@ -137,12 +155,19 @@ function useDraftSaver(
           conflict.current = true;
           setProblem({ kind: 'conflict' });
         } else if (error instanceof ApiError && error.status === 400) {
-          setProblem({ kind: 'error', message: error.message });
+          // La vraie raison est dans le détail de la réponse (« Requête invalide » sinon).
+          const reason = error.problem.errors?.[0]?.message;
+          setProblem({
+            kind: 'error',
+            message: reason
+              ? `${reason}. Corrigez ce passage ; votre texte reste gardé dans cet onglet.`
+              : error.message,
+          });
         } else {
           setProblem({
             kind: 'error',
             message:
-              'Enregistrement impossible pour l’instant. Votre texte est gardé dans ce navigateur ; nouvel essai automatique dans quelques secondes.',
+              'Enregistrement impossible pour l’instant. Votre texte reste gardé dans cet onglet ; nouvel essai automatique dans quelques secondes.',
           });
           schedule(RETRY_MS, () => void persistRef.current());
         }
@@ -184,9 +209,13 @@ function useDraftSaver(
     await persist();
   };
 
-  /** Conflit : on reprend la version enregistrée ailleurs (la mienne reste en copie locale). */
-  const loadSaved = async () => {
+  /**
+   * Conflit : on reprend la version enregistrée ailleurs. La mienne est mise de côté en copie
+   * de secours, et rendue pour être proposée en reprise.
+   */
+  const loadSaved = async (): Promise<Backup | null> => {
     const saved = await latest();
+    const mine = editor?.getJSON();
     editor?.commands.setContent(saved.draft as JSONContent, { emitUpdate: false });
     version.current = saved.draftVersion;
     conflict.current = false;
@@ -195,6 +224,10 @@ function useDraftSaver(
     setWords(saved.wordCount);
     setProblem(null);
     setProgress({ kind: 'idle' });
+    if (!mine) return null;
+    const aside = { version: saved.draftVersion, doc: mine, at: new Date().toISOString() };
+    writeBackup(chapterId, aside);
+    return aside;
   };
 
   useEffect(() => () => window.clearTimeout(timer.current), []);
@@ -221,12 +254,9 @@ function Editor({
   const [savedTitle, setSavedTitle] = useState(initial.title);
   const [backup, setBackup] = useState<Backup | null>(() => {
     const found = readBackup(chapterId);
-    // Copie locale plus récente que le brouillon enregistré : on la propose.
-    return found &&
-      found.version === initial.draftVersion &&
-      JSON.stringify(found.doc) !== JSON.stringify(initial.draft)
-      ? found
-      : null;
+    // Copie différente du brouillon enregistré : on la propose, même si elle part d'une
+    // version plus ancienne (conflit, frappe pendant un envoi).
+    return found && JSON.stringify(found.doc) !== JSON.stringify(initial.draft) ? found : null;
   });
 
   const changedRef = useRef<(doc: JSONContent, language: string) => void>(() => {});
@@ -297,6 +327,14 @@ function Editor({
     leaving.current = true;
     void Promise.all([saver.persist(), saveTitle()]).then(([text, name]) => {
       if (text && name) blocker.proceed();
+      // Enregistrement impossible : on le dit, et on laisse partir si la personne le veut
+      // (le texte reste dans la copie de secours de l'onglet).
+      else if (
+        window.confirm(
+          'Les dernières modifications n’ont pas pu être enregistrées. Elles restent gardées dans cet onglet : vous pourrez les reprendre en revenant sur ce chapitre. Quitter quand même ?',
+        )
+      )
+        blocker.proceed();
       else blocker.reset();
     });
   }, [blocker, saver, saveTitle]);
@@ -351,8 +389,10 @@ function Editor({
       {backup && (
         <Alert tone="warning" live title="Une version non enregistrée a été retrouvée.">
           <p>
-            Ce navigateur a gardé des modifications du {new Date(backup.at).toLocaleString('fr-FR')}{' '}
+            Cet onglet a gardé des modifications du {new Date(backup.at).toLocaleString('fr-FR')}{' '}
             qui n’avaient pas été enregistrées.
+            {backup.version < initial.draftVersion &&
+              ' Une autre version a été enregistrée depuis (autre onglet, co-écriture) : reprendre celle-ci la remplacera.'}
           </p>
           <div className={styles.row}>
             <Button size="small" variant="primary" onClick={restore}>
@@ -391,13 +431,13 @@ function Editor({
         <Alert tone="warning" live title="Ce chapitre a été enregistré ailleurs entre-temps.">
           <p>
             Un autre onglet, une co-autrice ou un co-auteur a enregistré une autre version. Votre
-            texte est gardé dans ce navigateur. Que voulez-vous faire ?
+            texte reste gardé dans cet onglet. Que voulez-vous faire ?
           </p>
           <div className={styles.row}>
             <Button size="small" variant="primary" onClick={() => void saver.keepMine()}>
               Garder ma version
             </Button>
-            <Button size="small" onClick={() => void saver.loadSaved()}>
+            <Button size="small" onClick={() => void saver.loadSaved().then(setBackup)}>
               Charger la version enregistrée
             </Button>
           </div>
@@ -430,8 +470,9 @@ function Editor({
       <div className={styles.editor}>
         <Toolbar editor={editor} />
         <p id="aide-editeur" className={styles.help}>
-          Enregistrement automatique. Raccourcis : Ctrl+B gras, Ctrl+I italique ; « --- » en début
-          de ligne pour un changement de scène.
+          Enregistrement automatique. Raccourcis : {MOD === 'Meta' ? 'Cmd' : 'Ctrl'}+B gras,{' '}
+          {MOD === 'Meta' ? 'Cmd' : 'Ctrl'}+I italique ; « --- » en début de ligne pour un
+          changement de scène.
         </p>
         <EditorContent editor={editor} />
       </div>

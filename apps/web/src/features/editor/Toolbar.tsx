@@ -13,6 +13,13 @@ interface Tool {
   group?: boolean;
 }
 
+/** Touche des raccourcis : Cmd sur les appareils Apple, Ctrl ailleurs (« Mod » de TipTap). */
+export const MOD =
+  typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
+    ? 'Meta'
+    : 'Control';
+const modName = MOD === 'Meta' ? 'Cmd' : 'Ctrl';
+
 const tools: Tool[] = [
   {
     label: 'Texte courant',
@@ -22,21 +29,21 @@ const tools: Tool[] = [
   },
   {
     label: 'Intertitre',
-    keys: 'Control+Alt+2',
+    keys: MOD + '+Alt+2',
     glyph: 'T',
     run: (e) => e.chain().focus().toggleHeading({ level: 2 }).run(),
     active: (e) => e.isActive('heading', { level: 2 }),
   },
   {
     label: 'Sous-intertitre',
-    keys: 'Control+Alt+3',
+    keys: MOD + '+Alt+3',
     glyph: 't',
     run: (e) => e.chain().focus().toggleHeading({ level: 3 }).run(),
     active: (e) => e.isActive('heading', { level: 3 }),
   },
   {
     label: 'Gras',
-    keys: 'Control+B',
+    keys: MOD + '+B',
     glyph: <strong>G</strong>,
     run: (e) => e.chain().focus().toggleBold().run(),
     active: (e) => e.isActive('bold'),
@@ -44,28 +51,28 @@ const tools: Tool[] = [
   },
   {
     label: 'Italique',
-    keys: 'Control+I',
+    keys: MOD + '+I',
     glyph: <em>I</em>,
     run: (e) => e.chain().focus().toggleItalic().run(),
     active: (e) => e.isActive('italic'),
   },
   {
     label: 'Souligné',
-    keys: 'Control+U',
+    keys: MOD + '+U',
     glyph: <u>S</u>,
     run: (e) => e.chain().focus().toggleUnderline().run(),
     active: (e) => e.isActive('underline'),
   },
   {
     label: 'Barré',
-    keys: 'Control+Shift+S',
+    keys: MOD + '+Shift+S',
     glyph: <s>B</s>,
     run: (e) => e.chain().focus().toggleStrike().run(),
     active: (e) => e.isActive('strike'),
   },
   {
     label: 'Citation',
-    keys: 'Control+Shift+B',
+    keys: MOD + '+Shift+B',
     glyph: '«',
     run: (e) => e.chain().focus().toggleBlockquote().run(),
     active: (e) => e.isActive('blockquote'),
@@ -73,14 +80,14 @@ const tools: Tool[] = [
   },
   {
     label: 'Liste à puces',
-    keys: 'Control+Shift+8',
+    keys: MOD + '+Shift+8',
     glyph: '•',
     run: (e) => e.chain().focus().toggleBulletList().run(),
     active: (e) => e.isActive('bulletList'),
   },
   {
     label: 'Liste numérotée',
-    keys: 'Control+Shift+7',
+    keys: MOD + '+Shift+7',
     glyph: '1.',
     run: (e) => e.chain().focus().toggleOrderedList().run(),
     active: (e) => e.isActive('orderedList'),
@@ -92,14 +99,14 @@ const tools: Tool[] = [
   },
   {
     label: 'Annuler',
-    keys: 'Control+Z',
+    keys: MOD + '+Z',
     glyph: '↶',
     run: (e) => e.chain().focus().undo().run(),
     group: true,
   },
   {
     label: 'Rétablir',
-    keys: 'Control+Shift+Z',
+    keys: MOD + '+Shift+Z',
     glyph: '↷',
     run: (e) => e.chain().focus().redo().run(),
   },
@@ -156,9 +163,7 @@ export function Toolbar({ editor }: { editor: Editor }) {
               aria-label={tool.label}
               aria-pressed={pressed === null ? undefined : pressed}
               aria-keyshortcuts={tool.keys}
-              title={
-                tool.keys ? `${tool.label} (${tool.keys.replace('Control', 'Ctrl')})` : tool.label
-              }
+              title={tool.keys ? `${tool.label} (${tool.keys.replace(MOD, modName)})` : tool.label}
               onClick={() => {
                 setCurrent(i);
                 tool.run(editor);

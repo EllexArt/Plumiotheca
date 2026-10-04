@@ -72,6 +72,10 @@ async function publish(call, story) {
     console.log(`• ${story.title} : déjà là`);
     return;
   }
+  if (existing?.status === 'published') {
+    console.log(`• ${story.title} : déjà publiée (laissée telle quelle)`);
+    return;
+  }
   // Reste d'un essai interrompu (brouillon incomplet) : on recommence proprement.
   if (existing) await call('DELETE', `/histoires/${existing.id}`);
   const { chapters, ...fields } = story;

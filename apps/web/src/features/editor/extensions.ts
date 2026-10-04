@@ -1,4 +1,4 @@
-import { newBlockId } from '@plumiotheca/editor-schema';
+import { MAX_BLOCK_DEPTH, MAX_LIST_DEPTH, newBlockId } from '@plumiotheca/editor-schema';
 import { Extension } from '@tiptap/core';
 import TextAlign from '@tiptap/extension-text-align';
 import { Fragment, Slice, type Node as PMNode } from '@tiptap/pm/model';
@@ -16,12 +16,47 @@ export const BLOCK_TYPES = [
   'listItem',
 ];
 
+/**
+ * Caractères que l'API refuse dans le texte (packages/editor-schema) : contrôles (hors
+ * tabulation) et forçage du sens d'écriture. Un collage qui en contient ne pourrait jamais
+ * être enregistré : ils sont retirés à l'entrée.
+ */
+// eslint-disable-next-line no-control-regex -- ce sont précisément les caractères refusés.
+const FORBIDDEN = /[\u0000-\u0008\u000B-\u001F\u007F-\u009F\u202A-\u202E\u2066-\u2069]/g;
+
+/** Texte collé brut : tabulation verticale (Word, messageries) → retour à la ligne. */
+export const cleanPastedText = (text: string) => text.replace(/\v/g, '\n').replace(FORBIDDEN, '');
+
+/** Texte d'un contenu collé mis en forme : caractères refusés retirés. */
+const cleanInline = (text: string) => text.replace(/\v/g, ' ').replace(FORBIDDEN, '');
+
+/**
+ * Le document respecte-t-il les limites d'imbrication de l'API (blocs : MAX_BLOCK_DEPTH,
+ * listes : MAX_LIST_DEPTH) ? Mesure identique à parseDocument : profondeur du texte sous
+ * le document, et nombre de listes emboîtées.
+ */
+export function withinLimits(doc: PMNode): boolean {
+  const walk = (node: PMNode, level: number, lists: number): boolean => {
+    if (node.isInline) return level <= MAX_BLOCK_DEPTH + 2;
+    const list = node.type.name === 'bulletList' || node.type.name === 'orderedList';
+    const depth = list ? lists + 1 : lists;
+    if (depth > MAX_LIST_DEPTH) return false;
+    let ok = true;
+    node.forEach((child) => {
+      ok &&= walk(child, level + 1, depth);
+    });
+    return ok;
+  };
+  return walk(doc, 0, 0);
+}
+
 /** Retire les identifiants d'un contenu collé : un collage est toujours un nouveau bloc. */
 function withoutIds(fragment: Fragment): Fragment {
   const nodes: PMNode[] = [];
   fragment.forEach((node) => {
     if (node.isText) {
-      nodes.push(node);
+      const text = cleanInline(node.text ?? '');
+      if (text) nodes.push(text === node.text ? node : node.type.schema.text(text, node.marks));
       return;
     }
     const attrs = BLOCK_TYPES.includes(node.type.name) ? { ...node.attrs, id: null } : node.attrs;
@@ -63,7 +98,11 @@ export const BlockIds = Extension.create({
         props: {
           transformPasted: (slice) =>
             new Slice(withoutIds(slice.content), slice.openStart, slice.openEnd),
+          transformPastedText: (text) => cleanPastedText(text),
         },
+        // Jamais au-delà des limites d'imbrication de l'API (Tab de trop, collage profond) :
+        // sinon plus aucune sauvegarde ne passerait.
+        filterTransaction: (tr) => !tr.docChanged || withinLimits(tr.doc),
         appendTransaction: (transactions, _before, state) => {
           if (!transactions.some((t) => t.docChanged)) return null;
           const seen = new Set<string>();
