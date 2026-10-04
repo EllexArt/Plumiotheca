@@ -346,3 +346,5 @@ Le code actuel est petit : on **reconstruit au bon endroit** plutôt que de tout
 | 49  | Réglages de lecture : la personne qui lit peut imposer un alignement standard (texte centré ou justifié) et changer de police (polices pour la dyslexie)                                     | ✅ validé |
 | 50  | Avertissements majeurs : choix actif (« Aucun avertissement majeur » à cocher) ; sans choix, rien n'est déclaré et l'histoire ne se publie pas                                               | ✅ validé |
 | 51  | Copie de secours du texte non enregistré : dans la session de l'onglet seulement (effacée à l'enregistrement, à la déconnexion, à la fermeture)                                              | ✅ validé |
+| 52  | Texte des chapitres : isolats bidirectionnels (U+2066-2069) permis pour l'arabe et l'hébreu ; forçage du sens d'écriture (U+202A-202E) interdit                                              | ✅ validé |
+| 53  | Listes imbriquées sur 4 niveaux au plus, blocs sur 8 : limites appliquées dans l'éditeur comme dans l'API                                                                                    | ✅ validé |

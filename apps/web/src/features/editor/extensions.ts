@@ -18,11 +18,12 @@ export const BLOCK_TYPES = [
 
 /**
  * Caractères que l'API refuse dans le texte (packages/editor-schema) : contrôles (hors
- * tabulation) et forçage du sens d'écriture. Un collage qui en contient ne pourrait jamais
+ * tabulation) et forçage du sens d'écriture (les isolats, utiles à l'arabe et à l'hébreu,
+ * restent : décision 52). Un collage qui en contient ne pourrait jamais
  * être enregistré : ils sont retirés à l'entrée.
  */
 // eslint-disable-next-line no-control-regex -- ce sont précisément les caractères refusés.
-const FORBIDDEN = /[\u0000-\u0008\u000B-\u001F\u007F-\u009F\u202A-\u202E\u2066-\u2069]/g;
+const FORBIDDEN = /[\u0000-\u0008\u000B-\u001F\u007F-\u009F\u202A-\u202E]/g;
 
 /** Texte collé brut : tabulation verticale (Word, messageries) → retour à la ligne. */
 export const cleanPastedText = (text: string) => text.replace(/\v/g, '\n').replace(FORBIDDEN, '');

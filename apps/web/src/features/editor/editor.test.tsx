@@ -218,7 +218,9 @@ describe('éditeur : contenus que l’API refuserait', () => {
   it('collage : caractères de contrôle et de forçage du sens d’écriture retirés', () => {
     // jsdom n'a pas d'événements de presse-papiers : ProseMirror n'en lit que le type.
     globalThis.ClipboardEvent ??= class extends Event {} as unknown as typeof ClipboardEvent;
-    expect(cleanPastedText('a\u202Bb\u202Cc\vd\u0007e\u2066f')).toBe('abc\nde' + 'f');
+    expect(cleanPastedText('a\u202Bb\u202Cc\vd\u0007e')).toBe('abc\nde');
+    // Isolats (arabe ou hébreu mêlé au français) : gardés (décision 52).
+    expect(cleanPastedText('x\u2067y\u2069')).toBe('x\u2067y\u2069');
     const editor = makeEditor({ type: 'doc', content: [{ type: 'paragraph' }] });
     editor.view.pasteText('Salut\u202E toi\u0007');
     expect(editor.getText()).toBe('Salut toi');
