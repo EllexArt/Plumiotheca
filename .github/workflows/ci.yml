@@ -132,6 +132,73 @@ jobs:
       - name: Formatage
         run: pnpm format:check
 
+  # Parcours écrire → publier → lire dans un vrai navigateur, contre la stack de développement
+  # (Keycloak, PostgreSQL…, API et web lancés par Playwright), axe-core compris.
+  e2e:
+    name: Parcours de bout en bout (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Installer les dépendances
+        run: pnpm install --frozen-lockfile
+
+      - name: Secrets de développement aléatoires
+        run: node infra/scripts/setup.mjs
+
+      - name: Démarrer l'infrastructure
+        run: pnpm infra:up
+
+      - name: Version de Playwright
+        id: playwright
+        run: echo "version=$(pnpm --filter @plumiotheca/e2e exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+      # Navigateur en cache (clé : version de Playwright) ; ses dépendances système
+      # s'installent à chaque fois (rapide, hors cache).
+      - name: Cache du navigateur
+        id: navigateur
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - name: Navigateur Chromium
+        if: steps.navigateur.outputs.cache-hit != 'true'
+        run: pnpm --filter @plumiotheca/e2e exec playwright install --with-deps chromium
+
+      - name: Dépendances système du navigateur
+        if: steps.navigateur.outputs.cache-hit == 'true'
+        run: pnpm --filter @plumiotheca/e2e exec playwright install-deps chromium
+
+      - name: Parcours
+        run: pnpm e2e
+
+      # Les traces contiennent l'identifiant et le mot de passe du compte jetable (supprimé
+      # à la fin, Keycloak éphémère du runner) : sans risque, mais gardées peu de temps.
+      - name: Rapport et traces en cas d'échec
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+          retention-days: 3
+
+      - name: Journaux de l'infrastructure en cas d'échec
+        if: failure()
+        run: docker compose -f infra/docker-compose.yml --env-file infra/.env logs --no-color --tail 200
+
   dependances:
     name: Dépendances (vulnérabilités connues)
     if: github.event_name == 'pull_request'

@@ -1,0 +1,16 @@
+{
+  "name": "@plumiotheca/e2e",
+  "private": true,
+  "type": "module",
+  "description": "Parcours de bout en bout (Playwright) contre la stack de développement.",
+  "scripts": {
+    "e2e": "playwright test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^24.13.6",
+    "typescript": "^5.9.3"
+  }
+}

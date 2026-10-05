@@ -2,6 +2,7 @@ packages:
   - apps/api
   - apps/web
   - packages/*
+  - e2e
 
 # Scripts d'installation des dépendances : refusés par défaut (sécurité).
 # Seul esbuild (Vite) est autorisé. @scarf/scarf (télémétrie de swagger-ui)

@@ -26,7 +26,8 @@
     "infra:logs": "docker compose -f infra/docker-compose.yml --env-file infra/.env logs -f",
     "infra:reset": "docker compose -f infra/docker-compose.yml --env-file infra/.env down -v",
     "infra:seed": "node infra/scripts/seed-dev.mjs",
-    "infra:seed-stories": "node infra/scripts/seed-stories.mjs"
+    "infra:seed-stories": "node infra/scripts/seed-stories.mjs",
+    "e2e": "pnpm --filter @plumiotheca/e2e e2e"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm exec lint-staged"
