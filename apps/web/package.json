@@ -1,12 +1,45 @@
 {
   "name": "@plumiotheca/web",
+  "version": "0.0.0",
   "private": true,
+  "description": "Application web de Plumiotheca : lire, écrire, partager.",
+  "license": "MIT",
+  "type": "module",
   "scripts": {
-    "dev": "concurrently \"pnpm --filter shell dev\" \"pnpm --filter reader preview\" \"pnpm --filter editor preview\"",
-    "build-remotes": "pnpm --filter reader --filter editor build",
-    "dev-full": "pnpm build-remotes && pnpm dev"
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fontsource-variable/figtree": "^5.2.0",
+    "@fontsource-variable/literata": "^5.2.0",
+    "@fontsource/young-serif": "^5.2.0",
+    "@hookform/resolvers": "^5.2.0",
+    "@plumiotheca/contracts": "workspace:*",
+    "@tanstack/react-query": "^5.90.0",
+    "oidc-client-ts": "^3.4.0",
+    "radix-ui": "^1.4.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-hook-form": "^7.62.0",
+    "react-oidc-context": "^3.3.0",
+    "react-router": "^7.9.0",
+    "zod": "^4.6.0"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.0",
+    "@types/node": "^24.13.6",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^6.0.0",
+    "axe-core": "^4.10.0",
+    "jsdom": "^30.0.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.0",
+    "vitest": "^5.0.0"
   }
 }

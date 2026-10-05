@@ -1,0 +1,11 @@
+.banner {
+  max-width: var(--page-width);
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-6) 0;
+}
+
+@media (max-width: 52rem) {
+  .banner {
+    padding: var(--space-4) var(--space-4) 0;
+  }
+}

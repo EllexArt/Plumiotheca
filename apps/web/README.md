@@ -1,77 +1,53 @@
-# Plumiotheca-frontend
+# Application web
 
-Architecture Micro-Frontend pour une plateforme de lecture et d'écriture (style Wattpad).
+Une seule application React (Vite, React Router, TanStack Query), qui remplace les anciens micro-frontends (décision 2). Architecture : [docs/architecture.md §6](../../docs/architecture.md).
 
-## Structure du Projet
+## Lancer
 
-Le projet utilise un Monorepo avec les **workspaces pnpm** (racine du dépôt) et **Vite Module Federation**.
-
-- **apps/shell** (Port 5000) : L'application hôte qui gère le layout, l'authentification (Keycloak) et le routage.
-- **apps/reader** (Port 5001) : Micro-frontend dédié à la lecture des histoires.
-- **apps/editor** (Port 5002) : Micro-frontend dédié à l'écriture et à la publication.
-- **libs/api-client** : Client typé de l'API backend, partagé par les trois applications.
-
-## Pré-requis
-
-- Node.js (v18+)
-- Le backend Plumiotheca démarré (par défaut sur `http://localhost:3000`, voir le dépôt `Plumiotheca-backend`).
-- Un serveur Keycloak (optionnel pour la démo, l'application fonctionne en mode dégradé si Keycloak est injoignable).
-
-## Installation
-
-À la racine du projet :
+Depuis la racine du dépôt, avec l'infrastructure démarrée (`pnpm infra:up`) :
 
 ```bash
-pnpm install
+pnpm dev        # API (port 3000) et application web (port 5173)
+pnpm dev:web    # application web seule
 ```
 
-## Lancement
+L'application est sur <http://localhost:5173>. En développement, Vite relaie `/api` vers l'API (`API_URL`, par défaut `http://localhost:3000`) : même origine pour le navigateur, pas de CORS.
 
-Pour lancer tous les micro-frontends en même temps :
+Comptes de démonstration : `pnpm infra:seed` (mot de passe dans `infra/.env`, variable `DEMO_PASSWORD`).
+
+| Variable              | Défaut                                     | Rôle                                  |
+| --------------------- | ------------------------------------------ | ------------------------------------- |
+| `VITE_API_URL`        | `/api`                                     | Préfixe de l'API vu par le navigateur |
+| `VITE_OIDC_AUTHORITY` | `http://localhost:8080/realms/plumiotheca` | Realm Keycloak                        |
+| `VITE_OIDC_CLIENT_ID` | `web`                                      | Client public (PKCE)                  |
+| `API_URL`             | `http://localhost:3000`                    | Cible du relais `/api` (dev)          |
+
+## Organisation
+
+```
+src/
+├── app/        routes, cadre (en-tête, navigation), connexion, thème, garde d'accueil
+├── features/   une fonctionnalité par dossier (account : première visite, charte…)
+├── pages/      pages simples et système de design
+├── shared/     client de l'API, composants d'interface, Markdown
+└── styles/     jetons (couleurs, typographie, espacements) et base
+```
+
+- **Connexion** : Authorization Code + PKCE (`react-oidc-context`) ; jeton gardé dans la session de l'onglet, renouvelé en arrière-plan ; un 401 tente un renouvellement silencieux avant de renvoyer à la connexion.
+- **API** : `shared/api` ; chaque réponse est vérifiée par le schéma de `@plumiotheca/contracts`, les erreurs suivent le format RFC 9457 de l'API.
+- **Accueil** : une personne connectée qui n'a pas choisi son pseudonyme, déclaré son âge ou accepté la charte y est conduite avant toute autre page.
+- **Styles** : CSS Modules et variables (`styles/tokens.css`), palette Lueur en clair et en sombre ; polices auto-hébergées (aucune requête vers un service tiers).
+
+## Accessibilité
+
+Partie de la définition de « terminé » (RGAA 4, WCAG 2.2 AA) :
+
+- `pnpm lint` applique `jsx-a11y` en mode strict ;
+- les tests passent chaque page par **axe-core** et vérifient les **contrastes** de tous les jetons dans les deux thèmes (`src/styles/contrast.test.ts`) ;
+- la page `/design-system` montre chaque composant pour une vérification manuelle (clavier, lecteur d'écran, zoom à 200 %).
+
+## Tests
 
 ```bash
-pnpm dev
+pnpm --filter @plumiotheca/web test
 ```
-
-L'application sera disponible sur [http://localhost:5000](http://localhost:5000).
-
-Attention : `pnpm dev` sert `reader` et `editor` depuis leur build (`vite preview`). Après une
-modification dans un remote, il faut le reconstruire — ou lancer directement :
-
-```bash
-pnpm dev-full
-```
-
-## Connexion à l'API
-
-Le client d'API vit dans `libs/api-client` et est résolu par un alias Vite (`@plumiotheca/api-client`)
-dans les trois applications. Le shell est le seul à connaître Keycloak : il construit le client avec
-le jeton courant et le transmet aux remotes via une prop `api`.
-
-| Variable               | Défaut                  | Rôle                               |
-| ---------------------- | ----------------------- | ---------------------------------- |
-| `VITE_API_URL`         | `http://localhost:3000` | URL du backend                     |
-| `VITE_ENABLE_KEYCLOAK` | `false`                 | Active l'authentification Keycloak |
-
-Sans Keycloak, l'application reste utilisable en lecture seule : les requêtes partent sans jeton,
-donc la création d'histoire renvoie `401`. Le backend doit autoriser les origines `5000`, `5001` et
-`5002` (variable `CORS_ORIGINS` côté API, valeur par défaut déjà correcte).
-
-## Configuration Keycloak
-
-Le fichier de configuration se trouve dans `apps/shell/src/keycloak.ts`. Par défaut, il tente de se connecter à :
-
-- URL : `http://localhost:8080`
-- Realm : `plumiotheca`
-- Client ID : `frontend-shell`
-
-Assurez-vous d'autoriser les origines `http://localhost:5000` (et les ports 5001, 5002) dans la configuration Web Origin de votre client Keycloak.
-
-## Technologies Utilisées
-
-- **React 19**
-- **TypeScript**
-- **Vite**
-- **Vite Module Federation** (@originjs/vite-plugin-federation)
-- **Keycloak JS**
-- **React Router**

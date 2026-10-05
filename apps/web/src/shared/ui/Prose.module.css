@@ -1,0 +1,29 @@
+/* Texte long (charte, aide) : largeur de lecture, interlignage confortable. */
+.prose {
+  max-width: var(--reading-width);
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  color: var(--color-reading);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.prose h2 {
+  margin-top: var(--space-5);
+  font-size: var(--text-xl);
+}
+
+.prose h3 {
+  margin-top: var(--space-4);
+  font-size: var(--text-lg);
+}
+
+.prose ul {
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.prose strong {
+  color: var(--color-text);
+}

@@ -1,0 +1,119 @@
+/*
+ * Jetons de design : identité « Lampe de chevet », palette Lueur (maquettes validées).
+ * Les composants n'utilisent que ces variables : une ambiance (#77) ne fera que les redéfinir.
+ * Contrastes vérifiés par src/styles/contrast.test.ts (texte 4,5:1, éléments d'interface 3:1).
+ */
+
+:root {
+  /* Typographie */
+  --font-display: 'Young Serif', Georgia, serif;
+  --font-reading: 'Literata Variable', Georgia, serif;
+  --font-ui: 'Figtree Variable', system-ui, sans-serif;
+
+  --text-xs: 0.8125rem; /* 13 px : mentions, compteurs */
+  --text-sm: 0.875rem; /* 14 px */
+  --text-md: 0.9375rem; /* 15 px : interface */
+  --text-base: 1rem; /* 16 px */
+  --text-lg: 1.25rem; /* 20 px : lecture */
+  --text-xl: 1.625rem; /* 26 px */
+  --text-2xl: 2.5rem; /* 40 px : titres de page */
+  --text-3xl: 2.75rem; /* 44 px */
+  --leading-ui: 1.5;
+  --leading-reading: 1.8;
+  --reading-width: 41rem; /* environ 66 caractères par ligne */
+
+  /* Espacements (base 4 px) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 2.5rem;
+  --space-8: 3.5rem;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 999px;
+
+  /* Cibles tactiles (WCAG 2.5.8, RGAA 13) */
+  --target-min: 44px;
+  --header-height: 68px;
+  --page-width: 80rem;
+
+  --duration: 150ms;
+
+  /* Couleurs : Lueur, clair */
+  --color-page: #f7f3ec;
+  --color-surface: #fbf8f2;
+  --color-raised: #ffffff;
+  --color-sunken: #efe8dc;
+  --color-border: #e2d9ca; /* séparateurs décoratifs */
+  --color-border-strong: #cfc5b5;
+  --color-control-border: #857868; /* contour des champs : 3:1 minimum */
+
+  --color-text: #1b2733;
+  --color-text-soft: #3c4752;
+  --color-text-muted: #5e6873;
+  --color-reading: #2a3440;
+
+  --color-accent: #9a5b17; /* liens, accents en texte */
+  --color-accent-hover: #7a4710;
+  --color-amber: #e0a458; /* aplats */
+  --color-on-amber: #1b2733;
+  --color-primary: #1b2733; /* bouton principal */
+  --color-on-primary: #e0a458;
+  --color-primary-hover: #2a3a48;
+
+  --color-highlight: #f6ddb5;
+  --color-success: #2f5446;
+  --color-success-bg: #e3eae0;
+  --color-warning: #6b4210;
+  --color-warning-bg: #fbf3e6;
+  --color-danger: #9b2c22;
+  --color-danger-bg: #f8e4e1;
+
+  --color-focus: #9a5b17;
+  --shadow-raised: 0 8px 24px rgb(27 39 51 / 0.12);
+
+  color-scheme: light;
+}
+
+/* Lueur, sombre : appliqué par public/theme.js (choix enregistré, sinon préférence du système). */
+:root[data-theme='dark'] {
+  --color-page: #14202b;
+  --color-surface: #1a2734;
+  --color-raised: #1f3040;
+  --color-sunken: #0f1922;
+  --color-border: #2c3e4f;
+  --color-border-strong: #3a5064;
+  --color-control-border: #6d8296;
+
+  --color-text: #f3eee4;
+  --color-text-soft: #cfd6dc;
+  --color-text-muted: #9fafbc;
+  --color-reading: #e6e0d4;
+
+  --color-accent: #e0a458;
+  --color-accent-hover: #edbe7e;
+  --color-amber: #e0a458;
+  --color-on-amber: #14202b;
+  --color-primary: #e0a458;
+  --color-on-primary: #14202b;
+  --color-primary-hover: #edbe7e;
+
+  --color-highlight: #2a3a48;
+  --color-success: #9ed0c2;
+  --color-success-bg: #1d3a33;
+  --color-warning: #f2c98b;
+  --color-warning-bg: #3a2e1a;
+  --color-danger: #f0a39a;
+  --color-danger-bg: #3d2224;
+
+  --color-focus: #e0a458;
+  --shadow-raised: 0 8px 24px rgb(0 0 0 / 0.35);
+
+  color-scheme: dark;
+}

@@ -93,14 +93,19 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
 
+      # « ... » : l'application web et les paquets du monorepo dont elle dépend.
       - name: Installer les dépendances
-        run: pnpm install --frozen-lockfile --filter "./apps/web/**"
+        run: pnpm install --frozen-lockfile --filter "@plumiotheca/web..."
 
       - name: Vérifier les types
-        run: pnpm --filter "./apps/web/apps/*" typecheck
+        run: pnpm --filter @plumiotheca/web typecheck
+
+      # Composants, parcours d'accueil, axe-core et contrastes des deux thèmes.
+      - name: Tests
+        run: pnpm --filter @plumiotheca/web test
 
       - name: Build
-        run: pnpm --filter "./apps/web/apps/*" build
+        run: pnpm --filter @plumiotheca/web build
 
   qualite:
     name: Qualité (lint, accessibilité, formatage)

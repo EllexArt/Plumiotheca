@@ -289,7 +289,7 @@ Le code actuel est petit : on **reconstruit au bon endroit** plutôt que de tout
 1. Socle : pnpm, `infra/`, realm Keycloak corrigé, CI minimale.
 2. `apps/api` : nouveau projet NestJS qui reprend entités et routes existantes, sécurisées.
 3. `apps/web` : application unique qui reprend lecteur et éditeur, connexion OIDC.
-4. Suppression des micro-frontends une fois la parité atteinte. Le prototype Express a été supprimé dès le squelette NestJS (#122) : le prototype web ne trouve plus ses routes d'ici la nouvelle application (#19).
+4. Les micro-frontends et le prototype Express sont supprimés : le prototype Express dès le squelette NestJS (#122), les micro-frontends avec le socle de la nouvelle application (#19), qui ne reprend rien de leur code.
 
 ## 10. Décisions prises
 

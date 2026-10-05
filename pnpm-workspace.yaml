@@ -1,8 +1,6 @@
 packages:
   - apps/api
   - apps/web
-  - apps/web/apps/*
-  - apps/web/libs/*
   - packages/*
 
 # Scripts d'installation des dépendances : refusés par défaut (sécurité).

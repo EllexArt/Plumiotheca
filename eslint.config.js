@@ -32,6 +32,12 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
   },
 
+  // Scripts servis tels quels au navigateur (apps/web/public)
+  {
+    files: ['apps/web/public/**/*.js'],
+    languageOptions: { sourceType: 'script', globals: globals.browser },
+  },
+
   // Application web (navigateur, React) : accessibilité vérifiée par jsx-a11y.
   {
     files: ['apps/web/**/*.{ts,tsx}'],
