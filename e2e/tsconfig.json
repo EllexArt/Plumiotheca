@@ -1,0 +1,12 @@
+{
+  // Tests de bout en bout : exécutés par Playwright (Node), pas compilés.
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "declaration": false,
+    "sourceMap": false,
+    "lib": ["ES2023", "DOM"],
+    "types": ["node"]
+  },
+  "include": ["*.ts", "tests"]
+}
