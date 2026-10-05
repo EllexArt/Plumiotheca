@@ -11,6 +11,7 @@ import { useChapter, usePublicStories, useStory, type StoryFilters } from './api
 import { ChapterContent } from './ChapterContent';
 import {
   completionLabel,
+  contentWarningsText,
   coverColors,
   formatDate,
   formatNumber,
@@ -79,6 +80,13 @@ function StoryTags({ story }: { story: StorySummary }) {
       {warnings && story.majorWarnings?.length ? (
         <li>
           <Tag kind="warning">Avertissements : {warnings}</Tag>
+        </li>
+      ) : null}
+      {story.contentWarnings.length ? (
+        <li>
+          <Tag kind="warning">
+            Autres avertissements : {contentWarningsText(story.contentWarnings)}
+          </Tag>
         </li>
       ) : null}
       {story.tags.map((tag) => (

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Completion, MajorWarning, Rating, StoryStatus } from './domain.js';
+import { Completion, ContentWarning, MajorWarning, Rating, StoryStatus } from './domain.js';
 
 /** Texte sur une ligne, sans caractère de contrôle ni caractère invisible. */
 const line = (min: number, max: number) =>
@@ -48,6 +48,13 @@ const Warnings = z
     message: '« Je préfère ne pas préciser » ne se combine pas avec d’autres avertissements.',
   });
 
+const ContentWarnings = z
+  .array(ContentWarning)
+  .max(ContentWarning.options.length)
+  .refine((w) => new Set(w).size === w.length, { message: 'Avertissement en double' })
+  // Toujours dans l'ordre de la liste : même affichage quel que soit l'ordre des clics.
+  .transform((w) => ContentWarning.options.filter((o) => w.includes(o)));
+
 /** Nouvelle histoire : toujours un brouillon ; classement et avertissements à choisir avant publication. */
 export const NewStory = z.strictObject({
   title: line(1, 200),
@@ -56,6 +63,7 @@ export const NewStory = z.strictObject({
   rating: Rating.nullable().optional(),
   completion: Completion.optional(),
   majorWarnings: Warnings.nullable().optional(),
+  contentWarnings: ContentWarnings.optional(),
   tags: Tags.optional(),
 });
 export type NewStory = z.infer<typeof NewStory>;
@@ -82,6 +90,8 @@ export const StorySummary = z.strictObject({
   status: StoryStatus,
   completion: Completion,
   majorWarnings: z.array(MajorWarning).nullable(),
+  /** Avertissements facultatifs ; liste vide si aucun. */
+  contentWarnings: z.array(ContentWarning),
   tags: z.array(z.string()),
   wordCount: z.int(),
   /** Chapitres publiés. */

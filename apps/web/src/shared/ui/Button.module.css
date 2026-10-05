@@ -21,8 +21,7 @@
     color var(--duration);
 }
 
-.button:disabled,
-.button[aria-disabled='true'] {
+.button:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
@@ -97,4 +96,18 @@
 
 .wide {
   width: 100%;
+}
+
+/*
+ * Indisponible mais focalisable (aria-disabled) : couleurs dédiées plutôt qu'une opacité,
+ * pour garder un libellé lisible (4,5:1, paire text-soft / sunken contrôlée). En fin de
+ * fichier pour l'emporter sur le survol des variantes.
+ */
+.button[aria-disabled='true'],
+.button[aria-disabled='true']:hover:not(:disabled) {
+  cursor: not-allowed;
+  background: var(--color-sunken);
+  border-color: var(--color-control-border);
+  color: var(--color-text-soft);
+  filter: none;
 }

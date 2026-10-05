@@ -18,6 +18,7 @@ const summary = (id: string, title: string) => ({
   status: 'published',
   completion: 'in_progress',
   majorWarnings: [],
+  contentWarnings: [],
   tags: ['fantasy'],
   wordCount: 100,
   chapterCount: 2,

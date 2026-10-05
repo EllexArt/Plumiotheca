@@ -78,6 +78,7 @@ describe('histoires', () => {
       status: 'draft',
       rating: null,
       majorWarnings: null,
+      contentWarnings: [],
       chapterCount: 0,
     });
     expect(story.tags).toEqual(['Found family', 'Slow Burn']);
@@ -93,6 +94,26 @@ describe('histoires', () => {
         .send({ title: 'x', language: 'fr', ...extra })
         .expect(400);
     }
+  });
+
+  it('avertissements facultatifs : enregistrés, modifiés, visibles dans la liste publique', async () => {
+    const ctx = await start();
+    const jwt = await readyToken(ctx.app);
+    const { story } = await publishedStory(ctx, jwt);
+    expect(story.contentWarnings).toEqual([]);
+    const res = await ctx.http
+      .patch(`/api/histoires/${story.id}`)
+      .set(...bearer(jwt))
+      .send({ contentWarnings: ['addiction', 'grief'] })
+      .expect(200);
+    expect(StoryDetail.parse(res.body).contentWarnings).toEqual(['grief', 'addiction']);
+    const list = await ctx.http.get('/api/histoires').expect(200);
+    expect(StoryPage.parse(list.body).items[0]?.contentWarnings).toEqual(['grief', 'addiction']);
+    await ctx.http
+      .patch(`/api/histoires/${story.id}`)
+      .set(...bearer(jwt))
+      .send({ contentWarnings: [] })
+      .expect(200);
   });
 
   it('le classement « Explicite » n’existe pas', async () => {
@@ -563,6 +584,8 @@ describe('suites de la revue de #133', () => {
       '« ne pas préciser » combiné à un avertissement',
       { majorWarnings: ['unspecified', 'character_death'] },
     ],
+    ['un avertissement facultatif en double', { contentWarnings: ['grief', 'grief'] }],
+    ['un avertissement facultatif inconnu', { contentWarnings: ['noyade'] }],
   ])('refuse %s (400)', async (_, body) => {
     const ctx = await start();
     const jwt = await readyToken(ctx.app);

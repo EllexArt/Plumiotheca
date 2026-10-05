@@ -97,3 +97,9 @@
 .details[open] > summary {
   margin-bottom: var(--space-4);
 }
+
+.choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: var(--space-1) var(--space-4);
+}
