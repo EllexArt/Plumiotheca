@@ -120,13 +120,9 @@ export function ManageStoryPage() {
             Voir comme une lectrice ou un lecteur
           </ButtonLink>
         ) : (
-          <Button
-            variant="primary"
-            pending={actions.publishStory.isPending}
-            onClick={() => actions.publishStory.mutate()}
-          >
+          <ButtonLink to={`/ecrire/histoires/${s.id}/publier`} variant="primary">
             Publier l’histoire
-          </Button>
+          </ButtonLink>
         )}
         <ButtonLink to="/ecrire" variant="ghost">
           Retour à l’atelier
@@ -137,16 +133,6 @@ export function ManageStoryPage() {
           Pour publier : un classement, les avertissements, et au moins un chapitre publié (
           {publishedChapters ? 'c’est fait' : 'pas encore'}).
         </p>
-      )}
-      {actions.publishStory.isError && (
-        <Alert tone="danger" live title="L’histoire n’a pas pu être publiée.">
-          <p>{actions.publishStory.error.message}</p>
-        </Alert>
-      )}
-      {actions.publishStory.isSuccess && (
-        <Alert tone="success" live title="Votre histoire est publiée.">
-          <p>Elle apparaît maintenant dans Explorer.</p>
-        </Alert>
       )}
 
       <details className={styles.details}>

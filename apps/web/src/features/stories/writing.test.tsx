@@ -18,6 +18,7 @@ const detail = (overrides: Record<string, unknown> = {}) => ({
   status: 'draft',
   completion: 'in_progress',
   majorWarnings: [],
+  contentWarnings: [],
   tags: ['urbain'],
   wordCount: 0,
   chapterCount: 0,

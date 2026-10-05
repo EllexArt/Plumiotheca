@@ -16,6 +16,7 @@ const summary = {
   status: 'published',
   completion: 'in_progress',
   majorWarnings: ['character_death'],
+  contentWarnings: [],
   tags: ['fantasy'],
   wordCount: 1200,
   chapterCount: 2,

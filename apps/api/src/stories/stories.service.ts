@@ -55,6 +55,7 @@ export class StoriesService {
         rating: input.rating ?? null,
         completion: input.completion ?? 'in_progress',
         majorWarnings: input.majorWarnings ?? null,
+        contentWarnings: input.contentWarnings ?? [],
       });
       const storyId = (identifiers[0] as { id: string }).id;
       if (input.tags) await this.tags.setStoryTags(tx, storyId, input.tags);
@@ -236,6 +237,7 @@ export class StoriesService {
       status: own ? s.status : 'published',
       completion: s.completion,
       majorWarnings: s.majorWarnings,
+      contentWarnings: s.contentWarnings,
       tags: labels.get(s.id) ?? [],
       wordCount: s.wordCount,
       chapterCount: counts.get(s.id) ?? 0,

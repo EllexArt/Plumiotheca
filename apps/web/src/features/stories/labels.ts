@@ -1,4 +1,4 @@
-import type { Completion, MajorWarning, Rating } from '@plumiotheca/contracts';
+import type { Completion, ContentWarning, MajorWarning, Rating } from '@plumiotheca/contracts';
 
 export const ratingLabel: Record<Rating, string> = {
   general: 'Tout public',
@@ -59,3 +59,18 @@ export function coverColors(id: string): { background: string; color: string } {
   const [background, color] = covers[hash % covers.length]!;
   return { background, color };
 }
+
+export const contentWarningLabel: Record<ContentWarning, string> = {
+  grief: 'deuil',
+  suicide: 'suicide',
+  self_harm: 'automutilation',
+  eating_disorder: 'troubles alimentaires',
+  addiction: 'addictions',
+  abuse: 'maltraitance',
+  harassment: 'harcèlement',
+  discrimination: 'discriminations',
+};
+
+/** Avertissements facultatifs lisibles ; null si aucun. */
+export const contentWarningsText = (warnings: ContentWarning[]): string | null =>
+  warnings.length ? warnings.map((w) => contentWarningLabel[w]).join(', ') : null;

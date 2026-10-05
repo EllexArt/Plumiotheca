@@ -56,6 +56,10 @@ export const routes: RouteObject[] = [
               { path: 'ecrire/nouvelle', lazy: lazyPage(writing, 'NewStoryPage') },
               { path: 'ecrire/histoires/:storyId', lazy: lazyPage(writing, 'ManageStoryPage') },
               {
+                path: 'ecrire/histoires/:storyId/publier',
+                lazy: lazyPage(() => import('../features/stories/PublishPage'), 'PublishStoryPage'),
+              },
+              {
                 path: 'ecrire/histoires/:storyId/chapitres/:chapterId',
                 lazy: lazyPage(
                   () => import('../features/editor/ChapterEditorPage'),

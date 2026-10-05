@@ -140,6 +140,7 @@ describe('page de l’éditeur', () => {
             status: 'draft',
             completion: 'in_progress',
             majorWarnings: [],
+            contentWarnings: [],
             tags: [],
             wordCount: 0,
             chapterCount: 0,

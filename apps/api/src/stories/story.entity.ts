@@ -1,4 +1,10 @@
-import { Completion, MajorWarning, Rating, StoryStatus } from '@plumiotheca/contracts';
+import {
+  Completion,
+  ContentWarning,
+  MajorWarning,
+  Rating,
+  StoryStatus,
+} from '@plumiotheca/contracts';
 import {
   Check,
   Column,
@@ -70,6 +76,16 @@ export class Story {
     nullable: true,
   })
   majorWarnings!: MajorWarning[] | null;
+
+  /** Avertissements facultatifs (liste fine) ; jamais NULL. */
+  @Column({
+    type: 'enum',
+    enum: ContentWarning.options,
+    enumName: 'content_warning',
+    array: true,
+    default: '{}',
+  })
+  contentWarnings!: ContentWarning[];
 
   /** Total des chapitres publiés, recalculé à la publication. */
   @Column({ type: 'integer', default: 0 })
