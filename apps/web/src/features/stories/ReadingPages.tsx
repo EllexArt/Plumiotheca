@@ -71,7 +71,9 @@ function StoryTags({ story }: { story: StorySummary }) {
       ) : null}
       {story.contentWarnings.length ? (
         <li>
-          <Tag kind="warning">Aussi : {contentWarningsText(story.contentWarnings)}</Tag>
+          <Tag kind="warning">
+            Autres avertissements : {contentWarningsText(story.contentWarnings)}
+          </Tag>
         </li>
       ) : null}
       {story.tags.map((tag) => (

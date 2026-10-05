@@ -66,3 +66,18 @@
     position: static;
   }
 }
+
+/* Aperçu sans lien : pas d'effet de survol qui ferait croire à une carte cliquable. */
+.previewCard:hover {
+  border-color: var(--color-border);
+  box-shadow: none;
+}
+
+.done:focus {
+  outline: none;
+}
+
+.done:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}

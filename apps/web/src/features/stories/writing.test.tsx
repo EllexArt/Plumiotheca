@@ -100,6 +100,8 @@ describe('atelier : informations d’une histoire', () => {
     );
     await userEvent.click(screen.getByRole('radio', { name: /Tout public/ }));
     await userEvent.click(screen.getByRole('checkbox', { name: 'Aucun avertissement majeur' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'harcèlement' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'deuil' }));
     await userEvent.type(screen.getByRole('textbox', { name: /Tags/ }), 'fantasy, nuit');
     await userEvent.click(screen.getByRole('button', { name: 'Créer l’histoire' }));
     expect(
@@ -109,6 +111,8 @@ describe('atelier : informations d’une histoire', () => {
       title: 'Lucioles',
       rating: 'general',
       majorWarnings: [],
+      // Ordre de la liste, pas des clics.
+      contentWarnings: ['grief', 'harassment'],
       tags: ['fantasy', 'nuit'],
     });
   });
@@ -120,7 +124,8 @@ describe('atelier : informations d’une histoire', () => {
       if (url === `/api/histoires/${STORY}` && init.method === 'PATCH') {
         return { body: detail({ rating: 'teen' }) };
       }
-      if (url === `/api/histoires/${STORY}`) return { body: detail() };
+      if (url === `/api/histoires/${STORY}`)
+        return { body: detail({ contentWarnings: ['addiction'] }) };
     });
     renderApp(`/ecrire/histoires/${STORY}`);
     await userEvent.click(await screen.findByText(/Modifier les informations/));
@@ -128,6 +133,8 @@ describe('atelier : informations d’une histoire', () => {
       'Les jardins suspendus',
     );
     expect(screen.getByRole('checkbox', { name: 'Aucun avertissement majeur' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'addictions' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'deuil' })).not.toBeChecked();
     await userEvent.click(screen.getByRole('radio', { name: /Ado/ }));
     await userEvent.click(screen.getByRole('button', { name: 'Enregistrer les informations' }));
     expect(await screen.findByText('Informations enregistrées.')).toBeInTheDocument();

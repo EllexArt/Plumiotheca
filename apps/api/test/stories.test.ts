@@ -104,7 +104,7 @@ describe('histoires', () => {
     const res = await ctx.http
       .patch(`/api/histoires/${story.id}`)
       .set(...bearer(jwt))
-      .send({ contentWarnings: ['grief', 'addiction'] })
+      .send({ contentWarnings: ['addiction', 'grief'] })
       .expect(200);
     expect(StoryDetail.parse(res.body).contentWarnings).toEqual(['grief', 'addiction']);
     const list = await ctx.http.get('/api/histoires').expect(200);

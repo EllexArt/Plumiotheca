@@ -5,7 +5,7 @@ import {
   Rating,
   type StoryDetail,
 } from '@plumiotheca/contracts';
-import { useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent } from 'react';
 import { Button } from '../../shared/ui/Button';
 import { Alert } from '../../shared/ui/Feedback';
 import { Checkbox, RadioGroup, TextArea, TextField } from '../../shared/ui/Field';
@@ -21,7 +21,7 @@ const SPECIFIC = MajorWarning.options.filter((w) => w !== 'unspecified');
  * Avertissements majeurs (§5 ter, charte 4.1) : un choix actif. « Aucun » se coche
  * volontairement ; sans aucun choix, l'histoire ne peut pas encore être publiée (null).
  */
-function readWarnings(form: FormData): { value: MajorWarning[] | null; error?: string } {
+export function readWarnings(form: FormData): { value: MajorWarning[] | null; error?: string } {
   const none = form.get('aucunAvertissement') === 'on';
   const unspecified = form.get('nonPrecise') === 'on';
   const specific = form.getAll('warnings') as MajorWarning[];
@@ -84,6 +84,7 @@ export function StoryFields({
   errors: Errors;
 }) {
   const warnings = story?.majorWarnings ?? null;
+  const id = useId();
   return (
     <>
       <RadioGroup
@@ -98,9 +99,9 @@ export function StoryFields({
           hint: ratingHint[r],
         }))}
       />
-      <fieldset className={styles.fieldset}>
+      <fieldset className={styles.fieldset} aria-describedby={`${id}-majeurs`}>
         <legend className={styles.legend}>Avertissements majeurs</legend>
-        <p className={styles.meta}>
+        <p id={`${id}-majeurs`} className={styles.meta}>
           À renseigner pour publier : cochez ceux qui s’appliquent, ou « aucun avertissement majeur
           ».
         </p>
@@ -108,6 +109,7 @@ export function StoryFields({
           name="aucunAvertissement"
           label="Aucun avertissement majeur"
           defaultChecked={warnings !== null && warnings.length === 0}
+          error={errors.majorWarnings}
         />
         {SPECIFIC.map((w) => (
           <Checkbox
@@ -123,12 +125,11 @@ export function StoryFields({
           label="Je préfère ne pas préciser"
           hint="Les personnes qui lisent seront prévenues que des avertissements ne sont pas précisés."
           defaultChecked={warnings?.includes('unspecified')}
-          error={errors.majorWarnings}
         />
       </fieldset>
-      <fieldset className={styles.fieldset}>
+      <fieldset className={styles.fieldset} aria-describedby={`${id}-autres`}>
         <legend className={styles.legend}>Autres avertissements (facultatif)</legend>
-        <p className={styles.meta}>
+        <p id={`${id}-autres`} className={styles.meta}>
           Pour que les personnes qui lisent puissent éviter un sujet difficile pour elles.
         </p>
         <div className={styles.choices}>

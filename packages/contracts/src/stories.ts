@@ -51,7 +51,9 @@ const Warnings = z
 const ContentWarnings = z
   .array(ContentWarning)
   .max(ContentWarning.options.length)
-  .refine((w) => new Set(w).size === w.length, { message: 'Avertissement en double' });
+  .refine((w) => new Set(w).size === w.length, { message: 'Avertissement en double' })
+  // Toujours dans l'ordre de la liste : même affichage quel que soit l'ordre des clics.
+  .transform((w) => ContentWarning.options.filter((o) => w.includes(o)));
 
 /** Nouvelle histoire : toujours un brouillon ; classement et avertissements à choisir avant publication. */
 export const NewStory = z.strictObject({

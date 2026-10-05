@@ -1,15 +1,17 @@
-import type {
-  ContentWarning,
-  MajorWarning,
-  NewStory,
-  Rating,
-  StoryDetail,
+import {
+  handleKey,
+  type ContentWarning,
+  type MajorWarning,
+  type Rating,
+  type StoryDetail,
+  type UpdateStory,
 } from '@plumiotheca/contracts';
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router';
 import { Button, ButtonLink } from '../../shared/ui/Button';
 import { Alert, Loading, Tag } from '../../shared/ui/Feedback';
 import { Page } from '../../shared/ui/Page';
+import { useMyAccount } from '../account/api';
 import { useStory, useWriterActions } from './api';
 import {
   completionLabel,
@@ -19,11 +21,17 @@ import {
   ratingLabel,
   warningsText,
 } from './labels';
-import { focusFirstError, readStoryForm, StoryFields, type Errors } from './StoryForm';
+import {
+  focusFirstError,
+  readStoryForm,
+  readWarnings,
+  StoryFields,
+  type Errors,
+} from './StoryForm';
 import styles from './Publish.module.css';
 import reading from './Reading.module.css';
 
-/** Ce que la carte montrera, lu au fil de la saisie (même incomplet). */
+/** Ce que la carte montrera, lu au fil de la saisie (même si un autre champ est invalide). */
 interface Preview {
   rating: Rating | null;
   majorWarnings: MajorWarning[] | null;
@@ -31,17 +39,29 @@ interface Preview {
   tags: string[];
 }
 
-function readPreview(form: HTMLFormElement, story: StoryDetail): Preview {
-  const { values } = readStoryForm(form, story);
+/** Tags tels que l'API les gardera à peu près : un seul par forme, sans tenir compte de la casse. */
+function uniqueTags(tags: string[]): string[] {
+  const seen = new Set<string>();
+  return tags.filter((tag) => {
+    const key = tag.toLocaleLowerCase('fr').replace(/\s+/g, ' ');
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function readPreview(form: HTMLFormElement): Preview {
   const data = new FormData(form);
   return {
     rating: (data.get('rating') as Rating | null) || null,
-    majorWarnings: values?.majorWarnings ?? null,
+    majorWarnings: readWarnings(data).value,
     contentWarnings: data.getAll('contentWarnings') as ContentWarning[],
-    tags: String(data.get('tags') ?? '')
-      .split(',')
-      .map((t) => t.trim())
-      .filter(Boolean),
+    tags: uniqueTags(
+      String(data.get('tags') ?? '')
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean),
+    ),
   };
 }
 
@@ -58,13 +78,20 @@ function missingItems(preview: Preview, publishedChapters: number) {
 export function PublishStoryPage() {
   const { storyId = '' } = useParams();
   const story = useStory(storyId);
-  if (story.isPending) return <Loading label="Chargement de l’histoire…" />;
-  if (story.isError) {
+  const me = useMyAccount();
+  if (story.isPending || me.isPending) return <Loading label="Chargement de l’histoire…" />;
+  const handle = me.data?.handle;
+  const mine =
+    !!story.data && !!handle && handleKey(story.data.author.handle) === handleKey(handle);
+  // Données en cache : un rechargement en échec ne fait pas perdre la saisie.
+  if (!story.data || !mine) {
     return (
       <Page title="Histoire introuvable" width="narrow">
-        <Alert tone="danger" title="Cette histoire n’a pas pu être chargée.">
-          <p>{story.error.message}</p>
-        </Alert>
+        {story.isError && !story.data && (
+          <Alert tone="danger" title="Cette histoire n’a pas pu être chargée.">
+            <p>{story.error.message}</p>
+          </Alert>
+        )}
       </Page>
     );
   }
@@ -74,6 +101,9 @@ export function PublishStoryPage() {
 function PublishForm({ story }: { story: StoryDetail }) {
   const actions = useWriterActions(story.id);
   const formRef = useRef<HTMLFormElement>(null);
+  const done = useRef<HTMLDivElement>(null);
+  // Garde synchrone : un double clic n'envoie qu'une fois.
+  const sending = useRef(false);
   const [preview, setPreview] = useState<Preview>({
     rating: story.rating,
     majorWarnings: story.majorWarnings,
@@ -88,22 +118,29 @@ function PublishForm({ story }: { story: StoryDetail }) {
   const missing = missingItems(preview, publishedChapters);
   const ready = missing.length === 0;
   const pending = actions.updateStory.isPending || actions.publishStory.isPending;
-  const failure = actions.updateStory.error ?? actions.publishStory.error;
   const back = `/ecrire/histoires/${story.id}`;
 
+  // Après la publication, le formulaire disparaît : le focus va au message (WCAG 2.4.3).
+  useEffect(() => {
+    if (published) done.current?.focus();
+  }, [published]);
+
   const update = () => {
-    if (formRef.current) setPreview(readPreview(formRef.current, story));
+    if (formRef.current) setPreview(readPreview(formRef.current));
+    // Nouvelle saisie : les anciens messages d'échec ne sont plus vrais.
+    if (actions.updateStory.isError) actions.updateStory.reset();
+    if (actions.publishStory.isError) actions.publishStory.reset();
   };
 
   const publish = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (pending) return;
+    if (sending.current) return;
     const form = event.currentTarget;
     setTried(true);
     const read = readStoryForm(form, story);
     const next: Errors = { ...read.errors };
     if (!preview.rating) next.rating ??= 'Choisissez un classement pour publier.';
-    if (preview.majorWarnings === null) {
+    if (readWarnings(new FormData(form)).value === null) {
       next.majorWarnings ??=
         'Cochez les avertissements qui s’appliquent, « aucun avertissement majeur » ou « je préfère ne pas préciser ».';
     }
@@ -113,13 +150,18 @@ function PublishForm({ story }: { story: StoryDetail }) {
       return;
     }
     if (!ready || !read.values) return;
-    const values: NewStory = read.values;
+    // Seulement ce que cette page montre : un titre modifié ailleurs n'est pas écrasé.
+    const { rating, majorWarnings, contentWarnings, tags } = read.values;
+    const values: UpdateStory = { rating, majorWarnings, contentWarnings, tags };
+    sending.current = true;
     try {
       await actions.updateStory.mutateAsync(values);
       await actions.publishStory.mutateAsync();
       setPublished(true);
     } catch {
       // Message affiché depuis l'état des mutations.
+    } finally {
+      sending.current = false;
     }
   };
 
@@ -129,12 +171,14 @@ function PublishForm({ story }: { story: StoryDetail }) {
         title={published ? 'Votre histoire est publiée' : 'Histoire déjà publiée'}
         width="narrow"
       >
-        <Alert tone="success" live={published} title={`« ${story.title} » est en ligne.`}>
-          <p>
-            Elle apparaît dans Explorer. Vous pourrez modifier ses informations ou la repasser en
-            brouillon à tout moment.
-          </p>
-        </Alert>
+        <div ref={done} tabIndex={-1} className={styles.done}>
+          <Alert tone="success" live={published} title={`« ${story.title} » est en ligne.`}>
+            <p>
+              Elle apparaît dans Explorer. Vous pourrez modifier ses informations ou la repasser en
+              brouillon à tout moment.
+            </p>
+          </Alert>
+        </div>
         <div className={styles.links}>
           <ButtonLink to={`/histoires/${story.id}`} variant="primary">
             Voir comme une lectrice ou un lecteur
@@ -201,9 +245,18 @@ function PublishForm({ story }: { story: StoryDetail }) {
               <p>Il manque encore {missing.join(', ')}.</p>
             </Alert>
           )}
-          {failure && (
-            <Alert tone="danger" live title="L’histoire n’a pas pu être publiée.">
-              <p>{failure.message}</p>
+          {actions.updateStory.isError && (
+            <Alert tone="danger" live title="Les informations n’ont pas été enregistrées.">
+              <p>{actions.updateStory.error.message} L’histoire reste un brouillon.</p>
+            </Alert>
+          )}
+          {actions.publishStory.isError && (
+            <Alert
+              tone="danger"
+              live
+              title="Informations enregistrées, mais l’histoire n’a pas pu être publiée."
+            >
+              <p>{actions.publishStory.error.message}</p>
             </Alert>
           )}
 
@@ -251,7 +304,7 @@ function PreviewCard({
   const majors = warningsText(preview.majorWarnings);
   const others = contentWarningsText(preview.contentWarnings);
   return (
-    <article className={reading.card}>
+    <article className={`${reading.card} ${styles.previewCard}`}>
       <div className={reading.spine} style={coverColors(story.id)} aria-hidden="true">
         {story.title}
       </div>
@@ -279,11 +332,11 @@ function PreviewCard({
           ) : null}
           {others && (
             <li>
-              <Tag kind="warning">Aussi : {others}</Tag>
+              <Tag kind="warning">Autres avertissements : {others}</Tag>
             </li>
           )}
-          {preview.tags.map((tag, i) => (
-            <li key={`${i}-${tag}`}>
+          {preview.tags.map((tag) => (
+            <li key={tag}>
               <Tag>{tag}</Tag>
             </li>
           ))}

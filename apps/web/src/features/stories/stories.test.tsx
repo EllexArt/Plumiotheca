@@ -16,7 +16,7 @@ const summary = {
   status: 'published',
   completion: 'in_progress',
   majorWarnings: ['character_death'],
-  contentWarnings: [],
+  contentWarnings: ['grief', 'addiction'],
   tags: ['fantasy'],
   wordCount: 1200,
   chapterCount: 2,
@@ -76,6 +76,7 @@ describe('lecture', () => {
     );
     expect(within(list).getByText('Tout public')).toBeInTheDocument();
     expect(within(list).getByText(/mort d’un personnage/)).toBeInTheDocument();
+    expect(within(list).getByText('Autres avertissements : deuil, addictions')).toBeInTheDocument();
     await expectAccessible();
   });
 
