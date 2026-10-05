@@ -159,12 +159,32 @@ jobs:
       - name: Démarrer l'infrastructure
         run: pnpm infra:up
 
+      - name: Version de Playwright
+        id: playwright
+        run: echo "version=$(pnpm --filter @plumiotheca/e2e exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+      # Navigateur en cache (clé : version de Playwright) ; ses dépendances système
+      # s'installent à chaque fois (rapide, hors cache).
+      - name: Cache du navigateur
+        id: navigateur
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
       - name: Navigateur Chromium
+        if: steps.navigateur.outputs.cache-hit != 'true'
         run: pnpm --filter @plumiotheca/e2e exec playwright install --with-deps chromium
+
+      - name: Dépendances système du navigateur
+        if: steps.navigateur.outputs.cache-hit == 'true'
+        run: pnpm --filter @plumiotheca/e2e exec playwright install-deps chromium
 
       - name: Parcours
         run: pnpm e2e
 
+      # Les traces contiennent l'identifiant et le mot de passe du compte jetable (supprimé
+      # à la fin, Keycloak éphémère du runner) : sans risque, mais gardées peu de temps.
       - name: Rapport et traces en cas d'échec
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -173,7 +193,7 @@ jobs:
           path: |
             e2e/playwright-report
             e2e/test-results
-          retention-days: 7
+          retention-days: 3
 
       - name: Journaux de l'infrastructure en cas d'échec
         if: failure()

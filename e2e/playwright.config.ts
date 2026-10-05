@@ -8,9 +8,8 @@ const CI = !!process.env.CI;
 
 export default defineConfig({
   testDir: 'tests',
-  globalSetup: './global-setup.ts',
-  globalTeardown: './global-teardown.ts',
-  // Un seul parcours, qui dépend de l'état de la base : pas de parallélisme.
+  // Un seul parcours, qui dépend de l'état de la base : pas de parallélisme. Une nouvelle
+  // tentative repart d'un compte neuf (fixture « account »).
   workers: 1,
   forbidOnly: CI,
   retries: CI ? 1 : 0,
@@ -32,6 +31,8 @@ export default defineConfig({
       cwd: '..',
       url: `${API}/api/health`,
       env: { DB_MIGRATE_ON_START: 'true' },
+      // Journaux de l'API visibles en CI (erreurs 500, migrations).
+      stdout: CI ? 'pipe' : 'ignore',
       reuseExistingServer: !CI,
       timeout: 180_000,
     },

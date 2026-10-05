@@ -29,7 +29,7 @@ pnpm dev:api        # API seule (nécessite pnpm infra:up)
 pnpm dev:web        # application web
 ```
 
-Parcours de bout en bout (Playwright, `e2e/`) : écrire, publier, puis lire sans compte, avec axe-core. L'infrastructure doit tourner ; l'API et le web sont lancés s'ils ne tournent pas déjà, et un compte Keycloak jetable est créé puis supprimé.
+Parcours de bout en bout (Playwright, `e2e/`) : écrire, publier, puis lire sans compte, avec axe-core. L'infrastructure doit tourner ; l'API et le web sont lancés s'ils ne tournent pas déjà, et un compte Keycloak jetable est créé puis supprimé. L'histoire de test est supprimée à la fin (le profil reste, en attendant la suppression de compte). Attention : une API ou un web déjà lancé est réutilisé, même s'il vient d'un autre worktree.
 
 ```bash
 pnpm --filter @plumiotheca/e2e exec playwright install chromium   # une fois
