@@ -12,10 +12,14 @@ vi.mock('react-oidc-context', () => ({
 afterEach(() => {
   cleanup();
   localStorage.clear();
+  sessionStorage.clear();
   vi.unstubAllGlobals();
   vi.clearAllMocks();
   signedOut();
 });
+
+// jsdom n'implémente pas scrollTo (retour en haut à chaque page).
+window.scrollTo = () => {};
 
 // jsdom n'implémente pas matchMedia (thème du système, mouvement réduit).
 if (!window.matchMedia) {

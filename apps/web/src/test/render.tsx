@@ -32,7 +32,8 @@ export function signedOut() {
   auth.user = null;
 }
 
-type Handler = (url: string, init: RequestInit) => { status?: number; body?: unknown } | undefined;
+type Reply = { status?: number; body?: unknown } | undefined;
+type Handler = (url: string, init: RequestInit) => Reply | Promise<Reply>;
 
 /** Fausse API : chaque appel passe par `handler` ; les appels sont gardés pour les vérifier. */
 export function mockApi(handler: Handler) {
@@ -47,17 +48,17 @@ export function mockApi(handler: Handler) {
         body: init.body ? JSON.parse(String(init.body)) : undefined,
         auth: headers.Authorization,
       });
-      const reply = handler(input, init) ?? {
-        status: 404,
-        body: { type: 'introuvable', title: 'Introuvable', status: 404 },
-      };
-      const status = reply.status ?? 200;
-      return Promise.resolve(
-        new Response(status === 204 ? null : JSON.stringify(reply.body ?? {}), {
+      return Promise.resolve(handler(input, init)).then((answer) => {
+        const reply = answer ?? {
+          status: 404,
+          body: { type: 'introuvable', title: 'Introuvable', status: 404 },
+        };
+        const status = reply.status ?? 200;
+        return new Response(status === 204 ? null : JSON.stringify(reply.body ?? {}), {
           status,
           headers: { 'Content-Type': 'application/json' },
-        }),
-      );
+        });
+      });
     }),
   );
   return calls;

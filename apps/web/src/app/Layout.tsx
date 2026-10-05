@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { useAuth } from 'react-oidc-context';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useMyAccount } from '../features/account/api';
+import { clearBackups } from '../features/editor/backup';
 import { Button, ButtonLink } from '../shared/ui/Button';
 import { Alert } from '../shared/ui/Feedback';
 import { AccountGate } from './AccountGate';
@@ -60,6 +61,7 @@ function AccountMenu() {
 
   const signout = () => {
     queryClient.clear();
+    clearBackups();
     void auth.signoutRedirect();
   };
 
@@ -183,7 +185,8 @@ export function Layout() {
       first.current = false;
       return;
     }
-    main.current?.focus();
+    window.scrollTo(0, 0);
+    main.current?.focus({ preventScroll: true });
   }, [location.pathname]);
 
   return (

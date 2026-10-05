@@ -67,7 +67,6 @@ describe('validation', () => {
     ['un attribut inconnu', doc({ type: 'paragraph', attrs: { id: 'para-00001', onclick: 'x' } })],
     ['un titre de niveau 1', doc({ type: 'heading', attrs: { level: 1 }, content: [] })],
     ['un forçage du sens d’écriture', doc(p('texte \u202Eesrevni'))],
-    ['un isolat bidirectionnel', doc(p('texte \u2066isolé\u2069'))],
     ['une demi-paire Unicode isolée', doc(p('a\uD800b'))],
     [
       'un élément de liste qui commence par une liste',
@@ -231,5 +230,12 @@ describe('retouches', () => {
   it('le document de départ est valide pour l’éditeur', () => {
     expect(emptyDocument().content).toHaveLength(1);
     expect(parseDocument(emptyDocument()).success).toBe(true);
+  });
+});
+
+describe('textes mêlant arabe ou hébreu et français (décision 52)', () => {
+  it('les isolats bidirectionnels sont acceptés, le forçage du sens d’écriture non', () => {
+    expect(parseDocument(doc(p('Il a dit \u2067مرحبا\u2069 en souriant.'))).success).toBe(true);
+    expect(parseDocument(doc(p('texte \u202Eesrevni'))).success).toBe(false);
   });
 });
