@@ -66,6 +66,10 @@ export class AccountService {
     return this.db.getRepository(User);
   }
 
+  find(keycloakId: string): Promise<User | null> {
+    return this.users.findOneBy({ keycloakId });
+  }
+
   /** Compte de l'application lié à cet identifiant Keycloak, créé à la première requête. */
   async ensure(keycloakId: string): Promise<User> {
     const existing = await this.users.findOneBy({ keycloakId });

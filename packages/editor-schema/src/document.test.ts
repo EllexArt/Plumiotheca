@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  emptyDocument,
   ensureBlockIds,
   MAX_CHARACTERS,
   parseDocument,
@@ -66,6 +67,7 @@ describe('validation', () => {
     ['un attribut inconnu', doc({ type: 'paragraph', attrs: { id: 'para-00001', onclick: 'x' } })],
     ['un titre de niveau 1', doc({ type: 'heading', attrs: { level: 1 }, content: [] })],
     ['un forçage du sens d’écriture', doc(p('texte \u202Eesrevni'))],
+    ['un isolat bidirectionnel', doc(p('texte \u2066isolé\u2069'))],
     ['une demi-paire Unicode isolée', doc(p('a\uD800b'))],
     [
       'un élément de liste qui commence par une liste',
@@ -210,5 +212,24 @@ describe('langues', () => {
   it('compte les mots du chinois, du japonais et du thaï', () => {
     expect(wordCount(data(parseDocument(doc(p('我喜欢读书。')))), 'zh')).toBeGreaterThan(1);
     expect(wordCount(data(parseDocument(doc(p('ฉันชอบอ่านหนังสือ')))), 'th')).toBeGreaterThan(1);
+  });
+});
+
+describe('retouches', () => {
+  it('le message du forçage du sens d’écriture ne recopie pas le caractère', () => {
+    const result = parseDocument(doc(p('a\u202Eb')));
+    expect(result.success).toBe(false);
+    if (!result.success) expect(JSON.stringify(result.issues)).not.toMatch(/[\u202A-\u202E]/);
+  });
+
+  it('langue invalide ou en majuscules : pas d’exception', () => {
+    const chapter = data(parseDocument(doc(p('我喜欢读书。'))));
+    expect(() => wordCount(chapter, 'zh-!!')).not.toThrow();
+    expect(wordCount(chapter, 'ZH')).toBeGreaterThan(1);
+  });
+
+  it('le document de départ est valide pour l’éditeur', () => {
+    expect(emptyDocument().content).toHaveLength(1);
+    expect(parseDocument(emptyDocument()).success).toBe(true);
   });
 });
