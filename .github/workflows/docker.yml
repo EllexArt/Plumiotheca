@@ -15,7 +15,7 @@ on:
       - '.dockerignore'
       - '.github/workflows/docker.yml'
   push:
-    branches: [main]
+    branches: [main, develop]
     paths:
       - 'apps/api/**'
       - 'packages/**'
