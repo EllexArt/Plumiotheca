@@ -4,6 +4,7 @@ import {
   HANDLE_MAX,
   HANDLE_MIN,
   HANDLE_RELEASE_DAYS,
+  handleKey,
   UpdateProfile,
 } from '@plumiotheca/contracts';
 import { useState, type FormEvent } from 'react';
@@ -14,7 +15,6 @@ import { Alert, Loading } from '../../shared/ui/Feedback';
 import { TextArea, TextField } from '../../shared/ui/Field';
 import { Page } from '../../shared/ui/Page';
 import prose from '../../shared/ui/Prose.module.css';
-import { usePublicStories } from '../stories/api';
 import { formatDate } from '../stories/labels';
 import { StoryList } from '../stories/ReadingPages';
 import { useChangeHandle, useMyAccount, usePublicProfile, useUpdateProfile } from './api';
@@ -33,16 +33,21 @@ function Paragraphs({ text }: { text: string }) {
   );
 }
 
+/** Focus sur le premier champ en erreur, une fois les messages affichés. */
+function focusFirstInvalid(form: HTMLFormElement) {
+  requestAnimationFrame(() => form.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
+}
+
 /** Profil public (#26) : présentation et histoires publiées. Aucune donnée d'identité. */
 export function PublicProfilePage() {
   const { handle = '' } = useParams();
   const profile = usePublicProfile(handle);
-  const stories = usePublicStories({ pseudonyme: handle });
   const me = useMyAccount();
 
   if (profile.isPending) return <Loading label="Chargement du profil…" />;
   if (profile.isError) {
-    const missing = profile.error instanceof ApiError && profile.error.status === 404;
+    // 400 : pseudonyme impossible (lien mal tapé), donc introuvable lui aussi.
+    const missing = profile.error instanceof ApiError && [400, 404].includes(profile.error.status);
     return (
       <Page
         title={missing ? 'Profil introuvable' : 'Chargement impossible'}
@@ -59,8 +64,7 @@ export function PublicProfilePage() {
   }
   const p = profile.data;
   const name = p.displayName ?? `@${p.handle}`;
-  const noStories = stories.isSuccess && !stories.data.pages[0]?.items.length;
-  const mine = me.data?.handle?.toLowerCase() === p.handle.toLowerCase();
+  const mine = !!me.data?.handle && handleKey(me.data.handle) === handleKey(p.handle);
 
   return (
     <Page
@@ -93,8 +97,11 @@ export function PublicProfilePage() {
       )}
       <section aria-labelledby="histoires" className={styles.section}>
         <h2 id="histoires">Histoires</h2>
-        <StoryList filters={{ pseudonyme: p.handle }} label={`Histoires de ${name}`} />
-        {noStories && <p>Aucune histoire publiée pour l’instant.</p>}
+        <StoryList
+          filters={{ pseudonyme: p.handle }}
+          label={`Histoires de ${name}`}
+          empty={<p>Aucune histoire publiée pour l’instant.</p>}
+        />
       </section>
     </Page>
   );
@@ -155,7 +162,8 @@ function ProfileForm({
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (update.isPending) return;
-    const form = new FormData(event.currentTarget);
+    const element = event.currentTarget;
+    const form = new FormData(element);
     // Champ vidé : la valeur est effacée (null).
     const value = (name: string) => String(form.get(name) ?? '').trim() || null;
     const parsed = UpdateProfile.safeParse({
@@ -169,16 +177,31 @@ function ProfileForm({
         next[String(issue.path[0]) as keyof ProfileErrors] ??= issue.message;
       }
       setErrors(next);
+      focusFirstInvalid(element);
       return;
     }
     setErrors({});
-    update.mutate(parsed.data);
+    update.mutate(parsed.data, {
+      onError: (e) => {
+        // Nom réservé : l'erreur va sous « Nom affiché », pas dans une alerte générale.
+        if (e instanceof ApiError && e.type === 'nom-reserve') {
+          setErrors({ displayName: e.message });
+          focusFirstInvalid(element);
+        }
+      },
+    });
   };
+  // Nouvelle saisie : l'ancien résultat (« Profil enregistré », erreur) n'est plus vrai.
+  const edited = () => {
+    if (update.isSuccess || update.isError) update.reset();
+  };
+  const general =
+    update.isError && !(update.error instanceof ApiError && update.error.type === 'nom-reserve');
 
   return (
     <section aria-labelledby="profil-public" className={styles.section}>
       <h2 id="profil-public">Profil public</h2>
-      <form className={styles.form} onSubmit={submit} noValidate>
+      <form className={styles.form} onSubmit={submit} onChange={edited} noValidate>
         <TextField
           label="Nom affiché"
           name="displayName"
@@ -203,9 +226,9 @@ function ProfileForm({
           defaultValue={initial.bio ?? ''}
           error={errors.bio}
         />
-        {update.isError && (
+        {general && (
           <Alert tone="danger" live title="Le profil n’a pas été enregistré.">
-            <p>{update.error.message}</p>
+            <p>{update.error?.message}</p>
           </Alert>
         )}
         {update.isSuccess && <Alert tone="success" live title="Profil enregistré." />}
@@ -233,15 +256,20 @@ function HandleForm({
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (change.isPending || locked) return;
-    const parsed = Handle.safeParse(new FormData(event.currentTarget).get('handle'));
-    if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message);
-      return;
-    }
-    if (parsed.data === current) {
-      setError('C’est déjà votre pseudonyme.');
-      return;
+    if (change.isPending) return;
+    const element = event.currentTarget;
+    const refuse = (message: string | undefined) => {
+      setError(message);
+      focusFirstInvalid(element);
+    };
+    const parsed = Handle.safeParse(new FormData(element).get('handle'));
+    if (!parsed.success) return refuse(parsed.error.issues[0]?.message);
+    if (parsed.data === current) return refuse('C’est déjà votre pseudonyme.');
+    // Pendant le délai, seules la casse et les accents peuvent changer (comme dans l'API).
+    if (locked && changeableFrom && handleKey(parsed.data) !== handleKey(current)) {
+      return refuse(
+        `Prochain changement possible le ${formatDate(changeableFrom)}. D’ici là, seules les majuscules et les accents peuvent changer.`,
+      );
     }
     setError(undefined);
     change.mutate(
@@ -263,26 +291,33 @@ function HandleForm({
         Il change une fois tous les {HANDLE_CHANGE_DAYS} jours au plus. L’ancien reste réservé
         pendant {HANDLE_RELEASE_DAYS} jours, pour que personne ne puisse se faire passer pour vous.
       </p>
-      {locked && changeableFrom && (
-        <Alert
-          tone="info"
-          title={`Prochain changement possible le ${formatDate(changeableFrom)}.`}
-        />
-      )}
       <form className={styles.form} onSubmit={submit} noValidate>
         <TextField
           label="Nouveau pseudonyme"
           name="handle"
-          hint={`De ${HANDLE_MIN} à ${HANDLE_MAX} caractères : lettres (accents compris), chiffres, point, tiret et tiret bas.`}
+          hint={
+            <>
+              De {HANDLE_MIN} à {HANDLE_MAX} caractères : lettres (accents compris), chiffres,
+              point, tiret et tiret bas.
+              {locked && changeableFrom && (
+                <>
+                  {' '}
+                  <strong>
+                    Prochain changement possible le {formatDate(changeableFrom)} ; d’ici là, seules
+                    les majuscules et les accents peuvent changer.
+                  </strong>
+                </>
+              )}
+            </>
+          }
           defaultValue={current}
           autoComplete="nickname"
           autoCapitalize="none"
           spellCheck={false}
-          readOnly={locked}
           error={error}
         />
         <div>
-          <Button type="submit" variant="secondary" pending={change.isPending || locked}>
+          <Button type="submit" variant="secondary" pending={change.isPending}>
             {change.isPending ? 'Changement…' : 'Changer de pseudonyme'}
           </Button>
         </div>

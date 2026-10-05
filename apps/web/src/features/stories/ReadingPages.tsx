@@ -1,6 +1,7 @@
 import type { StorySummary } from '@plumiotheca/contracts';
 import { parseDocument } from '@plumiotheca/editor-schema';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
+import { useAuth } from 'react-oidc-context';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { ApiError } from '../../shared/api/client';
 import { Button, ButtonLink } from '../../shared/ui/Button';
@@ -113,7 +114,16 @@ function StoryCard({ story }: { story: StorySummary }) {
 }
 
 /** Liste d'histoires paginée (« Voir plus ») ; le focus va à la première histoire ajoutée. */
-export function StoryList({ filters, label }: { filters: StoryFilters; label: string }) {
+export function StoryList({
+  filters,
+  label,
+  empty = null,
+}: {
+  filters: StoryFilters;
+  label: string;
+  /** Affiché quand il n'y a aucune histoire. */
+  empty?: ReactNode;
+}) {
   const stories = usePublicStories(filters);
   // Rang de la première histoire ajoutée par « Voir plus » (focus une fois affichée).
   const focusFrom = useRef<number | null>(null);
@@ -126,16 +136,21 @@ export function StoryList({ filters, label }: { filters: StoryFilters; label: st
     list.current?.querySelectorAll<HTMLAnchorElement>('h2 a')[from]?.focus();
     focusFrom.current = null;
   }, [items.length]);
+  // Autres filtres ou page suivante en échec : plus de focus à déplacer.
+  useEffect(() => {
+    focusFrom.current = null;
+  }, [filters.tag, filters.pseudonyme, stories.isFetchNextPageError]);
 
   if (stories.isPending) return <Loading label="Chargement des histoires…" />;
-  if (stories.isError) {
+  // Seule la première page en échec remplace la liste ; « Voir plus » en échec la garde.
+  if (stories.isError && !stories.data) {
     return (
       <Alert tone="danger" live title="Les histoires n’ont pas pu être chargées.">
         <p>{stories.error.message}</p>
       </Alert>
     );
   }
-  if (!items.length) return null;
+  if (!items.length) return <>{empty}</>;
   return (
     <>
       <ul className={styles.grid} aria-label={label} ref={list}>
@@ -145,6 +160,11 @@ export function StoryList({ filters, label }: { filters: StoryFilters; label: st
           </li>
         ))}
       </ul>
+      {stories.isFetchNextPageError && (
+        <Alert tone="danger" live title="Les histoires suivantes n’ont pas pu être chargées.">
+          <p>{stories.error?.message} Vous pouvez réessayer avec le bouton ci-dessous.</p>
+        </Alert>
+      )}
       {stories.hasNextPage && (
         <div>
           <Button
@@ -209,6 +229,7 @@ export function ExplorePage() {
 export function StoryPage() {
   const { storyId = '' } = useParams();
   const story = useStory(storyId);
+  const auth = useAuth();
   usePageTitle(story.data?.title ?? 'Histoire');
 
   if (story.isPending) return <Loading label="Chargement de l’histoire…" />;
@@ -216,8 +237,8 @@ export function StoryPage() {
   const s = story.data;
   const published = s.chapters.filter((c) => c.status === 'published');
   const first = published[0];
-  // Dernier chapitre ouvert sur cet appareil, s'il est toujours publié.
-  const lastId = lastChapter(s.id);
+  // Dernier chapitre ouvert sur cet appareil (comptes connectés), s'il est toujours publié.
+  const lastId = auth.isAuthenticated ? lastChapter(s.id) : null;
   const resumeAt = published.findIndex((c) => c.id === lastId);
 
   return (
@@ -306,9 +327,10 @@ export function ReaderPage() {
   const chapter = useChapter(storyId, chapterId);
   const article = useRef<HTMLElement>(null);
   const opened = chapter.isSuccess;
+  const signedIn = useAuth().isAuthenticated;
   useEffect(() => {
-    if (opened) rememberChapter(storyId, chapterId);
-  }, [opened, storyId, chapterId]);
+    if (opened && signedIn) rememberChapter(storyId, chapterId);
+  }, [opened, signedIn, storyId, chapterId]);
   const title = chapter.data
     ? `${chapter.data.title || `Chapitre ${chapter.data.number}`} — ${story.data?.title ?? ''}`
     : 'Chapitre';

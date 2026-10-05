@@ -190,6 +190,14 @@ export function Layout() {
   const location = useLocation();
   const main = useRef<HTMLElement>(null);
   const first = useRef(true);
+  const auth = useAuth();
+  const signedOut = !auth.isLoading && !auth.isAuthenticated;
+
+  // Sans session (visite sans compte, session expirée, déconnexion ailleurs) : pas
+  // d'historique de lecture sur l'appareil (décision 54).
+  useEffect(() => {
+    if (signedOut) forgetReadings();
+  }, [signedOut]);
 
   useEffect(() => {
     if (first.current) {

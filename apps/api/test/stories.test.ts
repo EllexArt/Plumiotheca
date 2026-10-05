@@ -279,6 +279,9 @@ describe('histoires', () => {
     expect(await titles('FANTASY')).toEqual(['Autre']);
     expect(await titles('inconnu')).toEqual([]);
     await ctx.http.get('/api/histoires?tag=').expect(400);
+    // Un brouillon avec le même tag reste invisible.
+    await newStory(ctx, jwt, { title: 'Brouillon', tags: ['slow burn'] });
+    expect(await titles('Slow Burn')).toEqual(['Amour lent']);
   });
 
   it('les histoires d’un compte en cours de suppression disparaissent du public', async () => {
