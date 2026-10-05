@@ -5,6 +5,7 @@ import type { Request } from 'express';
 import type { AuthUser } from '../auth/auth-user.js';
 import { ApiProblem } from '../common/problem.js';
 import type { User } from '../users/user.entity.js';
+import { IS_PUBLIC } from '../auth/decorators.js';
 import { ALLOWED_STEPS } from './account.decorators.js';
 import { accountStep } from './account-step.js';
 import { AccountService, AGE_LOCKED_MESSAGE } from './account.service.js';
@@ -28,15 +29,21 @@ export class AccountGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request & { user?: AuthUser; account?: User }>();
-    if (!req.user) return true; // route publique
+    const targets = [context.getHandler(), context.getClass()];
+    if (this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, targets)) {
+      // Route publique : on rattache le compte s'il est prêt, sans jamais refuser.
+      if (req.user) {
+        const account = await this.accounts.find(req.user.id);
+        if (account && accountStep(account) === 'ready') req.account = account;
+      }
+      return true;
+    }
+    if (!req.user) return true;
     const account = await this.accounts.ensure(req.user.id);
     req.account = account;
     const step = accountStep(account);
     if (step === 'ready') return true;
-    const allowed = this.reflector.getAllAndOverride<AccountStep[]>(ALLOWED_STEPS, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const allowed = this.reflector.getAllAndOverride<AccountStep[]>(ALLOWED_STEPS, targets);
     if (allowed?.includes(step)) return true;
     const [type, detail] = REFUSALS[step];
     throw new ApiProblem(HttpStatus.FORBIDDEN, detail, type);

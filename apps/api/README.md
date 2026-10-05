@@ -50,6 +50,14 @@ pnpm --filter @plumiotheca/api typecheck
 - `PATCH /api/moi/compte/profil` : nom affiché, pronoms, présentation.
 - `GET /api/pseudonymes/:handle` (public) : profil public, sans identifiant, âge ni e-mail ; `GET /api/pseudonymes/:handle/disponibilite`.
 
+## Histoires et chapitres
+
+- **Visibilité** (une seule règle, `src/stories/story-access.ts`) : le public ne voit que les histoires publiées dont le compte est actif et complet ; la personne qui écrit voit les siennes, brouillons compris, y compris sur les routes publiques si elle envoie son jeton. Invisible pour vous : 404 (l'existence ne fuite pas) ; visible mais pas à vous : 403 pour toute modification.
+- `GET /api/histoires` (public) : histoires publiées, les plus récentes d'abord, pagination par curseur (`apres`, `limite`), filtres `langue`, `classement`, `exclure` (avertissements majeurs), `pseudonyme`. Jamais le texte des chapitres.
+- `POST /api/histoires`, `PATCH /api/histoires/:id` (liste blanche des champs, jamais d'identifiant, d'autrice ou auteur, de statut ni de compteur), `DELETE`, `POST …/publication` (classement, avertissements et un chapitre publié exigés), `POST …/depublication`, `GET /api/moi/histoires`.
+- Chapitres : `POST /api/histoires/:id/chapitres` (position choisie par le serveur), `PUT …/chapitres/ordre` (ordre complet, appliqué d'un coup), `PATCH`/`DELETE …/chapitres/:chapitre`, `GET`/`PUT …/brouillon` (document validé par `@plumiotheca/editor-schema`, identifiants de blocs complétés, 409 `brouillon-modifie` si la version est dépassée, 30 sauvegardes par minute au plus), `POST …/publication` (révision figée, dans une transaction), `GET …/chapitres/:chapitre` (public : version publiée).
+- Un chapitre adressé via une autre histoire que la sienne répond 404 (faille C2).
+
 ## Configuration
 
 Validée au démarrage par `src/config/env.ts` : l'API s'arrête avec la liste des variables en cause (sans leur valeur).

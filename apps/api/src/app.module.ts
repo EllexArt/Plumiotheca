@@ -15,6 +15,7 @@ import type { Config } from './config/env.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './health/health.module.js';
 import { MeModule } from './me/me.module.js';
+import { StoriesModule } from './stories/stories.module.js';
 
 export interface AppOptions {
   /** Sortie des journaux (tests) ; la sortie standard par défaut. */
@@ -39,6 +40,7 @@ export class AppModule {
         HealthModule,
         MeModule,
         AccountModule,
+        StoriesModule,
       ],
       providers: [
         // Ordre des gardes : limitation de débit, puis authentification et rôles.
