@@ -258,6 +258,53 @@ describe('histoires', () => {
     await ctx.http.get('/api/histoires?apres=nimporte-quoi').expect(400);
   });
 
+  it('filtre par tag : même normalisation que les tags (casse, accents, espaces)', async () => {
+    const ctx = await start();
+    const jwt = await readyToken(ctx.app);
+    const a = await newStory(ctx, jwt, {
+      title: 'Amour lent',
+      rating: 'teen',
+      majorWarnings: [],
+      tags: ['Slow Burn'],
+    });
+    const b = await newStory(ctx, jwt, {
+      title: 'Autre',
+      rating: 'teen',
+      majorWarnings: [],
+      tags: ['fantasy'],
+    });
+    for (const story of [a, b]) {
+      const chapter = await newChapter(ctx, jwt, story.id);
+      await saveDraft(
+        ctx,
+        jwt,
+        story.id,
+        chapter.id,
+        doc(p('Texte.')),
+        chapter.draftVersion,
+      ).expect(200);
+      await ctx.http
+        .post(`/api/histoires/${story.id}/chapitres/${chapter.id}/publication`)
+        .set(...bearer(jwt))
+        .expect(201);
+      await ctx.http
+        .post(`/api/histoires/${story.id}/publication`)
+        .set(...bearer(jwt))
+        .expect(201);
+    }
+    const titles = async (tag: string) =>
+      StoryPage.parse(
+        (await ctx.http.get(`/api/histoires?tag=${encodeURIComponent(tag)}`).expect(200)).body,
+      ).items.map((s) => s.title);
+    expect(await titles('slow  burn')).toEqual(['Amour lent']);
+    expect(await titles('FANTASY')).toEqual(['Autre']);
+    expect(await titles('inconnu')).toEqual([]);
+    await ctx.http.get('/api/histoires?tag=').expect(400);
+    // Un brouillon avec le même tag reste invisible.
+    await newStory(ctx, jwt, { title: 'Brouillon', tags: ['slow burn'] });
+    expect(await titles('Slow Burn')).toEqual(['Amour lent']);
+  });
+
   it('les histoires d’un compte en cours de suppression disparaissent du public', async () => {
     const ctx = await start();
     const sub = randomUUID();

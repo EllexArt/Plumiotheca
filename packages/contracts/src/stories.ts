@@ -130,6 +130,8 @@ export const StoryQuery = z.strictObject({
     .optional(),
   /** Histoires d'une autrice ou d'un auteur (pseudonyme). */
   pseudonyme: z.string().max(30).optional(),
+  /** Histoires portant ce tag (même normalisation que les tags : casse, accents, tirets). */
+  tag: TagName.optional(),
 });
 export type StoryQuery = z.infer<typeof StoryQuery>;
 

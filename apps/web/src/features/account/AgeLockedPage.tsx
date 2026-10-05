@@ -3,6 +3,8 @@ import { useAuth } from 'react-oidc-context';
 import { Button } from '../../shared/ui/Button';
 import { Page } from '../../shared/ui/Page';
 import prose from '../../shared/ui/Prose.module.css';
+import { clearBackups } from '../editor/backup';
+import { forgetReadings } from '../stories/progress';
 
 /** Moins de 15 ans déclarés (décisions 42 et 45) : compte fermé, supprimé sous 30 jours. */
 export function AgeLockedPage() {
@@ -30,6 +32,8 @@ export function AgeLockedPage() {
           variant="secondary"
           onClick={() => {
             queryClient.clear();
+            clearBackups();
+            forgetReadings();
             void auth.signoutRedirect();
           }}
         >

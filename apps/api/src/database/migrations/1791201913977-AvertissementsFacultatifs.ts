@@ -7,13 +7,17 @@ export class AvertissementsFacultatifs1791201913977 implements MigrationInterfac
     await queryRunner.query(`
             CREATE TYPE "public"."content_warning" AS ENUM(
                 'grief',
+                'violence',
                 'suicide',
                 'self_harm',
                 'eating_disorder',
                 'addiction',
                 'abuse',
                 'harassment',
-                'discrimination'
+                'discrimination',
+                'animal_harm',
+                'pregnancy_loss',
+                'medical'
             )
         `);
     await queryRunner.query(`

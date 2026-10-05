@@ -8,7 +8,7 @@ import {
   type NewStory,
   type UpdateStory,
 } from '@plumiotheca/contracts';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from 'react-oidc-context';
 import { z } from 'zod';
 import { useApi } from '../../shared/api/useApi';
@@ -23,13 +23,30 @@ export const storyKeys = {
     ['histoires', storyId, 'brouillons', chapterId] as const,
 };
 
-/** Dernières histoires publiées (liste publique, la plus récente d'abord). */
-export function usePublicStories() {
+/** Filtres de la liste publique. */
+export interface StoryFilters {
+  tag?: string | undefined;
+  pseudonyme?: string | undefined;
+}
+
+/**
+ * Histoires publiées, les plus récentes d'abord, par pages de 20 (curseur de l'API) :
+ * « Voir plus d'histoires » charge la suivante.
+ */
+export function usePublicStories(filters: StoryFilters = {}) {
   const api = useApi();
   const auth = useAuth();
-  return useQuery({
-    queryKey: [...storyKeys.public, auth.isAuthenticated],
-    queryFn: ({ signal }) => api(StoryPage, '/histoires?limite=50', { signal }),
+  return useInfiniteQuery({
+    queryKey: [...storyKeys.public, filters, auth.isAuthenticated],
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam, signal }) => {
+      const params = new URLSearchParams({ limite: '20' });
+      if (filters.tag) params.set('tag', filters.tag);
+      if (filters.pseudonyme) params.set('pseudonyme', filters.pseudonyme);
+      if (pageParam) params.set('apres', pageParam);
+      return api(StoryPage, `/histoires?${params}`, { signal });
+    },
+    getNextPageParam: (last) => last.nextCursor,
   });
 }
 

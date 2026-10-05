@@ -56,6 +56,10 @@ const pairs: [string, string][] = [
 ];
 /** Éléments d'interface (contour des champs, focus) : 3:1 (WCAG 1.4.11). */
 const ui = ['control-border', 'focus'];
+/** Éléments graphiques sur un fond précis : 3:1. */
+const uiPairs: [string, string][] = [
+  ['accent', 'sunken'], // barre de progression de lecture
+];
 
 describe.each(Object.entries(themes))('thème %s', (_, colors) => {
   const c = (name: string) => {
@@ -73,6 +77,10 @@ describe.each(Object.entries(themes))('thème %s', (_, colors) => {
   });
 
   it.each(ui.flatMap((u) => backgrounds.map((bg) => [u, bg])))('%s sur %s : 3:1', (u, bg) => {
+    expect(contrast(c(u), c(bg))).toBeGreaterThanOrEqual(3);
+  });
+
+  it.each(uiPairs)('%s sur %s : 3:1', (u, bg) => {
     expect(contrast(c(u), c(bg))).toBeGreaterThanOrEqual(3);
   });
 });

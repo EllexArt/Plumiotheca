@@ -41,6 +41,7 @@ export type MajorWarning = z.infer<typeof MajorWarning>;
  */
 export const ContentWarning = z.enum([
   'grief',
+  'violence',
   'suicide',
   'self_harm',
   'eating_disorder',
@@ -48,6 +49,9 @@ export const ContentWarning = z.enum([
   'abuse',
   'harassment',
   'discrimination',
+  'animal_harm',
+  'pregnancy_loss',
+  'medical',
 ]);
 export type ContentWarning = z.infer<typeof ContentWarning>;
 
