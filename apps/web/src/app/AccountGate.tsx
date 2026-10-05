@@ -9,6 +9,9 @@ import styles from './AccountGate.module.css';
 
 /** Pages lisibles sans compte : elles restent ouvertes si le compte ne se charge pas. */
 const PUBLIC_PATHS = ['/', '/charte', '/design-system', '/connexion'];
+const PUBLIC_PREFIXES = ['/histoires/', '/profils/'];
+const isPublic = (path: string) =>
+  PUBLIC_PATHS.includes(path) || PUBLIC_PREFIXES.some((prefix) => path.startsWith(prefix));
 /** Pages de l'accueil : sans objet une fois le compte prêt. */
 const ONBOARDING_PATHS = Object.values(stepPath);
 
@@ -45,7 +48,7 @@ export function AccountGate({ children }: { children: ReactNode }) {
       </Alert>
     );
     // Les pages publiques restent lisibles, avec le message au-dessus.
-    if (PUBLIC_PATHS.includes(pathname)) {
+    if (isPublic(pathname)) {
       return (
         <>
           <div className={styles.banner}>{alert}</div>

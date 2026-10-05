@@ -1,7 +1,10 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
 import { auth, signedOut } from './render';
+
+// Pages chargées à la demande : le premier chargement peut dépasser une seconde.
+configure({ asyncUtilTimeout: 3000 });
 
 // Keycloak n'est pas joignable en test : la connexion est simulée (voir render.tsx).
 vi.mock('react-oidc-context', () => ({

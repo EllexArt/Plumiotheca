@@ -5,6 +5,7 @@ import { useAuth } from 'react-oidc-context';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useMyAccount } from '../features/account/api';
 import { clearBackups } from '../features/editor/backup';
+import { forgetReadings } from '../features/stories/progress';
 import { Button, ButtonLink } from '../shared/ui/Button';
 import { Alert } from '../shared/ui/Feedback';
 import { AccountGate } from './AccountGate';
@@ -62,6 +63,7 @@ function AccountMenu() {
   const signout = () => {
     queryClient.clear();
     clearBackups();
+    forgetReadings();
     void auth.signoutRedirect();
   };
 
@@ -76,6 +78,15 @@ function AccountMenu() {
       {/* Pas de portail : le menu reste dans l'en-tête (repère « banner »), comme le bouton. */}
       <DropdownMenu.Content className={styles.menu} align="end" sideOffset={8}>
         {handle && <DropdownMenu.Label className={styles.menuLabel}>@{handle}</DropdownMenu.Label>}
+        {handle && (
+          <DropdownMenu.Item asChild className={styles.menuItem}>
+            <Link to={`/profils/${encodeURIComponent(handle)}`}>Mon profil</Link>
+          </DropdownMenu.Item>
+        )}
+        <DropdownMenu.Item asChild className={styles.menuItem}>
+          <Link to="/compte">Paramètres du compte</Link>
+        </DropdownMenu.Item>
+        <DropdownMenu.Separator className={styles.separator} />
         <DropdownMenu.Label className={styles.menuLabel}>Thème</DropdownMenu.Label>
         <DropdownMenu.RadioGroup value={choice} onValueChange={(v) => setChoice(v as ThemeChoice)}>
           {themes.map(([value, label]) => (

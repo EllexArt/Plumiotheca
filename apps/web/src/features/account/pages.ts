@@ -2,3 +2,4 @@
 export { AgeLockedPage } from './AgeLockedPage';
 export { AcceptCharterPage, CharterPage } from './CharterPages';
 export { FirstVisitPage } from './FirstVisitPage';
+export { AccountSettingsPage, PublicProfilePage } from './ProfilePages';

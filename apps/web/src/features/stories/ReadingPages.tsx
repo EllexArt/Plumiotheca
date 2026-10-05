@@ -1,11 +1,12 @@
 import type { StorySummary } from '@plumiotheca/contracts';
 import { parseDocument } from '@plumiotheca/editor-schema';
-import { Link, useParams } from 'react-router';
+import { useEffect, useRef } from 'react';
+import { Link, useParams, useSearchParams } from 'react-router';
 import { ApiError } from '../../shared/api/client';
-import { ButtonLink } from '../../shared/ui/Button';
+import { Button, ButtonLink } from '../../shared/ui/Button';
 import { Alert, Loading, Tag } from '../../shared/ui/Feedback';
 import { Page, usePageTitle } from '../../shared/ui/Page';
-import { useChapter, usePublicStories, useStory } from './api';
+import { useChapter, usePublicStories, useStory, type StoryFilters } from './api';
 import { ChapterContent } from './ChapterContent';
 import {
   completionLabel,
@@ -16,7 +17,9 @@ import {
   ratingLabel,
   warningsText,
 } from './labels';
+import { lastChapter, rememberChapter } from './progress';
 import styles from './Reading.module.css';
+import { ReadingProgress } from './ReadingProgress';
 
 const missing = {
   story: {
@@ -54,6 +57,15 @@ function LoadError({ error, what }: { error: Error; what: keyof typeof missing }
   );
 }
 
+/** Nom de la personne qui a écrit, avec lien vers son profil public. */
+function AuthorLink({ author }: { author: StorySummary['author'] }) {
+  return (
+    <Link to={`/profils/${encodeURIComponent(author.handle)}`}>
+      {author.displayName ?? `@${author.handle}`}
+    </Link>
+  );
+}
+
 function StoryTags({ story }: { story: StorySummary }) {
   const warnings = warningsText(story.majorWarnings);
   return (
@@ -70,7 +82,9 @@ function StoryTags({ story }: { story: StorySummary }) {
       ) : null}
       {story.tags.map((tag) => (
         <li key={tag}>
-          <Tag>{tag}</Tag>
+          <Link to={`/?tag=${encodeURIComponent(tag)}`} className={styles.tagLink}>
+            <span className="visually-hidden">Histoires avec le tag</span> {tag}
+          </Link>
         </li>
       ))}
     </ul>
@@ -88,8 +102,8 @@ function StoryCard({ story }: { story: StorySummary }) {
           <Link to={`/histoires/${story.id}`}>{story.title}</Link>
         </h2>
         <p className={styles.meta}>
-          par {story.author.displayName ?? `@${story.author.handle}`} ·{' '}
-          {plural(story.chapterCount, 'chapitre')} · {completionLabel[story.completion]}
+          par <AuthorLink author={story.author} /> · {plural(story.chapterCount, 'chapitre')} ·{' '}
+          {completionLabel[story.completion]}
         </p>
         {story.summary && <p className={styles.summary}>{story.summary}</p>}
         <StoryTags story={story} />
@@ -98,37 +112,95 @@ function StoryCard({ story }: { story: StorySummary }) {
   );
 }
 
-/** Explorer : les dernières histoires publiées (sélections et recherche : #21, #82). */
+/** Liste d'histoires paginée (« Voir plus ») ; le focus va à la première histoire ajoutée. */
+export function StoryList({ filters, label }: { filters: StoryFilters; label: string }) {
+  const stories = usePublicStories(filters);
+  // Rang de la première histoire ajoutée par « Voir plus » (focus une fois affichée).
+  const focusFrom = useRef<number | null>(null);
+  const list = useRef<HTMLUListElement>(null);
+  const items = stories.data?.pages.flatMap((page) => page.items) ?? [];
+
+  useEffect(() => {
+    const from = focusFrom.current;
+    if (from === null || items.length <= from) return;
+    list.current?.querySelectorAll<HTMLAnchorElement>('h2 a')[from]?.focus();
+    focusFrom.current = null;
+  }, [items.length]);
+
+  if (stories.isPending) return <Loading label="Chargement des histoires…" />;
+  if (stories.isError) {
+    return (
+      <Alert tone="danger" live title="Les histoires n’ont pas pu être chargées.">
+        <p>{stories.error.message}</p>
+      </Alert>
+    );
+  }
+  if (!items.length) return null;
+  return (
+    <>
+      <ul className={styles.grid} aria-label={label} ref={list}>
+        {items.map((story) => (
+          <li key={story.id}>
+            <StoryCard story={story} />
+          </li>
+        ))}
+      </ul>
+      {stories.hasNextPage && (
+        <div>
+          <Button
+            variant="secondary"
+            pending={stories.isFetchingNextPage}
+            onClick={() => {
+              focusFrom.current = items.length;
+              void stories.fetchNextPage();
+            }}
+          >
+            {stories.isFetchingNextPage ? 'Chargement…' : 'Voir plus d’histoires'}
+          </Button>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Explorer (#21) : les dernières histoires publiées, filtrables par tag. */
 export function ExplorePage() {
-  const stories = usePublicStories();
+  const [params] = useSearchParams();
+  const tag = params.get('tag')?.trim() || undefined;
+  const stories = usePublicStories({ tag });
+  const empty = stories.isSuccess && !stories.data.pages[0]?.items.length;
   return (
     <Page
-      title="Explorer"
-      lead="Les dernières histoires publiées. Bientôt : des sélections composées par des lectrices et lecteurs, des autrices et auteurs, et l’équipe. Pas de fil choisi par un algorithme."
+      title={tag ? `Histoires avec le tag « ${tag} »` : 'Explorer'}
+      lead={
+        tag
+          ? undefined
+          : 'Les dernières histoires publiées. Bientôt : des sélections composées par des lectrices et lecteurs, des autrices et auteurs, et l’équipe. Pas de fil choisi par un algorithme.'
+      }
     >
-      {stories.isPending && <Loading label="Chargement des histoires…" />}
-      {stories.isError && (
-        <Alert tone="danger" live title="Les histoires n’ont pas pu être chargées.">
-          <p>{stories.error.message}</p>
-        </Alert>
+      {tag && (
+        <p>
+          <Link to="/">Voir toutes les histoires</Link>
+        </p>
       )}
-      {stories.data &&
-        (stories.data.items.length ? (
-          <ul className={styles.grid} aria-label="Dernières histoires publiées">
-            {stories.data.items.map((story) => (
-              <li key={story.id}>
-                <StoryCard story={story} />
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <div className={styles.empty}>
-            <p>Aucune histoire publiée pour l’instant. Et si vous écriviez la première ?</p>
-            <ButtonLink to="/ecrire" variant="primary">
-              Écrire une histoire
-            </ButtonLink>
-          </div>
-        ))}
+      <StoryList
+        filters={{ tag }}
+        label={tag ? `Histoires avec le tag ${tag}` : 'Dernières histoires publiées'}
+      />
+      {empty && (
+        <div className={styles.empty}>
+          {tag ? (
+            <p>Aucune histoire publiée avec ce tag pour l’instant.</p>
+          ) : (
+            <>
+              <p>Aucune histoire publiée pour l’instant. Et si vous écriviez la première ?</p>
+              <ButtonLink to="/ecrire" variant="primary">
+                Écrire une histoire
+              </ButtonLink>
+            </>
+          )}
+        </div>
+      )}
     </Page>
   );
 }
@@ -144,6 +216,9 @@ export function StoryPage() {
   const s = story.data;
   const published = s.chapters.filter((c) => c.status === 'published');
   const first = published[0];
+  // Dernier chapitre ouvert sur cet appareil, s'il est toujours publié.
+  const lastId = lastChapter(s.id);
+  const resumeAt = published.findIndex((c) => c.id === lastId);
 
   return (
     <div className={styles.storyPage}>
@@ -152,10 +227,20 @@ export function StoryPage() {
           <div className={styles.cover} style={coverColors(s.id)} aria-hidden="true">
             {s.title}
           </div>
-          {first && (
-            <ButtonLink to={`/histoires/${s.id}/chapitres/${first.id}`} variant="primary" wide>
-              Commencer la lecture
+          {resumeAt >= 0 ? (
+            <ButtonLink
+              to={`/histoires/${s.id}/chapitres/${published[resumeAt]!.id}`}
+              variant="primary"
+              wide
+            >
+              Reprendre au chapitre {resumeAt + 1}
             </ButtonLink>
+          ) : (
+            first && (
+              <ButtonLink to={`/histoires/${s.id}/chapitres/${first.id}`} variant="primary" wide>
+                Commencer la lecture
+              </ButtonLink>
+            )
           )}
         </div>
 
@@ -163,7 +248,7 @@ export function StoryPage() {
           <div>
             <h1 className={styles.storyTitle}>{s.title}</h1>
             <p className={styles.byline}>
-              par {s.author.displayName ?? `@${s.author.handle}`} · {completionLabel[s.completion]}
+              par <AuthorLink author={s.author} /> · {completionLabel[s.completion]}
               {s.publishedAt && <> · publiée le {formatDate(s.publishedAt)}</>}
             </p>
           </div>
@@ -198,10 +283,8 @@ export function StoryPage() {
               {published.map((chapter, i) => (
                 <li key={chapter.id}>
                   <Link to={`/histoires/${s.id}/chapitres/${chapter.id}`}>
-                    <span className={styles.tocNumber}>
-                      <span className="visually-hidden">Chapitre </span>
-                      {i + 1}
-                    </span>{' '}
+                    <span className="visually-hidden">Chapitre</span>{' '}
+                    <span className={styles.tocNumber}>{i + 1}</span>{' '}
                     <span className={styles.tocTitle}>{chapter.title || `Chapitre ${i + 1}`}</span>
                   </Link>
                 </li>
@@ -221,6 +304,11 @@ export function ReaderPage() {
   const { storyId = '', chapterId = '' } = useParams();
   const story = useStory(storyId);
   const chapter = useChapter(storyId, chapterId);
+  const article = useRef<HTMLElement>(null);
+  const opened = chapter.isSuccess;
+  useEffect(() => {
+    if (opened) rememberChapter(storyId, chapterId);
+  }, [opened, storyId, chapterId]);
   const title = chapter.data
     ? `${chapter.data.title || `Chapitre ${chapter.data.number}`} — ${story.data?.title ?? ''}`
     : 'Chapitre';
@@ -231,7 +319,8 @@ export function ReaderPage() {
   const c = chapter.data;
 
   return (
-    <article className={styles.reader}>
+    <article className={styles.reader} ref={article}>
+      <ReadingProgress target={article} />
       <p className={styles.crumb}>
         <Link to={`/histoires/${storyId}`}>{story.data?.title ?? 'Retour à l’histoire'}</Link>
         {' · '}
