@@ -12,6 +12,7 @@ import { handleKey } from '@plumiotheca/contracts';
 import { DataSource, type EntityManager } from 'typeorm';
 import { z } from 'zod';
 import { ApiProblem } from '../common/problem.js';
+import { normalizeTag } from '../tags/tag-normalize.js';
 import { TagsService } from '../tags/tags.service.js';
 import type { User } from '../users/user.entity.js';
 import { Chapter } from './chapter.entity.js';
@@ -161,6 +162,13 @@ export class StoriesService {
     }
     if (query.pseudonyme) {
       qb.andWhere('author.handle_key = :key', { key: handleKey(query.pseudonyme) });
+    }
+    if (query.tag) {
+      qb.andWhere(
+        `EXISTS (SELECT 1 FROM story_tags st JOIN tags t ON t.id = st.tag_id
+                 WHERE st.story_id = story.id AND t.normalized = :tag)`,
+        { tag: normalizeTag(query.tag) },
+      );
     }
     if (query.apres) {
       const [date, id] = decodeCursor(query.apres);

@@ -40,6 +40,7 @@ export const routes: RouteObject[] = [
           { path: 'connexion', element: <SigninCallbackPage /> },
           { path: 'histoires/:storyId', element: <StoryPage /> },
           { path: 'histoires/:storyId/chapitres/:chapterId', element: <ReaderPage /> },
+          { path: 'profils/:handle', lazy: lazyPage(account, 'PublicProfilePage') },
           { path: 'charte', lazy: lazyPage(account, 'CharterPage') },
           {
             path: 'design-system',
@@ -51,6 +52,7 @@ export const routes: RouteObject[] = [
               { path: 'bienvenue', lazy: lazyPage(account, 'FirstVisitPage') },
               { path: 'charte/accepter', lazy: lazyPage(account, 'AcceptCharterPage') },
               { path: 'compte-verrouille', lazy: lazyPage(account, 'AgeLockedPage') },
+              { path: 'compte', lazy: lazyPage(account, 'AccountSettingsPage') },
               { path: 'mes-lectures', element: <ReadingsPage /> },
               { path: 'ecrire', lazy: lazyPage(writing, 'WritePage') },
               { path: 'ecrire/nouvelle', lazy: lazyPage(writing, 'NewStoryPage') },
