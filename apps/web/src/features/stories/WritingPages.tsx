@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { Button, ButtonLink } from '../../shared/ui/Button';
 import { Alert, Loading, Tag } from '../../shared/ui/Feedback';
@@ -11,9 +11,24 @@ import styles from './Writing.module.css';
 
 const statusLabel = { draft: 'brouillon', published: 'publiée', archived: 'archivée' } as const;
 
-/** Atelier : mes histoires, brouillons compris. */
+/** Atelier : mes histoires, brouillons compris, par pages (« Voir plus »). */
 export function WritePage() {
   const stories = useMyStories();
+  const items = stories.data?.pages.flatMap((page) => page.items) ?? [];
+  // Rang de la première histoire ajoutée par « Voir plus » : le focus y va une fois affichée.
+  const focusFrom = useRef<number | null>(null);
+  const list = useRef<HTMLUListElement>(null);
+
+  useEffect(() => {
+    const from = focusFrom.current;
+    if (from === null || items.length <= from) return;
+    list.current?.querySelectorAll<HTMLAnchorElement>('h2 a')[from]?.focus();
+    focusFrom.current = null;
+  }, [items.length]);
+  useEffect(() => {
+    if (stories.isFetchNextPageError) focusFrom.current = null;
+  }, [stories.isFetchNextPageError]);
+
   return (
     <Page title="Écrire" lead="Votre atelier : vos histoires, publiées ou en brouillon.">
       <div>
@@ -22,15 +37,16 @@ export function WritePage() {
         </ButtonLink>
       </div>
       {stories.isPending && <Loading label="Chargement de vos histoires…" />}
-      {stories.isError && (
+      {/* Seule la première page en échec remplace la liste ; « Voir plus » en échec la garde. */}
+      {stories.isError && !stories.data && (
         <Alert tone="danger" live title="Vos histoires n’ont pas pu être chargées.">
           <p>{stories.error.message}</p>
         </Alert>
       )}
       {stories.data &&
-        (stories.data.length ? (
-          <ul className={styles.list} aria-label="Mes histoires">
-            {stories.data.map((story) => (
+        (items.length ? (
+          <ul className={styles.list} aria-label="Mes histoires" ref={list}>
+            {items.map((story) => (
               <li key={story.id} className={styles.row}>
                 <div>
                   <h2 className={styles.rowTitle}>
@@ -50,6 +66,25 @@ export function WritePage() {
         ) : (
           <p>Vous n’avez pas encore d’histoire. Lancez-vous !</p>
         ))}
+      {stories.isFetchNextPageError && (
+        <Alert tone="danger" live title="Les histoires suivantes n’ont pas pu être chargées.">
+          <p>{stories.error?.message} Vous pouvez réessayer avec le bouton ci-dessous.</p>
+        </Alert>
+      )}
+      {stories.hasNextPage && (
+        <div>
+          <Button
+            variant="secondary"
+            pending={stories.isFetchingNextPage}
+            onClick={() => {
+              focusFrom.current = items.length;
+              void stories.fetchNextPage();
+            }}
+          >
+            {stories.isFetchingNextPage ? 'Chargement…' : 'Voir plus d’histoires'}
+          </Button>
+        </div>
+      )}
     </Page>
   );
 }
