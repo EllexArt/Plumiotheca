@@ -176,6 +176,109 @@ describe('histoires', () => {
     expect(JSON.stringify(mine.body)).toContain(draft.title);
   });
 
+  it('« Mes histoires » : par curseur, la plus récemment modifiée d’abord, seulement les miennes', async () => {
+    const ctx = await start();
+    const jwt = await readyToken(ctx.app);
+    const other = await readyToken(ctx.app);
+    await newStory(ctx, other, { title: 'Pas à moi' });
+    const [a, b, c] = [
+      await newStory(ctx, jwt, { title: 'A' }),
+      await newStory(ctx, jwt, { title: 'B' }),
+      await newStory(ctx, jwt, { title: 'C' }),
+    ];
+    // Modifier A la fait remonter en tête.
+    await ctx.http
+      .patch(`/api/histoires/${a.id}`)
+      .set(...bearer(jwt))
+      .send({ summary: 'Retouchée.' })
+      .expect(200);
+    const page = async (query: string) =>
+      StoryPage.parse(
+        (
+          await ctx.http
+            .get(`/api/moi/histoires${query}`)
+            .set(...bearer(jwt))
+            .expect(200)
+        ).body,
+      );
+    const first = await page('?limite=2');
+    expect(first.items.map((s) => s.title)).toEqual(['A', 'C']);
+    expect(first.nextCursor).not.toBeNull();
+    const second = await page(`?limite=2&apres=${first.nextCursor}`);
+    expect(second.items.map((s) => s.title)).toEqual(['B']);
+    expect(second.nextCursor).toBeNull();
+    // Brouillons compris, statut réel visible.
+    expect(second.items[0]).toMatchObject({ id: b.id, status: 'draft' });
+    expect((await page('')).items.map((s) => s.id)).toEqual([a.id, c.id, b.id]);
+    await ctx.http
+      .get('/api/moi/histoires?apres=nimporte-quoi')
+      .set(...bearer(jwt))
+      .expect(400);
+    await ctx.http
+      .get('/api/moi/histoires?limite=500')
+      .set(...bearer(jwt))
+      .expect(400);
+  });
+
+  it('« Mes histoires » : dates enregistrées avec des microsecondes, aucune histoire perdue entre deux pages', async () => {
+    const ctx = await start();
+    const jwt = await readyToken(ctx.app);
+    const ids: string[] = [];
+    for (let i = 0; i < 5; i++) ids.push((await newStory(ctx, jwt, { title: `H${i}` })).id);
+    // Écriture SQL avec des microsecondes (comme now()) : stockées à la milliseconde.
+    await ctx.app
+      .get(DataSource)
+      .query(
+        `UPDATE stories SET updated_at = '2026-10-08T10:00:00.123000Z'::timestamptz + (random() * interval '900 microseconds') WHERE id = ANY($1)`,
+        [ids],
+      );
+    const seen: string[] = [];
+    let cursor: string | null = '';
+    while (cursor !== null) {
+      const res = StoryPage.parse(
+        (
+          await ctx.http
+            .get(`/api/moi/histoires?limite=2${cursor ? `&apres=${cursor}` : ''}`)
+            .set(...bearer(jwt))
+            .expect(200)
+        ).body,
+      );
+      seen.push(...res.items.map((s) => s.id));
+      cursor = res.nextCursor;
+    }
+    expect(seen.toSorted()).toEqual(ids.toSorted());
+  });
+
+  it('liste publique : dates de publication avec des microsecondes, aucune histoire perdue', async () => {
+    const ctx = await start();
+    const jwt = await readyToken(ctx.app);
+    const ids: string[] = [];
+    for (let i = 0; i < 4; i++) ids.push((await publishedStory(ctx, jwt)).story.id);
+    await ctx.app
+      .get(DataSource)
+      .query(
+        `UPDATE stories SET published_at = '2026-10-08T10:00:00.123000Z'::timestamptz + (random() * interval '900 microseconds') WHERE id = ANY($1)`,
+        [ids],
+      );
+    const { handle } = StoryDetail.parse(
+      (await ctx.http.get(`/api/histoires/${ids[0]}`).expect(200)).body,
+    ).author;
+    const seen: string[] = [];
+    let cursor: string | null = '';
+    while (cursor !== null) {
+      const res = StoryPage.parse(
+        (
+          await ctx.http
+            .get(`/api/histoires?pseudonyme=${handle}&limite=2${cursor ? `&apres=${cursor}` : ''}`)
+            .expect(200)
+        ).body,
+      );
+      seen.push(...res.items.map((s) => s.id));
+      cursor = res.nextCursor;
+    }
+    expect(seen.toSorted()).toEqual(ids.toSorted());
+  });
+
   it('un chapitre en brouillon d’une histoire publiée reste invisible', async () => {
     const ctx = await start();
     const owner = await readyToken(ctx.app);

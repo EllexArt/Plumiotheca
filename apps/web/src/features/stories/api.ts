@@ -4,13 +4,11 @@ import {
   SavedDraft,
   StoryDetail,
   StoryPage,
-  StorySummary,
   type NewStory,
   type UpdateStory,
 } from '@plumiotheca/contracts';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from 'react-oidc-context';
-import { z } from 'zod';
 import { useApi } from '../../shared/api/useApi';
 
 export const storyKeys = {
@@ -70,11 +68,18 @@ export function useChapter(storyId: string, chapterId: string) {
   });
 }
 
+/** Mes histoires (brouillons compris), par pages de 20, la plus récemment modifiée d'abord. */
 export function useMyStories() {
   const api = useApi();
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: storyKeys.mine,
-    queryFn: ({ signal }) => api(z.array(StorySummary), '/moi/histoires', { signal }),
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam, signal }) => {
+      const params = new URLSearchParams({ limite: '20' });
+      if (pageParam) params.set('apres', pageParam);
+      return api(StoryPage, `/moi/histoires?${params}`, { signal });
+    },
+    getNextPageParam: (last) => last.nextCursor,
   });
 }
 
