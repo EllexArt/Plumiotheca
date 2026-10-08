@@ -32,6 +32,8 @@ import { Chapter } from './chapter.entity.js';
 )
 @Check('stories_word_count_positive', `"word_count" >= 0`)
 @Index(['author', 'status'])
+// « Mes histoires » : la plus récemment modifiée d'abord.
+@Index('stories_mine', ['author', 'updatedAt', 'id'])
 // Liste publique : les plus récentes d'abord (parcouru à l'envers par PostgreSQL).
 @Index('stories_public_list', ['publishedAt', 'id'], { where: `"status" = 'published'` })
 export class Story {
@@ -94,12 +96,14 @@ export class Story {
   @OneToMany(() => Chapter, (chapter) => chapter.story)
   chapters!: Relation<Chapter[]>;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  // À la milliseconde : curseur de la liste publique (date JavaScript, sans microsecondes).
+  @Column({ type: 'timestamptz', precision: 3, nullable: true })
   publishedAt!: Date | null;
 
   @CreatedAt()
   createdAt!: Date;
 
-  @UpdatedAt()
+  // À la milliseconde : curseur de « Mes histoires ».
+  @UpdatedAt(3)
   updatedAt!: Date;
 }

@@ -160,7 +160,7 @@ Plumiotheca/
 - **Écriture concurrente** : chaque brouillon porte un numéro de version ; une sauvegarde sur une version dépassée renvoie 409 et l'éditeur propose de fusionner ou de comparer (aucune perte silencieuse entre co-autrices et co-auteurs).
 - **Tâches en arrière-plan** : file de tâches **pg-boss** (dans PostgreSQL, pas de Redis) pour l'indexation Meilisearch, le traitement des images, les e-mails groupés, la compaction des révisions et les suppressions de compte.
 - **Médias** : téléversement vers un espace temporaire, puis traitement asynchrone (vérification du type réel, refus des SVG, ré-encodage WebP/AVIF qui supprime les métadonnées) avant publication ; servis depuis un domaine séparé. Avatars et couvertures n'acceptent que des médias internes, jamais une URL externe.
-- **Pagination** par curseur sur toutes les listes.
+- **Pagination** par curseur sur toutes les listes (« Mes histoires » comprise, #138). Exception : le sommaire d'une histoire, renvoyé en entier avec sa fiche, borné à 2 000 chapitres (limite de l'API) ; il ne grossit qu'avec l'écriture de la personne.
 - **Migrations TypeORM** versionnées ; `synchronize` désactivé partout.
 - **Comptage des lectures** : une lecture unique par compte connecté et par fenêtre de temps ; pour les visiteurs non connectés, un hachage quotidien salé (adresse + jour) jamais conservé au-delà de la journée. Aucune empreinte de navigateur (traceur au sens de la CNIL).
 - **OpenAPI** générée depuis les contrats (conversion JSON Schema de zod), servie sur `/api/docs` hors production uniquement.

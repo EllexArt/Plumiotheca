@@ -15,6 +15,7 @@ import { Throttle } from '@nestjs/throttler';
 import {
   ChapterDraft,
   ChapterRead,
+  MyStoriesQuery,
   NewChapter,
   NewStory,
   ReorderChapters,
@@ -23,7 +24,6 @@ import {
   StoryDetail,
   StoryPage,
   StoryQuery,
-  StorySummary,
   UpdateChapter,
   UpdateStory,
 } from '@plumiotheca/contracts';
@@ -215,10 +215,13 @@ export class StoriesController {
 export class MyStoriesController {
   constructor(private readonly stories: StoriesService) {}
 
-  /** Mes histoires, brouillons compris. */
+  /** Mes histoires, brouillons compris, la plus récemment modifiée d'abord, par curseur. */
   @Get()
-  @ApiOkResponse({ standardSchema: z.array(StorySummary) })
-  mine(@CurrentAccount() account: User) {
-    return this.stories.mine(account);
+  @ApiOkResponse({ standardSchema: StoryPage })
+  mine(
+    @CurrentAccount() account: User,
+    @Query({ schema: MyStoriesQuery }) query: MyStoriesQuery,
+  ): Promise<StoryPage> {
+    return this.stories.mine(account, query);
   }
 }

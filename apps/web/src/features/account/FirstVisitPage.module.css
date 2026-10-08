@@ -14,3 +14,7 @@
   border: 1px solid var(--color-border);
   background: var(--color-surface);
 }
+
+.note {
+  color: var(--color-text-soft);
+}
