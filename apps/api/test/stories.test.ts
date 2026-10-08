@@ -220,12 +220,12 @@ describe('histoires', () => {
       .expect(400);
   });
 
-  it('« Mes histoires » : plusieurs modifications dans la même milliseconde, aucune perdue entre deux pages', async () => {
+  it('« Mes histoires » : dates enregistrées avec des microsecondes, aucune histoire perdue entre deux pages', async () => {
     const ctx = await start();
     const jwt = await readyToken(ctx.app);
     const ids: string[] = [];
     for (let i = 0; i < 5; i++) ids.push((await newStory(ctx, jwt, { title: `H${i}` })).id);
-    // Même date de modification à la milliseconde, microsecondes différentes.
+    // Écriture SQL avec des microsecondes (comme now()) : stockées à la milliseconde.
     await ctx.app
       .get(DataSource)
       .query(
@@ -240,6 +240,36 @@ describe('histoires', () => {
           await ctx.http
             .get(`/api/moi/histoires?limite=2${cursor ? `&apres=${cursor}` : ''}`)
             .set(...bearer(jwt))
+            .expect(200)
+        ).body,
+      );
+      seen.push(...res.items.map((s) => s.id));
+      cursor = res.nextCursor;
+    }
+    expect(seen.toSorted()).toEqual(ids.toSorted());
+  });
+
+  it('liste publique : dates de publication avec des microsecondes, aucune histoire perdue', async () => {
+    const ctx = await start();
+    const jwt = await readyToken(ctx.app);
+    const ids: string[] = [];
+    for (let i = 0; i < 4; i++) ids.push((await publishedStory(ctx, jwt)).story.id);
+    await ctx.app
+      .get(DataSource)
+      .query(
+        `UPDATE stories SET published_at = '2026-10-08T10:00:00.123000Z'::timestamptz + (random() * interval '900 microseconds') WHERE id = ANY($1)`,
+        [ids],
+      );
+    const { handle } = StoryDetail.parse(
+      (await ctx.http.get(`/api/histoires/${ids[0]}`).expect(200)).body,
+    ).author;
+    const seen: string[] = [];
+    let cursor: string | null = '';
+    while (cursor !== null) {
+      const res = StoryPage.parse(
+        (
+          await ctx.http
+            .get(`/api/histoires?pseudonyme=${handle}&limite=2${cursor ? `&apres=${cursor}` : ''}`)
             .expect(200)
         ).body,
       );

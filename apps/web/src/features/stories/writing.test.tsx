@@ -100,6 +100,8 @@ describe('atelier : mes histoires', () => {
       await screen.findByText('Les histoires suivantes n’ont pas pu être chargées.'),
     ).toBeInTheDocument();
     expect(within(list).getAllByRole('listitem')).toHaveLength(20);
+    // Une seule alerte, près du bouton : pas celle qui remplacerait la liste.
+    expect(screen.queryByText('Vos histoires n’ont pas pu être chargées.')).toBeNull();
 
     fail = false;
     await userEvent.click(screen.getByRole('button', { name: 'Voir plus d’histoires' }));

@@ -197,21 +197,21 @@ export class StoriesService {
 
   /** Mes histoires, brouillons compris, la plus récemment modifiée d'abord, par curseur. */
   async mine(account: User, query: MyStoriesQuery): Promise<StoryPage> {
-    // updated_at est posé par PostgreSQL (microsecondes) ; le curseur passe par une date
-    // JavaScript (millisecondes) : tri et comparaison à la milliseconde, sinon deux
-    // modifications dans la même milliseconde se perdraient d'une page à l'autre.
-    const updated = `date_trunc('milliseconds', story.updated_at)`;
+    // updated_at est stocké à la milliseconde (timestamptz(3)) : la date JavaScript du
+    // curseur le reproduit exactement, rien ne se perd entre deux pages (index stories_mine).
+    // Une histoire modifiée ailleurs (autre onglet) pendant qu'on parcourt les pages remonte
+    // en tête : elle n'apparaît qu'au prochain rechargement de la liste.
     const qb = this.db
       .getRepository(Story)
       .createQueryBuilder('story')
       .innerJoinAndSelect('story.author', 'author')
-      .where('author.id = :author', { author: account.id });
+      .where('story.author_id = :author', { author: account.id });
     if (query.apres) {
       const [date, id] = decodeCursor(query.apres);
-      qb.andWhere(`(${updated}, story.id) < (:date, :id)`, { date, id });
+      qb.andWhere('(story.updated_at, story.id) < (:date, :id)', { date, id });
     }
     const rows = await qb
-      .orderBy(updated, 'DESC')
+      .orderBy('story.updated_at', 'DESC')
       .addOrderBy('story.id', 'DESC')
       .limit(query.limite + 1)
       .getMany();

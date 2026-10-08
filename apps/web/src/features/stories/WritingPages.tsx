@@ -25,9 +25,13 @@ export function WritePage() {
     list.current?.querySelectorAll<HTMLAnchorElement>('h2 a')[from]?.focus();
     focusFrom.current = null;
   }, [items.length]);
+  // Chargement fini sans nouvelle histoire (échec, ou page vide) : plus de focus à déplacer,
+  // sinon il sauterait plus tard, à un ajout sans rapport.
+  const fetchingMore = stories.isFetchingNextPage;
   useEffect(() => {
-    if (stories.isFetchNextPageError) focusFrom.current = null;
-  }, [stories.isFetchNextPageError]);
+    const from = focusFrom.current;
+    if (!fetchingMore && from !== null && items.length <= from) focusFrom.current = null;
+  }, [fetchingMore, items.length]);
 
   return (
     <Page title="Écrire" lead="Votre atelier : vos histoires, publiées ou en brouillon.">
