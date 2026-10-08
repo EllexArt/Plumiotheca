@@ -222,8 +222,8 @@ for (const [i, e] of execs.entries()) {
 await kc.put(R, { browserFlow: FLOW });
 
 // 5 ter. « Mot de passe oublié » : jamais de réinitialisation du code TOTP par e-mail.
-//        Sinon, qui contrôle la boîte mail d'un modérateur enregistre son propre code.
-//        Une personne qui perd son appareil passe par un administrateur (décision 35).
+//        Sinon, qui contrôle la boîte mail d'une personne de l'équipe enregistre son propre
+//        code. Une personne qui perd son appareil passe par l'administration (décision 35).
 const RESET = 'reinitialisation-plumiotheca';
 if (!(await kc.get(`${R}/authentication/flows`)).some((f) => f.alias === RESET)) {
   await kc.post(`${R}/authentication/flows/${enc('reset credentials')}/copy`, { newName: RESET });
@@ -234,6 +234,62 @@ for (const e of await kc.get(`${R}/authentication/flows/${enc(RESET)}/executions
       ...e,
       requirement: 'DISABLED',
     });
+  }
+}
+//        Rôles d'équipe : « Mot de passe oublié » refusé, avant tout envoi d'e-mail (#125).
+//        Sinon le lien reçu ouvre une session où une action d'application
+//        (kc_action=CONFIGURE_TOTP) enregistre un second code : la boîte mail suffirait.
+for (const role of ['moderation', 'administration']) {
+  const alias = `Refus reinitialisation ${role}`;
+  let execs = await kc.get(`${R}/authentication/flows/${enc(RESET)}/executions`);
+  if (execs.some((e) => e.displayName === alias)) continue;
+  await kc.post(`${R}/authentication/flows/${enc(RESET)}/executions/flow`, {
+    alias,
+    type: 'basic-flow',
+    description: `Réinitialisation par l'administration pour le rôle ${role}`,
+    provider: 'registration-page-form',
+  });
+  execs = await kc.get(`${R}/authentication/flows/${enc(RESET)}/executions`);
+  const sub = execs.find((e) => e.displayName === alias);
+  await kc.put(`${R}/authentication/flows/${enc(RESET)}/executions`, {
+    ...sub,
+    requirement: 'CONDITIONAL',
+  });
+  await kc.post(`${R}/authentication/flows/${enc(alias)}/executions/execution`, {
+    provider: 'conditional-user-role',
+  });
+  await kc.post(`${R}/authentication/flows/${enc(alias)}/executions/execution`, {
+    provider: 'deny-access-authenticator',
+  });
+  const inner = await kc.get(`${R}/authentication/flows/${enc(alias)}/executions`);
+  for (const e of inner) {
+    await kc.put(`${R}/authentication/flows/${enc(alias)}/executions`, {
+      ...e,
+      requirement: 'REQUIRED',
+    });
+  }
+  const cond = inner.find((e) => e.providerId === 'conditional-user-role');
+  await kc.post(`${R}/authentication/executions/${cond.id}/config`, {
+    alias: `reinitialisation-role-${role}`,
+    config: { condUserRole: role, negate: 'false' },
+  });
+  const deny = inner.find((e) => e.providerId === 'deny-access-authenticator');
+  await kc.post(`${R}/authentication/executions/${deny.id}/config`, {
+    alias: `reinitialisation-refus-${role}`,
+    config: {
+      denyErrorMessage:
+        'Pour ce compte, la réinitialisation passe par l’administration de Plumiotheca.',
+    },
+  });
+  // Juste après le choix du compte (la condition a besoin de lui), avant l'envoi de l'e-mail.
+  for (;;) {
+    const top = (await kc.get(`${R}/authentication/flows/${enc(RESET)}/executions`)).filter(
+      (e) => e.level === 0,
+    );
+    const index = top.findIndex((e) => e.displayName === alias);
+    const chooseUser = top.findIndex((e) => e.providerId === 'reset-credentials-choose-user');
+    if (index <= chooseUser + 1) break;
+    await kc.post(`${R}/authentication/executions/${top[index].id}/raise-priority`);
   }
 }
 await kc.put(R, { resetCredentialsFlow: RESET });
