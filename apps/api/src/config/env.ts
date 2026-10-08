@@ -61,6 +61,11 @@ export const Env = z
     DB_CONNECT_RETRIES: z.coerce.number().int().min(0).max(30).default(5),
     /** Applique les migrations au démarrage (par défaut en développement seulement). */
     DB_MIGRATE_ON_START: z.enum(['true', 'false']).optional(),
+    /** File de tâches en arrière-plan (pg-boss) : active par défaut, sauf dans les tests. */
+    JOBS_ENABLED: z
+      .enum(['true', 'false'])
+      .optional()
+      .transform((v) => (v === undefined ? undefined : v === 'true')),
     /** Audience exigée dans les jetons (client Keycloak de l'API). */
     JWT_AUDIENCE: z.string().min(1).default('api'),
     /** Clients autorisés à appeler l'API (claim « azp »), séparés par des virgules. */

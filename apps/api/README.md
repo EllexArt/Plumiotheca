@@ -105,6 +105,30 @@ pnpm --filter @plumiotheca/api migration:check    # échoue si une migration man
 - Erreurs de PostgreSQL journalisées sans message ni pile (ils peuvent citer la valeur reçue) : code SQLSTATE, contrainte et table seulement.
 - Production : migrations lancées par une tâche unique avant le déploiement, pas au démarrage de chaque instance (TypeORM ne verrouille pas les migrations concurrentes, voir #67).
 
+## Tâches en arrière-plan
+
+File **pg-boss** dans la même base, schéma `pgboss` (créé et mis à jour par pg-boss, hors migrations TypeORM). Un module déclare ses tâches à l'initialisation :
+
+```ts
+onModuleInit() {
+  this.jobs.define<{ storyId: string }>({
+    name: 'indexer-histoire',
+    handle: (data) => this.index(data.storyId),
+    retryLimit: 3, // nouvelles tentatives, délai croissant (30 s, puis plus)
+    cron: '0 3 * * *', // facultatif : tâche planifiée (Europe/Paris)
+  });
+}
+```
+
+puis `jobs.send('indexer-histoire', { storyId })`.
+
+- Une tâche en échec est rejouée (délai croissant) ; les traitements doivent être **idempotents** (une tâche interrompue est rejouée). Une tâche à la fois par traitement.
+- Journal des échecs : nom, identifiant, tentative, type, code et emplacement de l'erreur ; **jamais les données de la tâche, ni le message ou la pile de l'erreur** (ils peuvent citer une valeur). pg-boss ne garde de son côté qu'une erreur générique.
+- Conservation : une tâche terminée (avec ses données) est supprimée après 7 jours.
+- Modifier `retryLimit` ou `cron` dans le code s'applique au démarrage suivant, files existantes comprises ; retirer `cron` retire la planification.
+- `JOBS_ENABLED` : active par défaut, désactivée dans les tests (un test l'active pour la vérifier). À l'arrêt, les tâches en cours ont 10 s pour finir, **avant** la fermeture de la base.
+- Production : pg-boss crée et met à jour son schéma au démarrage (verrou, plusieurs instances possibles) ; le rôle PostgreSQL de l'API doit donc avoir le droit `CREATE` sur la base. Chaque instance ouvre 4 connexions pour la file, en plus du pool de TypeORM.
+
 ## Image Docker
 
 Construite depuis la racine : `docker build -f apps/api/Dockerfile .` (aucune image publiée pour l'instant).

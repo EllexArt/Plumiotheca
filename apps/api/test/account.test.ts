@@ -211,6 +211,34 @@ describe('première visite', () => {
       .expect(200);
     expect(reserved.body).toEqual({ available: false });
   });
+
+  it('le pseudonyme vérifié n’apparaît pas dans les journaux', async () => {
+    const { http, logs } = await start();
+    const jwt = await token();
+    const handle = `secret-${unique()}`;
+    await http
+      .get(`/api/pseudonymes/${handle}/disponibilite`)
+      .set(...bearer(jwt))
+      .expect(200);
+    // Refus aussi (pseudonyme invalide) : le chemin passe par le journal des erreurs.
+    await http
+      .get(`/api/pseudonymes/${handle}%20!/disponibilite`)
+      .set(...bearer(jwt))
+      .expect(400);
+    // Variantes acceptées par le routeur : casse, barre finale.
+    for (const path of [
+      `/api/Pseudonymes/${handle}/Disponibilite`,
+      `/api/pseudonymes/${handle}/disponibilite/`,
+    ]) {
+      await http
+        .get(path)
+        .set(...bearer(jwt))
+        .expect(200);
+    }
+    const out = logs();
+    expect(out).toContain('/api/pseudonymes/[masqué]/disponibilite');
+    expect(out).not.toContain(handle);
+  });
 });
 
 describe('charte', () => {
