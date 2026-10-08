@@ -175,7 +175,9 @@ describe('première visite', () => {
       if (url.endsWith('/disponibilite')) return { body: { available: url.includes('elise2') } };
     });
     renderApp('/bienvenue');
-    const field = await screen.findByRole('textbox', { name: /Votre pseudonyme/ });
+    // La disponibilité n'est vérifiée qu'une fois l'âge choisi (15 ans ou plus).
+    await userEvent.click(await screen.findByRole('radio', { name: /18 ans ou plus/ }));
+    const field = screen.getByRole('textbox', { name: /Votre pseudonyme/ });
     await userEvent.type(field, 'elise');
     await userEvent.tab();
     const message = await screen.findByText('Ce pseudonyme est déjà pris. Essayez une variante.');
@@ -206,10 +208,10 @@ describe('première visite', () => {
     expect(field).toHaveFocus();
   });
 
-  it('moins de 15 ans : l’API refuse (403), la page d’explication s’affiche', async () => {
+  it('moins de 15 ans : ni pseudonyme ni charte, seule la réponse est envoyée ; page d’explication', async () => {
     signedIn();
     let step = 'first-visit';
-    mockApi((url, init) => {
+    const calls = mockApi((url, init) => {
       if (url === '/api/moi/compte') return { body: account({ step }) };
       if (url.endsWith('/disponibilite')) return { body: { available: true } };
       if (init.method === 'POST') {
@@ -218,8 +220,17 @@ describe('première visite', () => {
       }
     });
     renderApp('/bienvenue');
-    await fillFirstVisit(/Moins de 15 ans/, 'petit');
+    // Un pseudonyme tapé avant de choisir l'âge n'est pas envoyé.
+    await userEvent.type(await screen.findByRole('textbox', { name: /Votre pseudonyme/ }), 'petit');
+    await userEvent.click(screen.getByRole('radio', { name: /Moins de 15 ans/ }));
+    expect(screen.queryByRole('textbox', { name: /Votre pseudonyme/ })).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: /J’ai lu la charte/ })).toBeNull();
+    expect(screen.getByText(/nous ne gardons que votre réponse/)).toBeInTheDocument();
+    await expectAccessible();
+    await userEvent.click(screen.getByRole('button', { name: 'Commencer' }));
     expect(await screen.findByRole('heading', { level: 1, name: /À bientôt/ })).toBeInTheDocument();
+    expect(calls.find((c) => c.method === 'POST')?.body).toEqual({ age: 'under-15' });
+    expect(calls.some((c) => c.url.endsWith('/disponibilite'))).toBe(false);
     // Le message de l'API (autre registre) n'est pas affiché tel quel.
     expect(screen.queryByText(/Reviens quand tu auras/)).toBeNull();
   });
