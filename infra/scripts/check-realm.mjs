@@ -53,8 +53,13 @@ async function mailTo(address) {
   return null;
 }
 
-/** Parcours « mot de passe oublié » complet dans un navigateur, jusqu'au retour à l'application. */
-async function forgotPassword(username, email) {
+/**
+ * Parcours « mot de passe oublié » complet dans un navigateur, jusqu'au retour à
+ * l'application. `kcAction` : action d'application demandée dans l'URL (ex.
+ * CONFIGURE_TOTP, pour tenter d'enregistrer un code par la boîte mail). Sans e-mail
+ * reçu (refus), renvoie la page affichée et `mailed: false`.
+ */
+async function forgotPassword(username, email, kcAction) {
   const nav = browser();
   const verifier = randomBytes(32).toString('base64url');
   const auth = new URL(`${ISSUER}/protocol/openid-connect/auth`);
@@ -66,19 +71,25 @@ async function forgotPassword(username, email) {
     code_challenge: createHash('sha256').update(verifier).digest('base64url'),
     code_challenge_method: 'S256',
     state: randomBytes(8).toString('hex'),
+    ...(kcAction ? { kc_action: kcAction } : {}),
   });
   const page = await (await nav(auth)).text();
   const resetLink = page
     .match(/href="([^"]*reset-credentials[^"]*)"/)?.[1]
     ?.replaceAll('&amp;', '&');
   const resetPage = await (await nav(new URL(resetLink, ISSUER))).text();
-  await nav(formAction(resetPage, 'kc-reset-password-form'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ username }),
-  });
+  const sent = await follow(
+    nav,
+    await nav(formAction(resetPage, 'kc-reset-password-form'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ username }),
+    }),
+  );
+  const sentPage = await sent.current.text();
   const mail = await mailTo(email);
-  const link = mail?.Text.match(/https?:\/\/\S+action-token\S+/)?.[0];
+  if (!mail) return { page: sentPage, mailed: false };
+  const link = mail.Text.match(/https?:\/\/\S+action-token\S+/)?.[0];
   const { current } = await follow(nav, await nav(link));
   const html = await current.text();
   const update = formAction(html, 'kc-passwd-update-form');
@@ -266,31 +277,26 @@ try {
     check(ssoAmr.includes('otp'), `Reconnexion par la session : « otp » conservé (${ssoAmr})`);
   }
 
-  // « Mot de passe oublié » d'un modérateur équipé : pas de nouveau code TOTP par e-mail
-  // (sinon la boîte mail suffirait à prendre la place du second facteur).
+  // « Mot de passe oublié » d'une personne de l'équipe : refusé avant tout e-mail (#125).
+  // Sinon le lien reçu ouvre une session où kc_action=CONFIGURE_TOTP enregistre un second
+  // code : la boîte mail suffirait à prendre la place du second facteur.
   const [equippedUser] = await kc.get(`${R}/users?username=moderateur-equipe-${suffix}&exact=true`);
-  const reset = await forgotPassword(
-    `moderateur-equipe-${suffix}`,
-    `moderateur-equipe-${suffix}@exemple.localhost`,
-  );
-  const otpCredentials = (await kc.get(`${R}/users/${equippedUser.id}/credentials`)).filter(
-    (c) => c.type === 'otp',
-  );
-  check(
-    !/kc-totp-settings|totpSecret/i.test(reset.page ?? '') && otpCredentials.length === 1,
-    `Mot de passe oublié (modérateur équipé) : aucun nouveau code TOTP enregistrable (${otpCredentials.length} code)`,
-  );
-  if (reset.tokens?.access_token) {
-    const amr = decode(reset.tokens.access_token).amr ?? [];
-    check(!amr.includes('otp'), `Mot de passe oublié : session sans preuve de MFA ([${amr}])`);
+  for (const kcAction of [undefined, 'CONFIGURE_TOTP']) {
+    const reset = await forgotPassword(
+      `moderateur-equipe-${suffix}`,
+      `moderateur-equipe-${suffix}@exemple.localhost`,
+      kcAction,
+    );
+    const otpCredentials = (await kc.get(`${R}/users/${equippedUser.id}/credentials`)).filter(
+      (c) => c.type === 'otp',
+    );
+    check(
+      reset.mailed === false &&
+        /passe par l’administration/.test(reset.page ?? '') &&
+        otpCredentials.length === 1,
+      `Mot de passe oublié (équipe${kcAction ? `, ${kcAction}` : ''}) : refusé, aucun e-mail, aucun second code (${otpCredentials.length} code)`,
+    );
   }
-  // Un code TOTP ne sert qu'une fois : attendre la fenêtre de 30 s suivante.
-  await new Promise((r) => setTimeout(r, 31_000 - (Date.now() % 30_000)));
-  const again = await login(`moderateur-equipe-${suffix}`, reset.password, { otpSecret: secret });
-  check(
-    Boolean(again.tokens?.access_token) && again.otpPrompts === 1,
-    "Après réinitialisation : l'ancien code TOTP reste exigé",
-  );
 
   // admin-cli du realm : pas de mot de passe direct (contournement de la MFA).
   const cli = await fetch(`${ISSUER}/protocol/openid-connect/token`, {
@@ -311,23 +317,36 @@ try {
     'Modération : configuration de la double authentification exigée',
   );
 
-  // « Mot de passe oublié » : Keycloak ouvre une session sans passer par le code TOTP.
-  // Le jeton ne doit alors porter aucune preuve de MFA, et l'API la refuser (#120).
+  // Rôle d'équipe sans code TOTP encore enregistré : refusé aussi (sinon le lien reçu
+  // permettrait d'enregistrer le premier code à sa place).
   await createUser(`moderatrice-oubli-${suffix}`, ['moderation']);
   const forgot = await forgotPassword(
     `moderatrice-oubli-${suffix}`,
     `moderatrice-oubli-${suffix}@exemple.localhost`,
   );
-  if (forgot.tokens?.access_token) {
-    const amr = decode(forgot.tokens.access_token).amr ?? [];
+  check(
+    forgot.mailed === false && !forgot.tokens,
+    'Mot de passe oublié (modération sans code) : refusé, aucun e-mail',
+  );
+
+  // Hors équipe, « Mot de passe oublié » fonctionne ; la session ouverte ainsi ne porte
+  // aucune preuve de MFA, et l'API la refuse (#120).
+  await createUser(`lecteur-oubli-${suffix}`);
+  const ordinary = await forgotPassword(
+    `lecteur-oubli-${suffix}`,
+    `lecteur-oubli-${suffix}@exemple.localhost`,
+  );
+  check(
+    Boolean(ordinary.tokens?.access_token),
+    'Mot de passe oublié (compte ordinaire) : parcours abouti',
+  );
+  if (ordinary.tokens?.access_token) {
+    const amr = decode(ordinary.tokens.access_token).amr ?? [];
     check(!amr.includes('otp'), `Mot de passe oublié : aucune preuve de MFA (« amr » = [${amr}])`);
-    const session = await apiSession(forgot.tokens.access_token);
+    const session = await apiSession(ordinary.tokens.access_token);
     if (session) {
       check(session.body?.mfa === false, "Mot de passe oublié : l'API ne voit pas de MFA");
     }
-  } else {
-    // Si Keycloak bloque un jour ce parcours, c'est mieux : adapter alors cette vérification.
-    check(false, 'Mot de passe oublié : parcours non abouti (à examiner)');
   }
 
   // E-mails : Keycloak envoie via Mailpit (vérification d'adresse, mot de passe oublié).

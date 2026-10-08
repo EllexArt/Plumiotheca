@@ -2067,6 +2067,60 @@
       ]
     },
     {
+      "alias": "Refus reinitialisation administration",
+      "description": "Réinitialisation par l'administration pour le rôle administration",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorConfig": "reinitialisation-role-administration",
+          "authenticator": "conditional-user-role",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 0,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorConfig": "reinitialisation-refus-administration",
+          "authenticator": "deny-access-authenticator",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 1,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "alias": "Refus reinitialisation moderation",
+      "description": "Réinitialisation par l'administration pour le rôle moderation",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorConfig": "reinitialisation-role-moderation",
+          "authenticator": "conditional-user-role",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 0,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorConfig": "reinitialisation-refus-moderation",
+          "authenticator": "deny-access-authenticator",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 1,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
       "alias": "Reset - Conditional OTP",
       "description": "Flow to determine if the OTP should be reset or not. Set to REQUIRED to force.",
       "providerId": "basic-flow",
@@ -2607,10 +2661,26 @@
           "userSetupAllowed": false
         },
         {
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 20,
+          "autheticatorFlow": true,
+          "flowAlias": "Refus reinitialisation administration",
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 30,
+          "autheticatorFlow": true,
+          "flowAlias": "Refus reinitialisation moderation",
+          "userSetupAllowed": false
+        },
+        {
           "authenticator": "reset-credential-email",
           "authenticatorFlow": false,
           "requirement": "REQUIRED",
-          "priority": 20,
+          "priority": 40,
           "autheticatorFlow": false,
           "userSetupAllowed": false
         },
@@ -2618,14 +2688,14 @@
           "authenticator": "reset-password",
           "authenticatorFlow": false,
           "requirement": "REQUIRED",
-          "priority": 30,
+          "priority": 41,
           "autheticatorFlow": false,
           "userSetupAllowed": false
         },
         {
           "authenticatorFlow": true,
           "requirement": "DISABLED",
-          "priority": 40,
+          "priority": 42,
           "autheticatorFlow": true,
           "flowAlias": "reinitialisation-plumiotheca Reset - Conditional OTP",
           "userSetupAllowed": false
@@ -2781,6 +2851,32 @@
       "config": {
         "credentials": "otp",
         "included": "false"
+      }
+    },
+    {
+      "alias": "reinitialisation-refus-administration",
+      "config": {
+        "denyErrorMessage": "Pour ce compte, la réinitialisation passe par l’administration de Plumiotheca."
+      }
+    },
+    {
+      "alias": "reinitialisation-refus-moderation",
+      "config": {
+        "denyErrorMessage": "Pour ce compte, la réinitialisation passe par l’administration de Plumiotheca."
+      }
+    },
+    {
+      "alias": "reinitialisation-role-administration",
+      "config": {
+        "condUserRole": "administration",
+        "negate": "false"
+      }
+    },
+    {
+      "alias": "reinitialisation-role-moderation",
+      "config": {
+        "condUserRole": "moderation",
+        "negate": "false"
       }
     },
     {

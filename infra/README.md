@@ -16,6 +16,7 @@ Tous les ports sont liés à `127.0.0.1` : rien n'est exposé sur le réseau loc
 pnpm infra:setup   # une fois : crée infra/.env et apps/api/.env avec des secrets aléatoires
 pnpm infra:up      # démarre tout, attend que chaque service soit prêt, initialise Garage
 node infra/scripts/check-realm.mjs   # vérifie Keycloak de bout en bout
+node infra/scripts/role-equipe.mjs verifier   # rôles d'équipe conformes (voir docs/procedures.md)
 pnpm infra:seed    # comptes de démonstration (mot de passe : DEMO_PASSWORD dans infra/.env)
 ```
 
@@ -35,9 +36,9 @@ Choix de configuration :
 - protection contre les essais de mots de passe répétés ; mots de passe de 10 caractères minimum ;
 - client `web` : public, code d'autorisation + **PKCE obligatoire**, pas de mot de passe direct ;
 - client `api` : cible d'audience des jetons, sans flux de connexion ;
-- rôles `moderation`, `administration` (**double authentification obligatoire**, un seul code demandé) et `jardinage-tags` ;
+- rôles `moderation`, `administration` (**double authentification obligatoire**, un seul code demandé ; attribués seulement par `infra/scripts/role-equipe.mjs`, une fois le code TOTP enregistré, voir `docs/procedures.md`) et `jardinage-tags` ;
 - claim **`amr`** dans le jeton d'accès (`pwd`, `otp`, valables toute la session, renouvellement compris) : l'API exige `otp` pour la modération et l'administration, ce qui ferme le contournement par « mot de passe oublié » et les sessions ouvertes avant l'attribution du rôle ;
-- « mot de passe oublié » ne permet **jamais** de réenregistrer un code TOTP (flux `reinitialisation-plumiotheca`) : sinon la boîte mail suffirait à remplacer le second facteur. Un appareil perdu se réinitialise par un administrateur (décision 35) ;
+- « mot de passe oublié » ne réenregistre **jamais** un code TOTP, et il est **refusé** aux rôles de modération et d'administration avant tout envoi d'e-mail (flux `reinitialisation-plumiotheca`, #125) : sinon le lien reçu ouvrirait une session où un second code peut être enregistré, et la boîte mail suffirait. Mot de passe ou appareil perdu : par l'administration (décision 35) ;
 - `admin-cli` du realm sans connexion par mot de passe direct (l'administration passe par le realm `master`) ;
 - français par défaut ; e-mails envoyés vers Mailpit.
 

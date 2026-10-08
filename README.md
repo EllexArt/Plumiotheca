@@ -5,6 +5,7 @@ Une plateforme pour lire, écrire et partager des histoires et des univers : des
 > ⚠️ **Projet en reconstruction — ne pas déployer.** Le code actuel de `apps/` est un prototype qui contient des failles de sécurité connues et documentées ([revue du 2 octobre 2026](docs/revues/2026-10-02-pr-76-98-et-main.md)). Il est en cours de réécriture (jalons M0 et M1).
 
 - Architecture cible et décisions : [docs/architecture.md](docs/architecture.md)
+- Procédures d'équipe (rôles de modération et d'administration) : [docs/procedures.md](docs/procedures.md)
 - Feuille de route : [tableau du projet](https://github.com/users/EllexArt/projects/2) · [résumé](docs/backlog.md)
 - Contribuer (git flow : `develop`, `release/…`, `main`) : [CONTRIBUTING.md](CONTRIBUTING.md)
 
