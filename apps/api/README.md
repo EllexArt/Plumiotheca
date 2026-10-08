@@ -105,6 +105,23 @@ pnpm --filter @plumiotheca/api migration:check    # échoue si une migration man
 - Erreurs de PostgreSQL journalisées sans message ni pile (ils peuvent citer la valeur reçue) : code SQLSTATE, contrainte et table seulement.
 - Production : migrations lancées par une tâche unique avant le déploiement, pas au démarrage de chaque instance (TypeORM ne verrouille pas les migrations concurrentes, voir #67).
 
+## Tâches en arrière-plan
+
+File **pg-boss** dans la même base, schéma `pgboss` (créé et mis à jour par pg-boss, hors migrations TypeORM). Un module déclare ses tâches à l'initialisation :
+
+```ts
+onModuleInit() {
+  this.jobs.define<{ storyId: string }>({
+    name: 'indexer-histoire',
+    handle: (data) => this.index(data.storyId),
+    retryLimit: 3, // nouvelles tentatives, délai croissant (30 s, puis plus)
+    cron: '0 3 * * *', // facultatif : tâche planifiée (Europe/Paris)
+  });
+}
+```
+
+puis `jobs.send('indexer-histoire', { storyId })`. Une tâche en échec est rejouée ; chaque échec est journalisé (nom, identifiant, tentative, type d'erreur), **jamais ses données**. `JOBS_ENABLED` : active par défaut, désactivée dans les tests (un test l'active pour la vérifier). À l'arrêt, les tâches en cours ont 10 s pour finir.
+
 ## Image Docker
 
 Construite depuis la racine : `docker build -f apps/api/Dockerfile .` (aucune image publiée pour l'instant).
