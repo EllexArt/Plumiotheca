@@ -47,12 +47,24 @@ export const Handle = z
       }),
   );
 
-/** Première visite : pseudonyme, âge déclaré, charte acceptée (version lue). */
-export const FirstVisit = z.strictObject({
-  handle: Handle,
-  age: DeclaredAge,
-  charterVersion: z.string().min(1).max(20),
-});
+/**
+ * Première visite : âge déclaré, puis pseudonyme et charte acceptée (version lue). « Moins
+ * de 15 ans » : la réponse seule (minimisation) ; le compte est verrouillé sans pseudonyme
+ * ni charte, et le pseudonyme n'est jamais envoyé.
+ */
+export const FirstVisit = z.discriminatedUnion(
+  'age',
+  [
+    z.strictObject({ age: z.literal(DeclaredAge.enum['under-15']) }),
+    z.strictObject({
+      age: DeclaredAge.exclude(['under-15']),
+      handle: Handle,
+      charterVersion: z.string().min(1).max(20),
+    }),
+  ],
+  // Âge absent ou inconnu : message explicite plutôt que « Entrée invalide ».
+  { error: `Âge attendu : ${DeclaredAge.options.join(', ')}.` },
+);
 export type FirstVisit = z.infer<typeof FirstVisit>;
 
 export const AcceptCharter = z.strictObject({ charterVersion: z.string().min(1).max(20) });

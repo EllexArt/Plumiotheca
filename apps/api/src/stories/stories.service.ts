@@ -4,6 +4,7 @@ import type {
   NewStory,
   StoryDetail,
   StoryPage,
+  MyStoriesQuery,
   StoryQuery,
   StorySummary,
   UpdateStory,
@@ -21,9 +22,12 @@ import { Story } from './story.entity.js';
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
-/** Curseur opaque de pagination : date de publication et identifiant de la dernière ligne. */
-const encodeCursor = (story: Story) =>
-  Buffer.from(`${story.publishedAt!.toISOString()}|${story.id}`).toString('base64url');
+/**
+ * Curseur opaque de pagination : date de tri (publication pour la liste publique,
+ * dernière modification pour « Mes histoires ») et identifiant de la dernière ligne.
+ */
+const encodeCursor = (date: Date, id: string) =>
+  Buffer.from(`${date.toISOString()}|${id}`).toString('base64url');
 
 // Bornes de date : PostgreSQL refuse l'année 0000, que la norme ISO accepte.
 const Cursor = z.tuple([
@@ -184,18 +188,39 @@ export class StoriesService {
     const page = rows.slice(0, query.limite);
     return {
       items: await this.summaries(this.db.manager, page, false),
-      nextCursor: rows.length > query.limite ? encodeCursor(page[page.length - 1]!) : null,
+      nextCursor:
+        rows.length > query.limite
+          ? encodeCursor(page.at(-1)!.publishedAt!, page.at(-1)!.id)
+          : null,
     };
   }
 
-  /** Mes histoires, brouillons compris. */
-  async mine(account: User): Promise<StorySummary[]> {
-    const stories = await this.db.getRepository(Story).find({
-      where: { author: { id: account.id } },
-      relations: { author: true },
-      order: { updatedAt: 'DESC' },
-    });
-    return this.summaries(this.db.manager, stories, true);
+  /** Mes histoires, brouillons compris, la plus récemment modifiée d'abord, par curseur. */
+  async mine(account: User, query: MyStoriesQuery): Promise<StoryPage> {
+    // updated_at est stocké à la milliseconde (timestamptz(3)) : la date JavaScript du
+    // curseur le reproduit exactement, rien ne se perd entre deux pages (index stories_mine).
+    // Une histoire modifiée ailleurs (autre onglet) pendant qu'on parcourt les pages remonte
+    // en tête : elle n'apparaît qu'au prochain rechargement de la liste.
+    const qb = this.db
+      .getRepository(Story)
+      .createQueryBuilder('story')
+      .innerJoinAndSelect('story.author', 'author')
+      .where('story.author_id = :author', { author: account.id });
+    if (query.apres) {
+      const [date, id] = decodeCursor(query.apres);
+      qb.andWhere('(story.updated_at, story.id) < (:date, :id)', { date, id });
+    }
+    const rows = await qb
+      .orderBy('story.updated_at', 'DESC')
+      .addOrderBy('story.id', 'DESC')
+      .limit(query.limite + 1)
+      .getMany();
+    const page = rows.slice(0, query.limite);
+    return {
+      items: await this.summaries(this.db.manager, page, true),
+      nextCursor:
+        rows.length > query.limite ? encodeCursor(page.at(-1)!.updatedAt, page.at(-1)!.id) : null,
+    };
   }
 
   async detail(id: string, viewer: User | null): Promise<StoryDetail> {

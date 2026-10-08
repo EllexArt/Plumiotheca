@@ -1,5 +1,5 @@
 import type { Editor } from '@tiptap/core';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { account, expectAccessible, mockApi, renderApp, signedIn } from '../../test/render';
@@ -57,6 +57,59 @@ async function editorOf(): Promise<Editor> {
 
 const putBodies = (calls: ReturnType<typeof mockApi>) =>
   calls.filter((c) => c.method === 'PUT').map((c) => c.body as { version: number; draft: unknown });
+
+describe('atelier : mes histoires', () => {
+  // Une histoire en liste : la fiche sans son sommaire.
+  const mine = (i: number) => {
+    const summary: Record<string, unknown> = detail({
+      id: `01a102e1-0000-7000-8000-${String(i).padStart(12, '0')}`,
+      title: `Histoire ${i}`,
+      status: i % 2 ? 'published' : 'draft',
+    });
+    delete summary.chapters;
+    return summary;
+  };
+
+  it('par pages : « Voir plus » charge la suite, focus sur la première ajoutée ; échec sans perte', async () => {
+    signedIn();
+    let fail = true;
+    const calls = mockApi((url) => {
+      if (url === '/api/moi/compte') return { body: account() };
+      if (!url.startsWith('/api/moi/histoires')) return undefined;
+      if (new URL(url, 'http://x').searchParams.get('apres')) {
+        return fail
+          ? {
+              status: 503,
+              body: { type: 'indisponible', title: 'Service indisponible.', status: 503 },
+            }
+          : { body: { items: [mine(21)], nextCursor: null } };
+      }
+      return {
+        body: { items: Array.from({ length: 20 }, (_, i) => mine(i + 1)), nextCursor: 'curseur-1' },
+      };
+    });
+    renderApp('/ecrire');
+    const more = await screen.findByRole('button', { name: 'Voir plus d’histoires' });
+    const list = screen.getByRole('list', { name: 'Mes histoires' });
+    expect(within(list).getAllByRole('listitem')).toHaveLength(20);
+    expect(calls.find((c) => c.url.startsWith('/api/moi/histoires'))?.url).toContain('limite=20');
+    await expectAccessible();
+
+    await userEvent.click(more);
+    expect(
+      await screen.findByText('Les histoires suivantes n’ont pas pu être chargées.'),
+    ).toBeInTheDocument();
+    expect(within(list).getAllByRole('listitem')).toHaveLength(20);
+    // Une seule alerte, près du bouton : pas celle qui remplacerait la liste.
+    expect(screen.queryByText('Vos histoires n’ont pas pu être chargées.')).toBeNull();
+
+    fail = false;
+    await userEvent.click(screen.getByRole('button', { name: 'Voir plus d’histoires' }));
+    await waitFor(() => expect(screen.getByRole('link', { name: 'Histoire 21' })).toHaveFocus());
+    expect(calls.at(-1)?.url).toContain('apres=curseur-1');
+    expect(screen.queryByRole('button', { name: 'Voir plus d’histoires' })).toBeNull();
+  });
+});
 
 describe('atelier : informations d’une histoire', () => {
   it('nouvelle histoire : erreurs reliées aux champs, focus, page accessible', async () => {
