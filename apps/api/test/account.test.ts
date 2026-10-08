@@ -191,6 +191,16 @@ describe('première visite', () => {
       .get(`/api/pseudonymes/${handle}%20!/disponibilite`)
       .set(...bearer(jwt))
       .expect(400);
+    // Variantes acceptées par le routeur : casse, barre finale.
+    for (const path of [
+      `/api/Pseudonymes/${handle}/Disponibilite`,
+      `/api/pseudonymes/${handle}/disponibilite/`,
+    ]) {
+      await http
+        .get(path)
+        .set(...bearer(jwt))
+        .expect(200);
+    }
     const out = logs();
     expect(out).toContain('/api/pseudonymes/[masqué]/disponibilite');
     expect(out).not.toContain(handle);

@@ -92,7 +92,8 @@ export function describeError(err: LoggedError) {
  * Pseudonyme qu'une personne vérifie avant de le choisir (première visite) : il n'est pas
  * encore public et peut appartenir à un compte ensuite déclaré « moins de 15 ans » (#158).
  */
-const CHECKED_HANDLE = /^(\/api\/pseudonymes\/)[^/]+(\/disponibilite\/?)$/;
+// Insensible à la casse et aux barres multiples, comme le routeur (Express ignore la casse).
+const CHECKED_HANDLE = /^(\/api\/+pseudonymes\/+)[^/]+(\/+disponibilite\/*)$/i;
 
 /**
  * Chemin journalisé : sans paramètres de requête (ils peuvent contenir des données
