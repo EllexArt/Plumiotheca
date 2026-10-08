@@ -8,7 +8,7 @@ import {
 } from '@plumiotheca/contracts';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { useNavigate } from 'react-router';
 import { z } from 'zod';
 import { ApiError } from '../../shared/api/client';
@@ -23,11 +23,44 @@ import { myAccountKey, useFirstVisit, useHandleAvailability } from './api';
 import { charterBody } from './charter';
 import styles from './FirstVisitPage.module.css';
 
-const Form = z.object({
-  age: z.enum(DeclaredAge.options, { message: 'Indiquez votre âge.' }),
-  handle: Handle,
-  charter: z.literal(true, { message: 'Acceptez la charte pour continuer.' }),
-});
+/**
+ * Pseudonyme et charte ne sont demandés qu'à partir de 15 ans (#142). Tout est vérifié en
+ * une fois (raffinement unique) : toutes les erreurs s'affichent ensemble.
+ */
+const Form = z
+  .object({
+    // Groupe de boutons radio sans choix : null (React Hook Form).
+    age: DeclaredAge.nullish(),
+    handle: z.string().nullish(),
+    charter: z.boolean().nullish(),
+    // Moins de 15 ans : réponse définitive (compte fermé), confirmée explicitement (WCAG 3.3.4).
+    confirmUnder15: z.boolean().nullish(),
+  })
+  .superRefine((values, ctx) => {
+    if (!values.age)
+      ctx.addIssue({ code: 'custom', path: ['age'], message: 'Indiquez votre âge.' });
+    if (values.age === 'under-15') {
+      if (values.confirmUnder15 !== true) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['confirmUnder15'],
+          message: 'Cochez la case pour confirmer votre réponse, ou choisissez un autre âge.',
+        });
+      }
+      return;
+    }
+    const handle = Handle.safeParse(values.handle ?? '');
+    if (!handle.success) {
+      ctx.addIssue({ code: 'custom', path: ['handle'], message: handle.error.issues[0]!.message });
+    }
+    if (values.charter !== true) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['charter'],
+        message: 'Acceptez la charte pour continuer.',
+      });
+    }
+  });
 type FormInput = z.input<typeof Form>;
 type FormOutput = z.output<typeof Form>;
 
@@ -41,9 +74,9 @@ const TAKEN = 'Ce pseudonyme est déjà pris. Essayez une variante.';
 const STEP_CHANGES = ['age-minimum', 'deja-fait', 'charte-perimee'];
 
 /**
- * Première visite (décisions 34, 42) : âge déclaré en premier champ, pseudonyme public,
- * charte. Le contrat demande encore pseudonyme et charte à tous, même avant un refus pour
- * moins de 15 ans (issue de suivi). Ni nom, ni date de naissance.
+ * Première visite (décisions 34, 42) : âge déclaré en premier champ, puis pseudonyme public
+ * et charte. Moins de 15 ans : ni pseudonyme ni charte, seule la réponse est envoyée
+ * (minimisation, #142). Ni nom, ni date de naissance.
  */
 export function FirstVisitPage() {
   const navigate = useNavigate();
@@ -57,6 +90,8 @@ export function FirstVisitPage() {
     handleSubmit,
     setError,
     clearErrors,
+    getValues,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<FormInput, unknown, FormOutput>({
     resolver: zodResolver(Form),
@@ -76,6 +111,9 @@ export function FirstVisitPage() {
 
   /** En quittant le champ : le pseudonyme est-il libre ? (l'envoi tranchera de toute façon) */
   const checkHandle = async (value: string) => {
+    // Âge pas encore choisi, ou moins de 15 ans : le pseudonyme ne quitte pas l'appareil.
+    const age = getValues('age');
+    if (!age || age === 'under-15') return;
     const parsed = Handle.safeParse(value);
     if (!parsed.success) return;
     check.current?.abort();
@@ -92,11 +130,18 @@ export function FirstVisitPage() {
   };
 
   const pending = isSubmitting || firstVisit.isPending;
+  const underFifteen = useWatch({ control, name: 'age' }) === 'under-15';
 
   const onSubmit = (values: FormOutput) => {
-    if (firstVisit.isPending) return;
+    if (firstVisit.isPending || !values.age) return;
     firstVisit.mutate(
-      { handle: values.handle, age: values.age, charterVersion: CHARTER_VERSION },
+      values.age === 'under-15'
+        ? { age: values.age }
+        : {
+            age: values.age,
+            handle: Handle.parse(values.handle),
+            charterVersion: CHARTER_VERSION,
+          },
       {
         onSuccess: () => void navigate('/', { replace: true }),
         onError: (error) => {
@@ -128,7 +173,7 @@ export function FirstVisitPage() {
   return (
     <Page
       title="Bienvenue sur Plumiotheca"
-      lead="Trois questions avant de commencer. Ici, on écrit et on lit sous pseudonyme : nous ne vous demandons ni votre nom, ni votre date de naissance."
+      lead="Quelques questions avant de commencer. Ici, on écrit et on lit sous pseudonyme : nous ne vous demandons ni votre nom, ni votre date de naissance."
       width="narrow"
     >
       <form className={styles.form} onSubmit={handleSubmit(onSubmit)} noValidate>
@@ -149,49 +194,65 @@ export function FirstVisitPage() {
           {...ageField}
         />
 
-        <TextField
-          label="Votre pseudonyme"
-          hint={`De ${HANDLE_MIN} à ${HANDLE_MAX} caractères : lettres (accents compris), chiffres, point, tiret et tiret bas. C’est le nom que tout le monde verra ; vous pourrez le changer une fois par mois.`}
-          autoComplete="nickname"
-          autoCapitalize="none"
-          spellCheck={false}
-          required
-          error={errors.handle?.message}
-          status={handleStatus}
-          {...handleField}
-          onBlur={(event) => {
-            void handleBlur(event);
-            void checkHandle(event.target.value);
-          }}
-          onChange={(event) => {
-            void handleChange(event);
-            resetCheck();
-          }}
-        />
+        {/* Toujours présente : le changement du formulaire est annoncé (WCAG 4.1.3). */}
+        <output className={styles.note}>
+          {underFifteen &&
+            'Pas besoin de pseudonyme ni de charte : nous ne gardons que votre réponse, et le compte sera fermé.'}
+        </output>
 
-        <div className={styles.charter}>
-          <p>
-            La charte dit comment on vit ensemble ici : bienveillance, aucun message privé, respect
-            du pseudonymat, classements honnêtes.
-          </p>
-          <Dialog
-            title="Charte de la communauté"
-            trigger={
-              <Button variant="secondary" size="small">
-                Lire la charte
-              </Button>
-            }
-          >
-            <div className={prose.prose}>
-              <Markdown source={charterBody} headingOffset={1} />
-            </div>
-          </Dialog>
+        {underFifteen ? (
           <Checkbox
-            label="J’ai lu la charte et je m’engage à la respecter."
-            error={errors.charter?.message}
-            {...register('charter')}
+            label="Je confirme avoir moins de 15 ans. Je comprends que ce compte sera fermé."
+            error={errors.confirmUnder15?.message}
+            {...register('confirmUnder15')}
           />
-        </div>
+        ) : (
+          <>
+            <TextField
+              label="Votre pseudonyme"
+              hint={`De ${HANDLE_MIN} à ${HANDLE_MAX} caractères : lettres (accents compris), chiffres, point, tiret et tiret bas. C’est le nom que tout le monde verra ; vous pourrez le changer une fois par mois.`}
+              autoComplete="nickname"
+              autoCapitalize="none"
+              spellCheck={false}
+              required
+              error={errors.handle?.message}
+              status={handleStatus}
+              {...handleField}
+              onBlur={(event) => {
+                void handleBlur(event);
+                void checkHandle(event.target.value);
+              }}
+              onChange={(event) => {
+                void handleChange(event);
+                resetCheck();
+              }}
+            />
+
+            <div className={styles.charter}>
+              <p>
+                La charte dit comment on vit ensemble ici : bienveillance, aucun message privé,
+                respect du pseudonymat, classements honnêtes.
+              </p>
+              <Dialog
+                title="Charte de la communauté"
+                trigger={
+                  <Button variant="secondary" size="small">
+                    Lire la charte
+                  </Button>
+                }
+              >
+                <div className={prose.prose}>
+                  <Markdown source={charterBody} headingOffset={1} />
+                </div>
+              </Dialog>
+              <Checkbox
+                label="J’ai lu la charte et je m’engage à la respecter."
+                error={errors.charter?.message}
+                {...register('charter')}
+              />
+            </div>
+          </>
+        )}
 
         {generalError && (
           <Alert tone="danger" live title="Votre compte n’a pas pu être créé.">
@@ -201,7 +262,7 @@ export function FirstVisitPage() {
 
         <div>
           <Button type="submit" variant="primary" pending={pending}>
-            {pending ? 'Enregistrement…' : 'Commencer'}
+            {pending ? 'Enregistrement…' : underFifteen ? 'Envoyer ma réponse' : 'Commencer'}
           </Button>
         </div>
       </form>

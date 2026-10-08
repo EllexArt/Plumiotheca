@@ -135,6 +135,13 @@ export const StoryQuery = z.strictObject({
 });
 export type StoryQuery = z.infer<typeof StoryQuery>;
 
+/** Pagination de « Mes histoires » (brouillons compris). */
+export const MyStoriesQuery = z.strictObject({
+  apres: z.string().max(200).optional(),
+  limite: z.coerce.number().int().min(1).max(50).default(20),
+});
+export type MyStoriesQuery = z.infer<typeof MyStoriesQuery>;
+
 export const ChapterSummary = z.strictObject({
   id: z.uuid(),
   /** Numéro affiché (1, 2, 3…) : rang parmi les chapitres visibles. */
