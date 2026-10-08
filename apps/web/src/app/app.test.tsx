@@ -225,14 +225,52 @@ describe('première visite', () => {
     await userEvent.click(screen.getByRole('radio', { name: /Moins de 15 ans/ }));
     expect(screen.queryByRole('textbox', { name: /Votre pseudonyme/ })).toBeNull();
     expect(screen.queryByRole('checkbox', { name: /J’ai lu la charte/ })).toBeNull();
-    expect(screen.getByText(/nous ne gardons que votre réponse/)).toBeInTheDocument();
+    // Le changement du formulaire est annoncé (zone d'état toujours présente).
+    expect(screen.getByRole('status')).toHaveTextContent(/nous ne gardons que votre réponse/);
     await expectAccessible();
-    await userEvent.click(screen.getByRole('button', { name: 'Commencer' }));
+
+    // Réponse définitive : sans confirmation, rien n'est envoyé.
+    const send = screen.getByRole('button', { name: 'Envoyer ma réponse' });
+    await userEvent.click(send);
+    const confirm = screen.getByRole('checkbox', { name: /Je confirme avoir moins de 15 ans/ });
+    await waitFor(() => expect(confirm).toHaveFocus());
+    expect(confirm).toHaveAccessibleDescription(/Cochez la case pour confirmer/);
+    expect(calls.some((c) => c.method === 'POST')).toBe(false);
+
+    await userEvent.click(confirm);
+    await userEvent.click(send);
     expect(await screen.findByRole('heading', { level: 1, name: /À bientôt/ })).toBeInTheDocument();
     expect(calls.find((c) => c.method === 'POST')?.body).toEqual({ age: 'under-15' });
     expect(calls.some((c) => c.url.endsWith('/disponibilite'))).toBe(false);
     // Le message de l'API (autre registre) n'est pas affiché tel quel.
     expect(screen.queryByText(/Reviens quand tu auras/)).toBeNull();
+  });
+
+  it('âge corrigé en « moins de 15 ans » après la vérification du pseudonyme : seule la réponse part', async () => {
+    signedIn();
+    let release!: () => void;
+    const late = new Promise<void>((r) => (release = r));
+    const calls = mockApi(async (url, init) => {
+      if (url === '/api/moi/compte') return { body: firstVisit };
+      // Réponse de disponibilité qui arrive après le changement d'âge.
+      if (url.endsWith('/disponibilite')) {
+        await late;
+        return { body: { available: true } };
+      }
+      if (init.method === 'POST') return problem(403, 'age-minimum', 'Refusé.');
+    });
+    renderApp('/bienvenue');
+    await userEvent.click(await screen.findByRole('radio', { name: /18 ans ou plus/ }));
+    await userEvent.type(screen.getByRole('textbox', { name: /Votre pseudonyme/ }), 'presque');
+    await userEvent.click(screen.getByRole('radio', { name: /Moins de 15 ans/ }));
+    release();
+    await userEvent.click(
+      screen.getByRole('checkbox', { name: /Je confirme avoir moins de 15 ans/ }),
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Envoyer ma réponse' }));
+    await waitFor(() => expect(calls.some((c) => c.method === 'POST')).toBe(true));
+    expect(calls.find((c) => c.method === 'POST')?.body).toEqual({ age: 'under-15' });
+    expect(screen.queryByText(/@presque est disponible/)).toBeNull();
   });
 
   it('compte verrouillé : aucune autre page', async () => {

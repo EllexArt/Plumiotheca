@@ -108,12 +108,24 @@ describe('première visite', () => {
     // Rien n'est enregistré : la personne peut encore répondre.
     const row = await app.get(DataSource).getRepository(User).findOneByOrFail({ keycloakId: sub });
     expect(row.ageBand).toBeNull();
-    // Et 15 ans ou plus sans pseudonyme reste refusé.
-    await http
+    // Et 15 ans ou plus sans pseudonyme, ou sans charte, reste refusé.
+    for (const body of [
+      { age: '18+', charterVersion: CHARTER_VERSION },
+      { age: '18+', handle: `adulte-${unique()}` },
+    ]) {
+      await http
+        .post('/api/moi/compte/premiere-visite')
+        .set(...bearer(jwt))
+        .send(body)
+        .expect(400);
+    }
+    // Âge absent ou inconnu : message explicite.
+    const res = await http
       .post('/api/moi/compte/premiere-visite')
       .set(...bearer(jwt))
-      .send({ age: '18+', charterVersion: CHARTER_VERSION })
+      .send({ age: 'douze' })
       .expect(400);
+    expect(JSON.stringify(res.body)).toContain('Âge attendu : under-15, 15-17, 18+.');
   });
 
   it('« moins de 15 ans » et « 18+ » au même instant : jamais un compte prêt après un refus', async () => {

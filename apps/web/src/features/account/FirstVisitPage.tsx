@@ -33,11 +33,22 @@ const Form = z
     age: DeclaredAge.nullish(),
     handle: z.string().nullish(),
     charter: z.boolean().nullish(),
+    // Moins de 15 ans : réponse définitive (compte fermé), confirmée explicitement (WCAG 3.3.4).
+    confirmUnder15: z.boolean().nullish(),
   })
   .superRefine((values, ctx) => {
     if (!values.age)
       ctx.addIssue({ code: 'custom', path: ['age'], message: 'Indiquez votre âge.' });
-    if (values.age === 'under-15') return;
+    if (values.age === 'under-15') {
+      if (values.confirmUnder15 !== true) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['confirmUnder15'],
+          message: 'Cochez la case pour confirmer votre réponse, ou choisissez un autre âge.',
+        });
+      }
+      return;
+    }
     const handle = Handle.safeParse(values.handle ?? '');
     if (!handle.success) {
       ctx.addIssue({ code: 'custom', path: ['handle'], message: handle.error.issues[0]!.message });
@@ -162,7 +173,7 @@ export function FirstVisitPage() {
   return (
     <Page
       title="Bienvenue sur Plumiotheca"
-      lead="Trois questions avant de commencer. Ici, on écrit et on lit sous pseudonyme : nous ne vous demandons ni votre nom, ni votre date de naissance."
+      lead="Quelques questions avant de commencer. Ici, on écrit et on lit sous pseudonyme : nous ne vous demandons ni votre nom, ni votre date de naissance."
       width="narrow"
     >
       <form className={styles.form} onSubmit={handleSubmit(onSubmit)} noValidate>
@@ -183,10 +194,18 @@ export function FirstVisitPage() {
           {...ageField}
         />
 
+        {/* Toujours présente : le changement du formulaire est annoncé (WCAG 4.1.3). */}
+        <output className={styles.note}>
+          {underFifteen &&
+            'Pas besoin de pseudonyme ni de charte : nous ne gardons que votre réponse, et le compte sera fermé.'}
+        </output>
+
         {underFifteen ? (
-          <p className={styles.note}>
-            Pas besoin de pseudonyme ni de charte : nous ne gardons que votre réponse.
-          </p>
+          <Checkbox
+            label="Je confirme avoir moins de 15 ans. Je comprends que ce compte sera fermé."
+            error={errors.confirmUnder15?.message}
+            {...register('confirmUnder15')}
+          />
         ) : (
           <>
             <TextField
@@ -243,7 +262,7 @@ export function FirstVisitPage() {
 
         <div>
           <Button type="submit" variant="primary" pending={pending}>
-            {pending ? 'Enregistrement…' : 'Commencer'}
+            {pending ? 'Enregistrement…' : underFifteen ? 'Envoyer ma réponse' : 'Commencer'}
           </Button>
         </div>
       </form>
