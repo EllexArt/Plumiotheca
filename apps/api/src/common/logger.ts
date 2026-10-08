@@ -88,8 +88,19 @@ export function describeError(err: LoggedError) {
   return { type: err.name, message: err.message, code: err.code, stack: err.stack };
 }
 
-/** Chemin sans paramètres de requête (ils peuvent contenir des données personnelles). */
-export const pathOnly = (url: string | undefined) => (url ?? '').split('?')[0];
+/**
+ * Pseudonyme qu'une personne vérifie avant de le choisir (première visite) : il n'est pas
+ * encore public et peut appartenir à un compte ensuite déclaré « moins de 15 ans » (#158).
+ */
+// Insensible à la casse et aux barres multiples, comme le routeur (Express ignore la casse).
+const CHECKED_HANDLE = /^(\/api\/+pseudonymes\/+)[^/]+(\/+disponibilite\/*)$/i;
+
+/**
+ * Chemin journalisé : sans paramètres de requête (ils peuvent contenir des données
+ * personnelles), et sans le pseudonyme dont on vérifie la disponibilité.
+ */
+export const pathOnly = (url: string | undefined) =>
+  (url ?? '').split('?')[0]!.replace(CHECKED_HANDLE, '$1[masqué]$2');
 
 export function loggerParams(config: Config, destination?: DestinationStream): Params {
   const pretty = config.NODE_ENV === 'development' && !destination;
