@@ -180,7 +180,20 @@ jobs:
         if: steps.navigateur.outputs.cache-hit == 'true'
         run: pnpm --filter @plumiotheca/e2e exec playwright install-deps chromium
 
+      # Le site tel qu'il sera déployé : image nginx avec sa CSP et ses en-têtes (#140). Le
+      # parcours échoue à la moindre violation de la CSP.
+      - name: Image du site
+        run: |
+          docker build -f apps/web/Dockerfile -t plumiotheca-web:e2e .
+          docker run -d --name web -p 127.0.0.1:5173:8080 \
+            -e API_URL=http://localhost:3000/api -e API_ORIGIN=http://localhost:3000 \
+            plumiotheca-web:e2e
+          for i in $(seq 1 20); do curl -sf -o /dev/null http://localhost:5173/ && exit 0; sleep 1; done
+          docker logs web; exit 1
+
       - name: Parcours
+        env:
+          E2E_WEB_EXTERNAL: '1'
         run: pnpm e2e
 
       # Les traces contiennent l'identifiant et le mot de passe du compte jetable (supprimé
