@@ -84,6 +84,16 @@ export const Env = z
       ),
   })
   .superRefine((env, ctx) => {
+    // Le compte de service tire l'adresse du serveur et le realm de ces adresses (#141).
+    for (const key of ['KEYCLOAK_ISSUER', 'KEYCLOAK_JWKS_URL'] as const) {
+      if (env[key] && !/\/realms\/[^/]+/.test(env[key])) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [key],
+          message: 'Adresse de realm Keycloak attendue (…/realms/<realm>…)',
+        });
+      }
+    }
     if (env.NODE_ENV !== 'production') return;
     if (!env.CORS_ORIGINS?.length) {
       ctx.addIssue({

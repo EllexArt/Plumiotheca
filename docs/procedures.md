@@ -56,3 +56,16 @@ Pas de codes de secours (décision 35 amendée) : tout passe par l'administratio
 2. Retirer le rôle (ci-dessus).
 3. Mot de passe : dans « Credentials », « Reset password » (mot de passe temporaire transmis par l'autre canal). Appareil perdu : supprimer la ligne `otp`.
 4. Reprendre « Attribuer le rôle » depuis l'étape 2.
+
+## Compte de service de l'API (`api-administration`)
+
+Il désactive puis supprime les comptes verrouillés (moins de 15 ans, décision 45). Sa seule permission, « gérer les utilisateurs » (permissions fines de Keycloak), ne permet ni de lister les comptes ni d'attribuer un rôle ; elle permettrait de changer un mot de passe ou de créer un compte : son secret se protège comme celui de la base.
+
+- Production : `KEYCLOAK_ADMIN_CLIENT_SECRET` obligatoire ; l'API joint Keycloak par l'adresse de `KEYCLOAK_JWKS_URL` (adresse interne de préférence : la console d'administration `/admin` n'a pas à être exposée publiquement).
+- Au démarrage, l'API vérifie qu'elle obtient un jeton ; sinon, une erreur est journalisée (« Compte de service Keycloak inutilisable »).
+
+### Changer le secret
+
+1. Console d'administration de Keycloak, realm `plumiotheca`, « Clients », `api-administration`, « Credentials », « Regenerate ».
+2. Mettre la nouvelle valeur dans `KEYCLOAK_ADMIN_CLIENT_SECRET` et redémarrer l'API (l'ancien jeton en cache est remplacé au premier refus).
+3. Vérifier dans le journal de démarrage qu'aucune erreur « Compte de service Keycloak inutilisable » n'apparaît.
