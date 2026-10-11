@@ -210,6 +210,7 @@ export function FirstVisitPage() {
           <>
             <TextField
               label="Votre pseudonyme"
+              announceError
               hint={`De ${HANDLE_MIN} à ${HANDLE_MAX} caractères : lettres (accents compris), chiffres, point, tiret et tiret bas. C’est le nom que tout le monde verra ; vous pourrez le changer une fois par mois.`}
               autoComplete="nickname"
               autoCapitalize="none"

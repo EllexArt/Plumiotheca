@@ -1,10 +1,12 @@
 import { Handle } from '@plumiotheca/contracts';
-import { screen, waitFor, within } from '@testing-library/react';
+import { render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { renewOnce } from '../shared/api/useApi';
+import { MemoryRouter } from 'react-router';
+import { renewOnce, useApi } from '../shared/api/useApi';
 import { account, auth, expectAccessible, mockApi, renderApp, signedIn } from '../test/render';
 import { safeReturnTo } from './auth';
+import { TokenRenewal } from './TokenRenewal';
 
 const firstVisit = account({
   step: 'first-visit',
@@ -139,6 +141,15 @@ describe('première visite', () => {
     expect(screen.getByRole('checkbox')).toHaveAccessibleDescription(
       'Acceptez la charte pour continuer.',
     );
+    // Erreurs de l'envoi : lues par le focus, pas annoncées en plus (#143). Seul le
+    // pseudonyme, vérifié aussi à la sortie du champ, garde sa zone annoncée.
+    const announced = [...document.querySelectorAll('[aria-live]')]
+      .map((zone) => zone.textContent?.trim())
+      .filter(Boolean);
+    expect(announced).toEqual([expect.stringContaining(tooShort)]);
+    expect(
+      screen.getByText('Acceptez la charte pour continuer.').closest('[aria-live]'),
+    ).toBeNull();
     await expectAccessible();
   });
 
@@ -399,6 +410,56 @@ describe('renouvellement partagé', () => {
     expect(await first).toBe('nouveau');
     expect(await second).toBe('nouveau');
     expect(renew).toHaveBeenCalledTimes(1);
+  });
+
+  it('par useApi : deux requêtes refusées en parallèle, un seul renouvellement, aucune redirection', async () => {
+    signedIn();
+    let resolve!: (user: { access_token: string }) => void;
+    auth.signinSilent.mockImplementationOnce(
+      () => new Promise<{ access_token: string }>((r) => (resolve = r)),
+    );
+    const calls = mockApi((url, init) => {
+      const header = (init.headers as Record<string, string>).Authorization;
+      return header === 'Bearer nouveau' ? { status: 204 } : problem(401, 'non-authentifie');
+    });
+    const { result } = renderHook(() => useApi(), {
+      wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter>,
+    });
+    const both = Promise.all([result.current(null, '/a'), result.current(null, '/b')]);
+    await waitFor(() => expect(auth.signinSilent).toHaveBeenCalled());
+    resolve({ access_token: 'nouveau' });
+    await both;
+    expect(auth.signinSilent).toHaveBeenCalledTimes(1);
+    expect(auth.signinRedirect).not.toHaveBeenCalled();
+    expect(calls.filter((c) => c.auth === 'Bearer nouveau').map((c) => c.url)).toEqual([
+      '/api/a',
+      '/api/b',
+    ]);
+  });
+
+  it('avant expiration et après un refus : le même renouvellement', async () => {
+    let expiring!: () => void;
+    const events = {
+      addAccessTokenExpiring: (callback: () => void) => {
+        expiring = callback;
+        return () => {};
+      },
+    };
+    Object.assign(auth, { events });
+    let resolve!: (user: { access_token: string }) => void;
+    auth.signinSilent.mockImplementationOnce(
+      () => new Promise<{ access_token: string }>((r) => (resolve = r)),
+    );
+    try {
+      render(<TokenRenewal />);
+      expiring();
+      const afterRefusal = renewOnce(() => auth.signinSilent());
+      resolve({ access_token: 'nouveau' });
+      expect(await afterRefusal).toBe('nouveau');
+      expect(auth.signinSilent).toHaveBeenCalledTimes(1);
+    } finally {
+      Reflect.deleteProperty(auth, 'events');
+    }
   });
 });
 

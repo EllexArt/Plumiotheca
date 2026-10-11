@@ -41,13 +41,23 @@ function useDescriptions(hint: unknown, error: unknown, status: unknown) {
 }
 
 /**
- * Message d'erreur dans une zone annoncée, toujours présente : une erreur qui apparaît
- * alors que le focus est ailleurs (vérification à la sortie du champ) est lue quand même
- * (WCAG 4.1.3).
+ * Message d'erreur, relié au champ (aria-describedby). À l'envoi d'un formulaire, le focus
+ * va au premier champ en erreur, qui lit son message : pas d'annonce en plus, sinon toutes
+ * les erreurs seraient lues d'un coup puis répétées (#143). `announce` : zone annoncée,
+ * toujours présente, pour une erreur qui apparaît hors envoi, le focus étant ailleurs
+ * (vérification à la sortie du champ, WCAG 4.1.3).
  */
-function ErrorMessage({ id, error }: { id: string | undefined; error: string | undefined }) {
+function ErrorMessage({
+  id,
+  error,
+  announce = false,
+}: {
+  id: string | undefined;
+  error: string | undefined;
+  announce?: boolean | undefined;
+}) {
   return (
-    <span aria-live="polite">
+    <span aria-live={announce ? 'polite' : undefined}>
       {error && (
         <span id={id} className={styles.error}>
           <ErrorIcon />
@@ -65,8 +75,12 @@ export function TextField({
   error,
   status,
   required,
+  announceError,
   ...input
-}: FieldText & Omit<ComponentProps<'input'>, 'id'>) {
+}: FieldText & {
+  /** Erreur qui peut apparaître hors envoi (vérification à la sortie du champ) : annoncée. */
+  announceError?: boolean;
+} & Omit<ComponentProps<'input'>, 'id'>) {
   const { id, ids, describedBy } = useDescriptions(hint, error, status);
   return (
     <div className={styles.field}>
@@ -87,7 +101,7 @@ export function TextField({
           {hint}
         </span>
       )}
-      <ErrorMessage id={ids.error} error={error} />
+      <ErrorMessage id={ids.error} error={error} announce={announceError} />
       {/* Toujours présente : une zone annoncée doit exister avant que son contenu change. */}
       <output id={ids.status} className={styles.status}>
         {status}
