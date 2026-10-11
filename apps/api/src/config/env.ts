@@ -46,6 +46,10 @@ export const Env = z
      * (ex. http://keycloak:8080/... dans un conteneur). Par défaut : celle de l'émetteur.
      */
     KEYCLOAK_JWKS_URL: z.url({ protocol: /^https?$/ }).optional(),
+    /** Compte de service de l'API (identifiants client) : suppression des comptes Keycloak. */
+    KEYCLOAK_ADMIN_CLIENT_ID: z.string().min(1).default('api-administration'),
+    /** Secret de ce compte (écrit par « pnpm infra:up » en développement). Obligatoire en production. */
+    KEYCLOAK_ADMIN_CLIENT_SECRET: z.string().min(1).optional(),
     DB_HOST: z.string().min(1).default('localhost'),
     /** 5433 : port de la base de l'infrastructure de développement (infra/). */
     DB_PORT: z.coerce.number().int().min(1).max(65535).default(5433),
@@ -100,6 +104,14 @@ export const Env = z
     }
     if (env.TRUST_PROXY === undefined) {
       ctx.addIssue({ code: 'custom', path: ['TRUST_PROXY'], message: 'Obligatoire en production' });
+    }
+    // Sans lui, les comptes verrouillés ne seraient jamais supprimés de Keycloak (#141).
+    if (!env.KEYCLOAK_ADMIN_CLIENT_SECRET) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['KEYCLOAK_ADMIN_CLIENT_SECRET'],
+        message: 'Obligatoire en production',
+      });
     }
   })
   .transform((env) => ({

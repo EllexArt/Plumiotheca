@@ -36,6 +36,7 @@ Choix de configuration :
 - protection contre les essais de mots de passe répétés ; mots de passe de 10 caractères minimum ;
 - client `web` : public, code d'autorisation + **PKCE obligatoire**, pas de mot de passe direct ;
 - client `api` : cible d'audience des jetons, sans flux de connexion ;
+- client `api-administration` : **compte de service** de l'API, seul droit `manage-users` (suppression des comptes verrouillés, puis des comptes supprimés). Ce droit est porté par un utilisateur technique absent de l'export : `infra/scripts/keycloak-service.mjs` (lancé par `pnpm infra:up`) l'attribue et écrit le secret, généré par Keycloak, dans `apps/api/.env` ;
 - rôles `moderation`, `administration` (**double authentification obligatoire**, un seul code demandé ; attribués seulement par `infra/scripts/role-equipe.mjs`, une fois le code TOTP enregistré, voir `docs/procedures.md`) et `jardinage-tags` ;
 - claim **`amr`** dans le jeton d'accès (`pwd`, `otp`, valables toute la session, renouvellement compris) : l'API exige `otp` pour la modération et l'administration, ce qui ferme le contournement par « mot de passe oublié » et les sessions ouvertes avant l'attribution du rôle ;
 - « mot de passe oublié » ne réenregistre **jamais** un code TOTP, et il est **refusé** aux rôles de modération et d'administration avant tout envoi d'e-mail (flux `reinitialisation-plumiotheca`, #125) : sinon le lien reçu ouvrirait une session où un second code peut être enregistré, et la boîte mail suffirait. Mot de passe ou appareil perdu : par l'administration (décision 35) ;

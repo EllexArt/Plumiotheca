@@ -15,11 +15,13 @@ import { CreatedAt, IdColumn, UpdatedAt } from '../database/columns.js';
 // Un compte actif est toujours lié à Keycloak ; un compte supprimé ne garde aucune donnée
 // personnelle (liste tenue dans PERSONAL_FIELDS, vérifiée par les tests).
 @Check('users_active_has_keycloak_id', `"status" = 'deleted' OR "keycloak_id" IS NOT NULL`)
+// Un compte verrouillé (moins de 15 ans) est daté : il est supprimé 30 jours après.
+@Check('users_locked_has_date', `"age_band" <> 'under-15' OR "age_locked_at" IS NOT NULL`)
 @Check(
   'users_deleted_is_empty',
   `"status" <> 'deleted' OR ("keycloak_id" IS NULL AND "handle" IS NULL AND "handle_key" IS NULL
     AND "display_name" IS NULL AND "pronouns" IS NULL AND "bio" IS NULL AND "age_band" IS NULL
-    AND "charter_version" IS NULL AND "charter_accepted_at" IS NULL)`,
+    AND "charter_version" IS NULL AND "charter_accepted_at" IS NULL AND "age_locked_at" IS NULL)`,
 )
 export class User {
   @IdColumn()
@@ -54,6 +56,13 @@ export class User {
    */
   @Column({ type: 'enum', enum: DeclaredAge.options, enumName: 'age_band', nullable: true })
   ageBand!: DeclaredAge | null;
+
+  /**
+   * Date du verrouillage (réponse « moins de 15 ans ») : le compte est supprimé 30 jours
+   * après (décision 45, #141). Personnelle : elle révèle la tranche d'âge.
+   */
+  @Column({ type: 'timestamptz', nullable: true })
+  ageLockedAt!: Date | null;
 
   /** Version de la charte acceptée, et quand. */
   @Column({ type: 'varchar', length: 20, nullable: true })
@@ -100,6 +109,7 @@ export const PERSONAL_FIELDS = [
   'pronouns',
   'bio',
   'ageBand',
+  'ageLockedAt',
   'charterVersion',
   'charterAcceptedAt',
 ] as const satisfies readonly (keyof User)[];
