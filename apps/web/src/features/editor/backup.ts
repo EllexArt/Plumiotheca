@@ -86,3 +86,15 @@ export function clearBackups() {
     // Stockage indisponible : rien à effacer.
   }
 }
+
+/**
+ * Du texte non enregistré reste-t-il dans l'onglet (copie de secours ou version proposée) ?
+ * La déconnexion l'effacerait : on prévient d'abord (#147).
+ */
+export function hasUnsavedText(): boolean {
+  try {
+    return Object.keys(sessionStorage).some((key) => key.startsWith(PREFIX));
+  } catch {
+    return false;
+  }
+}

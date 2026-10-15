@@ -88,8 +88,11 @@ export function limitViolation(doc: PMNode): string | null {
 /** Le document respecte-t-il toutes les limites de l'API ? */
 export const withinLimits = (doc: PMNode): boolean => limitViolation(doc) === null;
 
-/** Retire les identifiants d'un contenu collé : un collage est toujours un nouveau bloc. */
-function withoutIds(fragment: Fragment): Fragment {
+/**
+ * Retire les identifiants d'un contenu collé : un collage est un nouveau bloc, sauf pour les
+ * identifiants de `keep` (bloc déplacé dans le chapitre : glisser-déposer, couper-coller).
+ */
+function withoutIds(fragment: Fragment, keep: ReadonlySet<string> = new Set()): Fragment {
   const nodes: PMNode[] = [];
   fragment.forEach((node) => {
     if (node.isText) {
@@ -97,18 +100,37 @@ function withoutIds(fragment: Fragment): Fragment {
       if (text) nodes.push(text === node.text ? node : node.type.schema.text(text, node.marks));
       return;
     }
-    const attrs = BLOCK_TYPES.includes(node.type.name) ? { ...node.attrs, id: null } : node.attrs;
-    nodes.push(node.type.create(attrs, withoutIds(node.content), node.marks));
+    const id = node.attrs.id as string | null | undefined;
+    const attrs =
+      BLOCK_TYPES.includes(node.type.name) && !(id && keep.has(id))
+        ? { ...node.attrs, id: null }
+        : node.attrs;
+    nodes.push(node.type.create(attrs, withoutIds(node.content, keep), node.marks));
   });
   return Fragment.fromArray(nodes);
 }
 
+/** Identifiants des blocs d'un contenu. */
+function idsOf(fragment: Fragment, into = new Set<string>()): Set<string> {
+  fragment.forEach((node) => {
+    const id = node.attrs.id as string | null | undefined;
+    if (id && BLOCK_TYPES.includes(node.type.name)) into.add(id);
+    idsOf(node.content, into);
+  });
+  return into;
+}
+
 /**
- * Identifiants de blocs (#134) : chaque bloc garde le sien d'une sauvegarde à l'autre, pour
- * que notes de lecture et reprise restent accrochées au bon paragraphe. Un bloc né d'un
- * retour à la ligne (keepOnSplit: false) ou d'un collage en reçoit un nouveau ; en cas de
- * doublon, le premier garde l'identifiant. L'API complète et départage de son côté
- * (ensureBlockIds), cette extension évite simplement les allers-retours.
+ * Identifiants de blocs (#134, #147) : chaque bloc garde le sien d'une sauvegarde à l'autre,
+ * pour que notes de lecture et reprise restent accrochées au bon paragraphe.
+ *
+ * - Retour à la ligne : le nouveau bloc en reçoit un nouveau (keepOnSplit: false) ; Entrée
+ *   au début d'un paragraphe insère un paragraphe vide au-dessus, le texte garde le sien.
+ * - Collage : nouveaux identifiants, sauf pour un bloc déplacé dans le chapitre
+ *   (glisser-déposer, ou couper puis coller), qui garde le sien.
+ * - Doublons : laissés à l'API, qui départage d'après le texte enregistré (ensureBlockIds) ;
+ *   l'éditeur reprend ensuite le document complété. Ici, seuls les blocs sans identifiant
+ *   en reçoivent un.
  */
 declare module '@tiptap/core' {
   interface EditorEvents {
@@ -136,13 +158,49 @@ export const BlockIds = Extension.create({
     ];
   },
 
+  // Avant les raccourcis de StarterKit (Entrée au début d'un paragraphe).
+  priority: 1000,
+
+  addKeyboardShortcuts() {
+    return {
+      Enter: ({ editor }) => {
+        const { $from, empty } = editor.state.selection;
+        const block = $from.parent;
+        if (!empty || $from.parentOffset !== 0 || !block.isTextblock || !block.content.size) {
+          return false;
+        }
+        // Dans une liste : comportement habituel (nouvel élément de liste).
+        if ($from.depth > 1 && $from.node(-1).type.name === 'listItem') return false;
+        // Paragraphe vide au-dessus : le texte garde son bloc, donc son identifiant.
+        return editor
+          .chain()
+          .insertContentAt($from.before(), { type: 'paragraph' }, { updateSelection: false })
+          .run();
+      },
+    };
+  },
+
   addProseMirrorPlugins() {
+    // Identifiants des blocs coupés : collés ensuite, ce sont des blocs déplacés.
+    let cut = new Set<string>();
     return [
       new Plugin({
         key: new PluginKey('blockIds'),
         props: {
-          transformPasted: (slice) =>
-            new Slice(withoutIds(slice.content), slice.openStart, slice.openEnd),
+          handleDOMEvents: {
+            cut: (view) => {
+              cut = idsOf(view.state.selection.content().content);
+              return false;
+            },
+          },
+          transformPasted: (slice, view) => {
+            // Glisser-déposer dans le chapitre : le bloc est déplacé, il garde son identifiant.
+            const moved = view.dragging?.move ? idsOf(slice.content) : new Set<string>();
+            // Couper puis coller : identifiants gardés s'ils ne sont plus dans le chapitre.
+            const present = idsOf(view.state.doc.content);
+            for (const id of cut) if (!present.has(id)) moved.add(id);
+            return new Slice(withoutIds(slice.content, moved), slice.openStart, slice.openEnd);
+          },
           transformPastedText: (text) => cleanPastedText(text),
         },
         // Jamais au-delà des limites de l'API (Tab de trop, collage trop profond ou trop long,
@@ -155,18 +213,13 @@ export const BlockIds = Extension.create({
         },
         appendTransaction: (transactions, _before, state) => {
           if (!transactions.some((t) => t.docChanged)) return null;
-          const seen = new Set<string>();
+          const present = idsOf(state.doc.content);
           let tr: Transaction | null = null;
           state.doc.descendants((node, pos) => {
-            if (!BLOCK_TYPES.includes(node.type.name)) return;
-            const id = node.attrs.id as string | null;
-            if (id && !seen.has(id)) {
-              seen.add(id);
-              return;
-            }
+            if (!BLOCK_TYPES.includes(node.type.name) || node.attrs.id) return;
             let next = newBlockId();
-            while (seen.has(next)) next = newBlockId();
-            seen.add(next);
+            while (present.has(next)) next = newBlockId();
+            present.add(next);
             tr ??= state.tr;
             // Même taille de nœud : les positions suivantes restent valables.
             tr.setNodeMarkup(pos, undefined, { ...node.attrs, id: next });

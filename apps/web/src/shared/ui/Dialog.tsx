@@ -14,6 +14,7 @@ export function Dialog({
   footer,
   open,
   onOpenChange,
+  onCloseAutoFocus,
 }: {
   trigger?: ReactNode;
   title: ReactNode;
@@ -22,6 +23,8 @@ export function Dialog({
   footer?: ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** À la fermeture : où rendre le focus, si l'élément qui a ouvert la fenêtre n'existe plus. */
+  onCloseAutoFocus?: (event: Event) => void;
 }) {
   return (
     <Radix.Root open={open} onOpenChange={onOpenChange}>
@@ -30,6 +33,7 @@ export function Dialog({
         <Radix.Overlay className={styles.overlay} />
         <Radix.Content
           className={styles.content}
+          onCloseAutoFocus={onCloseAutoFocus}
           {...(description ? {} : { 'aria-describedby': undefined })}
         >
           <div className={styles.header}>
