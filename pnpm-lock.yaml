@@ -338,6 +338,9 @@ importers:
       '@tiptap/starter-kit':
         specifier: ^3.31.3
         version: 3.31.3
+      get-nonce:
+        specifier: 1.0.1
+        version: 1.0.1
       oidc-client-ts:
         specifier: ^3.4.0
         version: 3.5.0

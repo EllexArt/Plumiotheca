@@ -26,7 +26,9 @@ async function deleteStory(page: Page, storyId: string) {
       ? (JSON.parse(sessionStorage.getItem(key) ?? '{}') as { access_token?: string }).access_token
       : undefined;
     if (!token) return 0;
-    const res = await fetch(`/api/histoires/${id}`, {
+    // Adresse de l'API de la page (même origine en développement, autre origine en image).
+    const api = (window as { PLUMIOTHECA?: { apiUrl?: string } }).PLUMIOTHECA?.apiUrl || '/api';
+    const res = await fetch(`${api}/histoires/${id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -37,12 +39,28 @@ async function deleteStory(page: Page, storyId: string) {
 
 const text = 'Il était une fois une lanterne qui ne voulait pas s’éteindre.';
 
+/**
+ * Violations de la CSP du site (#140), relevées dans la console du navigateur. Les pages de
+ * Keycloak, qui ont leur propre politique, ne comptent pas. Sans CSP (serveur de
+ * développement de Vite), la liste reste vide.
+ */
+const cspViolations: string[] = [];
+function watchCsp(page: Page) {
+  page.on('console', (message) => {
+    if (!/Content Security Policy|Content-Security-Policy/i.test(message.text())) return;
+    if (new URL(page.url()).port === '8080') return;
+    cspViolations.push(`${page.url()} : ${message.text()}`);
+  });
+}
+
 test('écrire → publier → lire', async ({ page, browser, account }) => {
   // Propres à chaque tentative (une nouvelle tentative recommence avec un compte neuf).
   const suffix = randomBytes(3).toString('hex');
   const handle = `e2e.${suffix}`;
   const title = `Les lucioles du canal ${suffix}`;
   let storyId = '';
+  cspViolations.length = 0;
+  watchCsp(page);
 
   try {
     await test.step('connexion par Keycloak', async () => {
@@ -59,6 +77,11 @@ test('écrire → publier → lire', async ({ page, browser, account }) => {
         page.getByRole('heading', { level: 1, name: 'Bienvenue sur Plumiotheca' }),
       ).toBeVisible();
       await expectAccessible(page);
+      // Fenêtre de dialogue (charte) : verrouille le défilement sans style en ligne (CSP).
+      await page.getByRole('button', { name: 'Lire la charte' }).click();
+      await expect(page.getByRole('dialog', { name: 'Charte de la communauté' })).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('dialog')).toBeHidden();
       await page.getByRole('radio', { name: /18 ans ou plus/ }).check();
       await page.getByRole('textbox', { name: /Votre pseudonyme/ }).fill(handle);
       await page.getByRole('checkbox', { name: /J’ai lu la charte/ }).check();
@@ -110,6 +133,7 @@ test('écrire → publier → lire', async ({ page, browser, account }) => {
     await test.step('lire sans compte : Explorer, fiche, chapitre', async () => {
       const visitor = await browser.newContext({ locale: 'fr-FR', reducedMotion: 'reduce' });
       const reader = await visitor.newPage();
+      watchCsp(reader);
       await reader.goto('/');
       const card = reader.getByRole('article').filter({ hasText: title });
       // Ce que la personne qui lit doit savoir avant d'ouvrir l'histoire.
@@ -136,11 +160,16 @@ test('écrire → publier → lire', async ({ page, browser, account }) => {
         colorScheme: 'dark',
       });
       const nightReader = await night.newPage();
+      watchCsp(nightReader);
       await nightReader.goto(chapterUrl);
       await expect(nightReader.locator('html')).toHaveAttribute('data-theme', 'dark');
       await expect(nightReader.getByText(text)).toBeVisible();
       await expectAccessible(nightReader);
       await night.close();
+    });
+
+    await test.step('aucune violation de la CSP du site', () => {
+      expect(cspViolations).toEqual([]);
     });
   } finally {
     if (storyId) await deleteStory(page, storyId);
