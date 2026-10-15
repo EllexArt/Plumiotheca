@@ -87,7 +87,9 @@ describe('éditeur : identifiants de blocs', () => {
     expect(second).not.toBe(first);
   });
 
-  it('copie d’un bloc existant : l’original garde son identifiant, la copie en reçoit un autre', () => {
+  it('bloc inséré avec un identifiant déjà présent : doublon laissé à l’API (#147)', () => {
+    // Un vrai collage reçoit un nouvel identifiant (transformPasted, extensions.test.ts) ;
+    // un doublon venu d'ailleurs est départagé par l'API d'après le texte enregistré.
     const editor = makeEditor(start);
     editor.commands.insertContentAt(editor.state.doc.content.size, {
       type: 'paragraph',
@@ -96,7 +98,7 @@ describe('éditeur : identifiants de blocs', () => {
     });
     const [first, copy] = ids(editor.getJSON());
     expect(first).toBe('premier-bloc');
-    expect(copy).not.toBe('premier-bloc');
+    expect(copy).toBe('premier-bloc');
   });
 });
 

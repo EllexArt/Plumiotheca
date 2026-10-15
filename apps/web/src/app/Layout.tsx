@@ -1,12 +1,13 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { DropdownMenu } from 'radix-ui';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from 'react-oidc-context';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useMyAccount } from '../features/account/api';
-import { clearBackups } from '../features/editor/backup';
+import { clearBackups, hasUnsavedText } from '../features/editor/backup';
 import { forgetReadings } from '../features/stories/progress';
 import { Button, ButtonLink } from '../shared/ui/Button';
+import { Dialog } from '../shared/ui/Dialog';
 import { Alert } from '../shared/ui/Feedback';
 import { AccountGate } from './AccountGate';
 import type { SigninState } from './auth';
@@ -60,6 +61,10 @@ function AccountMenu() {
   const handle = account?.handle;
   const initials = (handle ?? '?').slice(0, 2).toUpperCase();
 
+  const trigger = useRef<HTMLButtonElement>(null);
+  // Texte non enregistré dans l'onglet : la déconnexion l'effacerait, on demande d'abord (#147).
+  const [confirming, setConfirming] = useState(false);
+
   const signout = () => {
     queryClient.clear();
     clearBackups();
@@ -68,42 +73,76 @@ function AccountMenu() {
   };
 
   return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger
-        className={styles.avatar}
-        aria-label={handle ? `Mon compte, @${handle}` : 'Mon compte'}
-      >
-        <span aria-hidden="true">{initials}</span>
-      </DropdownMenu.Trigger>
-      {/* Pas de portail : le menu reste dans l'en-tête (repère « banner »), comme le bouton. */}
-      <DropdownMenu.Content className={styles.menu} align="end" sideOffset={8}>
-        {handle && <DropdownMenu.Label className={styles.menuLabel}>@{handle}</DropdownMenu.Label>}
-        {handle && (
+    <>
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger
+          ref={trigger}
+          className={styles.avatar}
+          aria-label={handle ? `Mon compte, @${handle}` : 'Mon compte'}
+        >
+          <span aria-hidden="true">{initials}</span>
+        </DropdownMenu.Trigger>
+        {/* Pas de portail : le menu reste dans l'en-tête (repère « banner »), comme le bouton. */}
+        <DropdownMenu.Content className={styles.menu} align="end" sideOffset={8}>
+          {handle && (
+            <DropdownMenu.Label className={styles.menuLabel}>@{handle}</DropdownMenu.Label>
+          )}
+          {handle && (
+            <DropdownMenu.Item asChild className={styles.menuItem}>
+              <Link to={`/profils/${encodeURIComponent(handle)}`}>Mon profil</Link>
+            </DropdownMenu.Item>
+          )}
           <DropdownMenu.Item asChild className={styles.menuItem}>
-            <Link to={`/profils/${encodeURIComponent(handle)}`}>Mon profil</Link>
+            <Link to="/compte">Paramètres du compte</Link>
           </DropdownMenu.Item>
-        )}
-        <DropdownMenu.Item asChild className={styles.menuItem}>
-          <Link to="/compte">Paramètres du compte</Link>
-        </DropdownMenu.Item>
-        <DropdownMenu.Separator className={styles.separator} />
-        <DropdownMenu.Label className={styles.menuLabel}>Thème</DropdownMenu.Label>
-        <DropdownMenu.RadioGroup value={choice} onValueChange={(v) => setChoice(v as ThemeChoice)}>
-          {themes.map(([value, label]) => (
-            <DropdownMenu.RadioItem key={value} value={value} className={styles.menuItem}>
-              <span className={styles.menuIndicator} aria-hidden="true">
-                <DropdownMenu.ItemIndicator>✓</DropdownMenu.ItemIndicator>
-              </span>
-              {label}
-            </DropdownMenu.RadioItem>
-          ))}
-        </DropdownMenu.RadioGroup>
-        <DropdownMenu.Separator className={styles.separator} />
-        <DropdownMenu.Item className={styles.menuItem} onSelect={signout}>
-          Se déconnecter
-        </DropdownMenu.Item>
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
+          <DropdownMenu.Separator className={styles.separator} />
+          <DropdownMenu.Label className={styles.menuLabel}>Thème</DropdownMenu.Label>
+          <DropdownMenu.RadioGroup
+            value={choice}
+            onValueChange={(v) => setChoice(v as ThemeChoice)}
+          >
+            {themes.map(([value, label]) => (
+              <DropdownMenu.RadioItem key={value} value={value} className={styles.menuItem}>
+                <span className={styles.menuIndicator} aria-hidden="true">
+                  <DropdownMenu.ItemIndicator>✓</DropdownMenu.ItemIndicator>
+                </span>
+                {label}
+              </DropdownMenu.RadioItem>
+            ))}
+          </DropdownMenu.RadioGroup>
+          <DropdownMenu.Separator className={styles.separator} />
+          <DropdownMenu.Item
+            className={styles.menuItem}
+            onSelect={() => (hasUnsavedText() ? setConfirming(true) : signout())}
+          >
+            Se déconnecter
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Root>
+      <Dialog
+        open={confirming}
+        onOpenChange={setConfirming}
+        // Le menu est fermé : le focus revient au bouton du compte.
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          trigger.current?.focus();
+        }}
+        title="Du texte n’est pas encore enregistré"
+        description="Une modification d’un chapitre n’a pas pu être enregistrée. En vous déconnectant maintenant, elle sera perdue."
+        footer={
+          <>
+            <Button variant="primary" onClick={() => setConfirming(false)}>
+              Ne pas me déconnecter
+            </Button>
+            <Button variant="danger" onClick={signout}>
+              Se déconnecter quand même
+            </Button>
+          </>
+        }
+      >
+        <p>Revenez à l’éditeur et attendez « Enregistré » avant de vous déconnecter.</p>
+      </Dialog>
+    </>
   );
 }
 

@@ -333,6 +333,38 @@ describe('compte connecté', () => {
     expect(auth.signoutRedirect).toHaveBeenCalled();
   });
 
+  it('se déconnecter avec du texte non enregistré : prévenir d’abord (#147)', async () => {
+    signedIn();
+    sessionStorage.setItem('plumiotheca.brouillon.chapitre-1', JSON.stringify({ version: 1 }));
+    mockApi((url) => (url === '/api/moi/compte' ? { body: account() } : undefined));
+    renderApp('/');
+    const accountButton = await screen.findByRole('button', { name: 'Mon compte, @ilse' });
+    await userEvent.click(accountButton);
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Se déconnecter' }));
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Du texte n’est pas encore enregistré',
+    });
+    expect(dialog).toHaveAccessibleDescription(/elle sera perdue/);
+    expect(auth.signoutRedirect).not.toHaveBeenCalled();
+    await expectAccessible();
+
+    // Rester : rien n'est effacé, le focus revient au bouton du compte.
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Ne pas me déconnecter' }));
+    await waitFor(() => expect(accountButton).toHaveFocus());
+    expect(sessionStorage.getItem('plumiotheca.brouillon.chapitre-1')).not.toBeNull();
+
+    // Partir quand même : la copie est effacée, la déconnexion a lieu.
+    await userEvent.click(accountButton);
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Se déconnecter' }));
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', {
+        name: 'Se déconnecter quand même',
+      }),
+    );
+    expect(auth.signoutRedirect).toHaveBeenCalled();
+    expect(sessionStorage.getItem('plumiotheca.brouillon.chapitre-1')).toBeNull();
+  });
+
   it('jeton expiré : renouvelé en silence, la requête repart avec le nouveau jeton', async () => {
     signedIn();
     auth.signinSilent.mockResolvedValueOnce({ access_token: 'nouveau' });
