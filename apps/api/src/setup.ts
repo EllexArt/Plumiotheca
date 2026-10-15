@@ -63,8 +63,10 @@ export function configureApp(app: NestExpressApplication, config: Config): INest
     credentials: false,
     maxAge: 600,
   });
-  // Seul le JSON est accepté ; 1 Mo couvre un long chapitre au format TipTap.
-  app.useBodyParser('json', { limit: '1mb' });
+  // Seul le JSON est accepté. 2 Mo : un chapitre au maximum de caractères (300 000) en
+  // écriture chinoise ou japonaise (3 octets par caractère en UTF-8) avec la structure du
+  // document ; le schéma des chapitres borne ensuite le contenu lui-même (#148).
+  app.useBodyParser('json', { limit: '2mb' });
   app.setGlobalPrefix(API_PREFIX);
   app.enableShutdownHooks();
 

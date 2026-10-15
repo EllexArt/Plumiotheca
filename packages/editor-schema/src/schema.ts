@@ -11,7 +11,15 @@ import { z } from 'zod';
 export const BLOCK_ID = /^[A-Za-z0-9_-]{8,32}$/;
 const BlockId = z.string().regex(BLOCK_ID);
 
-const MAX_TEXT = 20_000;
+/** Limites du schéma, partagées avec l'éditeur (qui refuse une modification au-delà, #148). */
+export const MAX_TEXT = 20_000;
+/** Éléments en ligne d'un paragraphe et d'un intertitre. */
+export const MAX_PARAGRAPH_INLINE = 2_000;
+export const MAX_HEADING_INLINE = 500;
+/** Blocs d'une citation, éléments d'une liste. */
+export const MAX_CHILDREN = 500;
+/** Blocs de premier niveau d'un chapitre. */
+export const MAX_TOP_BLOCKS = 20_000;
 
 export const Mark = z.strictObject({
   type: z.enum(['bold', 'italic', 'underline', 'strike']),
@@ -58,7 +66,7 @@ const blockAttrs = { id: BlockId.nullable().optional() };
 export const Paragraph = z.strictObject({
   type: z.literal('paragraph'),
   attrs: z.strictObject({ ...blockAttrs, textAlign: TextAlign }).optional(),
-  content: z.array(Inline).max(2_000).optional(),
+  content: z.array(Inline).max(MAX_PARAGRAPH_INLINE).optional(),
 });
 export type Paragraph = z.infer<typeof Paragraph>;
 
@@ -70,7 +78,7 @@ export const Heading = z.strictObject({
     level: z.union([z.literal(2), z.literal(3)]),
     textAlign: TextAlign,
   }),
-  content: z.array(Inline).max(500).optional(),
+  content: z.array(Inline).max(MAX_HEADING_INLINE).optional(),
 });
 export type Heading = z.infer<typeof Heading>;
 
@@ -112,7 +120,7 @@ export const Blockquote: z.ZodType<Blockquote> = z.lazy(() =>
   z.strictObject({
     type: z.literal('blockquote'),
     attrs: z.strictObject(blockAttrs).optional(),
-    content: z.array(Block).min(1).max(500),
+    content: z.array(Block).min(1).max(MAX_CHILDREN),
   }),
 );
 
@@ -136,13 +144,13 @@ export const List: z.ZodType<List> = z.lazy(() =>
         type: z.enum(['1', 'a', 'A', 'i', 'I']).nullable().optional(),
       })
       .optional(),
-    content: z.array(ListItem).min(1).max(500),
+    content: z.array(ListItem).min(1).max(MAX_CHILDREN),
   }),
 );
 
 /** Structure seule, sans limites de profondeur ni de taille : utiliser parseDocument(). */
 export const UncheckedChapterDocument = z.strictObject({
   type: z.literal('doc'),
-  content: z.array(Block).max(20_000),
+  content: z.array(Block).max(MAX_TOP_BLOCKS),
 });
 export type ChapterDocument = { type: 'doc'; content: Block[] };

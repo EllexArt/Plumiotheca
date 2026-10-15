@@ -460,6 +460,26 @@ describe('chapitres', () => {
     expect(row.story.id).toBe(victimStory.id);
   });
 
+  it('brouillon au maximum de caractères en chinois (3 octets chacun) : accepté (#148)', async () => {
+    const ctx = await start();
+    const jwt = await readyToken(ctx.app);
+    const story = await newStory(ctx, jwt);
+    const chapter = await newChapter(ctx, jwt, story.id);
+    // 300 000 caractères (MAX_CHARACTERS) en paragraphes de 20 000 (MAX_TEXT) : environ
+    // 900 Ko de texte, au-delà de l'ancienne limite d'1 Mo une fois la structure ajoutée.
+    const paragraphs = Array.from({ length: 15 }, (_, i) =>
+      p('漢字'.repeat(10_000), `bloc-cjk-${i}`),
+    );
+    await saveDraft(
+      ctx,
+      jwt,
+      story.id,
+      chapter.id,
+      doc(...paragraphs),
+      chapter.draftVersion,
+    ).expect(200);
+  });
+
   it('brouillon : validé, identifiants de blocs complétés, deux sauvegardes concurrentes → 409', async () => {
     const ctx = await start();
     const jwt = await readyToken(ctx.app);

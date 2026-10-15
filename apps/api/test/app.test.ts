@@ -120,7 +120,7 @@ describe('erreurs', () => {
     const { http } = await start();
     const res = await http
       .post('/api/essai')
-      .send({ title: 'x'.repeat(1_100_000) })
+      .send({ title: 'x'.repeat(2_200_000) })
       .expect(413);
     const problem = expectProblem(res.body, 413);
     expect(problem.type).toBe('trop-volumineux');

@@ -1,4 +1,15 @@
-import { MAX_BLOCK_DEPTH, MAX_LIST_DEPTH, newBlockId } from '@plumiotheca/editor-schema';
+import {
+  MAX_BLOCK_DEPTH,
+  MAX_CHARACTERS,
+  MAX_CHILDREN,
+  MAX_HEADING_INLINE,
+  MAX_LIST_DEPTH,
+  MAX_NODES,
+  MAX_PARAGRAPH_INLINE,
+  MAX_TEXT,
+  MAX_TOP_BLOCKS,
+  newBlockId,
+} from '@plumiotheca/editor-schema';
 import { Extension } from '@tiptap/core';
 import TextAlign from '@tiptap/extension-text-align';
 import { Fragment, Slice, type Node as PMNode } from '@tiptap/pm/model';
@@ -31,27 +42,51 @@ export const cleanPastedText = (text: string) => text.replace(/\v/g, '\n').repla
 /** Texte d'un contenu collé mis en forme : caractères refusés retirés. */
 const cleanInline = (text: string) => text.replace(/\v/g, ' ').replace(FORBIDDEN, '');
 
+const number = new Intl.NumberFormat('fr-FR');
+const TOO_LONG = `Chapitre trop long (${number.format(MAX_CHARACTERS)} caractères au plus) : découpez-le en plusieurs chapitres.`;
+
 /**
- * Le document respecte-t-il les limites d'imbrication de l'API (blocs : MAX_BLOCK_DEPTH,
- * listes : MAX_LIST_DEPTH) ? Même mesure que parseDocument : profondeur de chaque nœud
- * sous le document, et nombre de listes emboîtées.
+ * Première limite de l'API que le document dépasserait, en clair ; null s'il les respecte.
+ * Mêmes mesures que parseDocument (packages/editor-schema) : profondeur de chaque nœud sous
+ * le document, listes emboîtées, longueur d'un texte, nombre d'éléments d'un bloc, taille du
+ * chapitre. Sans ce contrôle, la modification passerait dans l'éditeur, puis plus aucune
+ * sauvegarde ne passerait, avec un message qui ne dit pas où (#148).
  */
-export function withinLimits(doc: PMNode): boolean {
-  const walk = (node: PMNode, level: number, lists: number): boolean => {
+export function limitViolation(doc: PMNode): string | null {
+  if (doc.childCount > MAX_TOP_BLOCKS || doc.textContent.length > MAX_CHARACTERS) return TOO_LONG;
+  let nodes = 0;
+  const walk = (node: PMNode, level: number, lists: number): string | null => {
+    if (++nodes > MAX_NODES) return TOO_LONG;
     // Comme measure() : tout nœud compte (un séparateur ou un paragraphe vide aussi).
-    if (level > MAX_BLOCK_DEPTH + 2) return false;
-    if (node.isInline) return true;
-    const list = node.type.name === 'bulletList' || node.type.name === 'orderedList';
+    if (level > MAX_BLOCK_DEPTH + 2) {
+      return `Imbrication trop profonde (${MAX_BLOCK_DEPTH} niveaux au plus).`;
+    }
+    if (node.isText && (node.text?.length ?? 0) > MAX_TEXT) {
+      return `Paragraphe trop long (${number.format(MAX_TEXT)} caractères au plus) : coupez-le en deux.`;
+    }
+    if (node.isInline) return null;
+    const name = node.type.name;
+    const list = name === 'bulletList' || name === 'orderedList';
     const depth = list ? lists + 1 : lists;
-    if (depth > MAX_LIST_DEPTH) return false;
-    let ok = true;
+    if (depth > MAX_LIST_DEPTH) return `Listes imbriquées sur ${MAX_LIST_DEPTH} niveaux au plus.`;
+    if ((list || name === 'blockquote') && node.childCount > MAX_CHILDREN) {
+      return `Une citation ou une liste compte ${MAX_CHILDREN} éléments au plus : découpez-la.`;
+    }
+    const inline = name === 'heading' ? MAX_HEADING_INLINE : MAX_PARAGRAPH_INLINE;
+    if (node.inlineContent && node.childCount > inline) {
+      return 'Trop de mises en forme dans ce paragraphe : coupez-le en deux.';
+    }
+    let found: string | null = null;
     node.forEach((child) => {
-      ok &&= walk(child, level + 1, depth);
+      found ??= walk(child, level + 1, depth);
     });
-    return ok;
+    return found;
   };
   return walk(doc, 0, 0);
 }
+
+/** Le document respecte-t-il toutes les limites de l'API ? */
+export const withinLimits = (doc: PMNode): boolean => limitViolation(doc) === null;
 
 /** Retire les identifiants d'un contenu collé : un collage est toujours un nouveau bloc. */
 function withoutIds(fragment: Fragment): Fragment {
@@ -75,6 +110,13 @@ function withoutIds(fragment: Fragment): Fragment {
  * doublon, le premier garde l'identifiant. L'API complète et départage de son côté
  * (ensureBlockIds), cette extension évite simplement les allers-retours.
  */
+declare module '@tiptap/core' {
+  interface EditorEvents {
+    /** Modification refusée par l'éditeur (limite de l'API, #148), avec la raison. */
+    refused: { reason: string };
+  }
+}
+
 export const BlockIds = Extension.create({
   name: 'blockIds',
 
@@ -103,9 +145,14 @@ export const BlockIds = Extension.create({
             new Slice(withoutIds(slice.content), slice.openStart, slice.openEnd),
           transformPastedText: (text) => cleanPastedText(text),
         },
-        // Jamais au-delà des limites d'imbrication de l'API (Tab de trop, collage profond) :
-        // sinon plus aucune sauvegarde ne passerait.
-        filterTransaction: (tr) => !tr.docChanged || withinLimits(tr.doc),
+        // Jamais au-delà des limites de l'API (Tab de trop, collage trop profond ou trop long,
+        // paragraphe démesuré) : sinon plus aucune sauvegarde ne passerait. Le refus est dit.
+        filterTransaction: (tr) => {
+          if (!tr.docChanged) return true;
+          const refused = limitViolation(tr.doc);
+          if (refused) this.editor.emit('refused', { reason: refused });
+          return !refused;
+        },
         appendTransaction: (transactions, _before, state) => {
           if (!transactions.some((t) => t.docChanged)) return null;
           const seen = new Set<string>();
