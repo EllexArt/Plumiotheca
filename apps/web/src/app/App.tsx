@@ -4,6 +4,7 @@ import { RouterProvider } from 'react-router';
 import { ApiError } from '../shared/api/client';
 import { oidcSettings, returnToOf } from './auth';
 import { router } from './router';
+import { TokenRenewal } from './TokenRenewal';
 import { ThemeProvider } from './theme';
 
 const queryClient = new QueryClient({
@@ -28,6 +29,7 @@ export function App() {
       // Après Keycloak : retirer le code de l'adresse et rouvrir la page de départ.
       onSigninCallback={(user) => void router.navigate(returnToOf(user), { replace: true })}
     >
+      <TokenRenewal />
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
           <RouterProvider router={router} />

@@ -19,6 +19,8 @@ import { Page } from '../../shared/ui/Page';
 import { storyKeys, useDraft, useStory, useWriterActions } from '../stories/api';
 import { formatNumber } from '../stories/labels';
 import { backupToPropose, writeBackup, writeProposed, type Backup } from './backup';
+// Styles de base de TipTap en fichier (pas de balise <style> injectée : CSP stricte).
+import './prosemirror.css';
 import styles from './ChapterEditor.module.css';
 import { editorExtensions } from './extensions';
 import { MOD, Toolbar } from './Toolbar';
@@ -269,6 +271,8 @@ function Editor({
   const changedRef = useRef<(doc: JSONContent, language: string) => void>(() => {});
   const editor = useEditor({
     extensions: editorExtensions,
+    // Styles de base importés en fichier (prosemirror.css) : CSP sans style en ligne.
+    injectCSS: false,
     content: initial.draft as JSONContent,
     editorProps: {
       attributes: {

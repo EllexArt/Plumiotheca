@@ -1,5 +1,6 @@
 import { WebStorageStateStore, type User } from 'oidc-client-ts';
 import type { AuthProviderProps } from 'react-oidc-context';
+import { config } from '../shared/config';
 
 /** Ce que l'application retient pendant l'aller-retour vers Keycloak. */
 export interface SigninState {
@@ -29,16 +30,18 @@ const origin = window.location.origin;
 
 /**
  * Authorization Code + PKCE (client public « web » du realm, décision 6). Le jeton est
- * gardé dans la session de l'onglet (fermée avec lui), jamais dans localStorage ; il est
- * renouvelé en arrière-plan avant expiration, sans déconnexion surprise.
+ * gardé dans la session de l'onglet (fermée avec lui), jamais dans localStorage. Il est
+ * renouvelé avant expiration par TokenRenewal, et après un refus (401) par useApi : les
+ * deux passent par le même renouvellement partagé (renewOnce), car le jeton de
+ * rafraîchissement ne sert qu'une fois (deux renouvellements simultanés déconnecteraient).
  */
 export const oidcSettings: AuthProviderProps = {
-  authority: import.meta.env.VITE_OIDC_AUTHORITY ?? 'http://localhost:8080/realms/plumiotheca',
-  client_id: import.meta.env.VITE_OIDC_CLIENT_ID ?? 'web',
+  authority: config.oidcAuthority,
+  client_id: config.oidcClientId,
   redirect_uri: `${origin}/connexion`,
   post_logout_redirect_uri: `${origin}/`,
   scope: 'openid',
   ui_locales: 'fr',
-  automaticSilentRenew: true,
+  automaticSilentRenew: false,
   userStore: new WebStorageStateStore({ store: window.sessionStorage }),
 };
