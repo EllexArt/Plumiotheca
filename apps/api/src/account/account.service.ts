@@ -118,7 +118,7 @@ export class AccountService {
       // réponse « 18+ » envoyée au même instant ne peut ni l'écraser ni être écrasée.
       const locked = await this.users.update(
         { id: user.id, ageBand: IsNull() },
-        { ageBand: 'under-15' },
+        { ageBand: 'under-15', ageLockedAt: new Date() },
       );
       if (!locked.affected) return this.retry(user, input);
       throw ageLocked();

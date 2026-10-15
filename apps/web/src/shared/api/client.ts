@@ -1,8 +1,9 @@
 import { Problem } from '@plumiotheca/contracts';
 import type { z } from 'zod';
+import { config } from '../config';
 
 /** Préfixe de l'API : relayée par Vite en développement, même domaine en production. */
-const BASE = import.meta.env.VITE_API_URL ?? '/api';
+const BASE = config.apiUrl;
 
 /** Réponse d'erreur de l'API (RFC 9457), avec un message affichable. */
 export class ApiError extends Error {

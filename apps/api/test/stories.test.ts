@@ -779,7 +779,7 @@ describe('suites de la revue de #133', () => {
     await ctx.app
       .get(DataSource)
       .getRepository(User)
-      .update({ keycloakId: sub }, { ageBand: 'under-15' });
+      .update({ keycloakId: sub }, { ageBand: 'under-15', ageLockedAt: new Date() });
     await ctx.http.get(`/api/histoires/${story.id}`).expect(404);
   });
 

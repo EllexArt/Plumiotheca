@@ -5,6 +5,11 @@ import { defineConfig, devices } from '@playwright/test';
 const WEB = process.env.E2E_WEB_URL ?? 'http://localhost:5173';
 const API = process.env.E2E_API_URL ?? 'http://localhost:3000';
 const CI = !!process.env.CI;
+/**
+ * Site déjà servi ailleurs (image Docker du site, avec sa CSP) : Playwright ne lance pas
+ * le serveur de développement de Vite.
+ */
+const EXTERNAL_WEB = process.env.E2E_WEB_EXTERNAL === '1';
 
 export default defineConfig({
   testDir: 'tests',
@@ -36,12 +41,16 @@ export default defineConfig({
       reuseExistingServer: !CI,
       timeout: 180_000,
     },
-    {
-      command: 'pnpm --filter @plumiotheca/web dev',
-      cwd: '..',
-      url: WEB,
-      reuseExistingServer: !CI,
-      timeout: 120_000,
-    },
+    ...(EXTERNAL_WEB
+      ? []
+      : [
+          {
+            command: 'pnpm --filter @plumiotheca/web dev',
+            cwd: '..',
+            url: WEB,
+            reuseExistingServer: !CI,
+            timeout: 120_000,
+          },
+        ]),
   ],
 });

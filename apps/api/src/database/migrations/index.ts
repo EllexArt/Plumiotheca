@@ -5,6 +5,7 @@ import { PremiereVisite1791018239120 } from './1791018239120-PremiereVisite.js';
 import { HistoiresEtChapitres1791029268234 } from './1791029268234-HistoiresEtChapitres.js';
 import { AvertissementsFacultatifs1791201913977 } from './1791201913977-AvertissementsFacultatifs.js';
 import { HorodatagesMilliseconde1791477431997 } from './1791477431997-HorodatagesMilliseconde.js';
+import { VerrouillageDate1791737688030 } from './1791737688030-VerrouillageDate.js';
 
 export const migrations = [
   ModeleInitial1791016512648,
@@ -12,4 +13,5 @@ export const migrations = [
   HistoiresEtChapitres1791029268234,
   AvertissementsFacultatifs1791201913977,
   HorodatagesMilliseconde1791477431997,
+  VerrouillageDate1791737688030,
 ];

@@ -1,3 +1,5 @@
+// Avant tout : nonce de la CSP pour les styles injectés par les bibliothèques.
+import './shared/csp-nonce';
 // Polices auto-hébergées : aucune requête vers un service tiers (pas de traceur).
 import '@fontsource/young-serif/400.css';
 // Literata avec taille optique (comme les maquettes) et graisse variables.

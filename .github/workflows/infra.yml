@@ -52,6 +52,7 @@ jobs:
         run: |
           docker compose -f infra/docker-compose.yml --env-file infra/.env up -d --wait
           node infra/scripts/garage-init.mjs
+          node infra/scripts/keycloak-service.mjs
 
       # L'API lit les clés publiques par le réseau interne (keycloak:8080) mais attend
       # l'émetteur vu par le navigateur (localhost:8080) : le cas d'un vrai déploiement.
@@ -67,6 +68,7 @@ jobs:
             -e CORS_ORIGINS=http://localhost:5173 -e TRUST_PROXY=0 \
             -e KEYCLOAK_ISSUER=http://localhost:8080/realms/plumiotheca \
             -e KEYCLOAK_JWKS_URL=http://keycloak:8080/realms/plumiotheca/protocol/openid-connect/certs \
+            -e KEYCLOAK_ADMIN_CLIENT_SECRET="$(sed -n 's/^KEYCLOAK_ADMIN_CLIENT_SECRET=//p' apps/api/.env)" \
             plumiotheca-api:ci
           for i in $(seq 1 30); do curl -sf http://localhost:3000/api/health && exit 0; sleep 1; done
           docker logs plumiotheca-api; exit 1
