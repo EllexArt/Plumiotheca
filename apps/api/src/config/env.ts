@@ -70,6 +70,32 @@ export const Env = z
       .enum(['true', 'false'])
       .optional()
       .transform((v) => (v === undefined ? undefined : v === 'true')),
+    /** Stockage des images (S3 ; Garage en développement). */
+    S3_ENDPOINT: z.url({ protocol: /^https?$/ }).default('http://localhost:3900'),
+    /**
+     * Adresse du stockage vue par le navigateur, qui y téléverse directement (#18) ; par
+     * défaut celle de l'API.
+     */
+    S3_UPLOAD_ENDPOINT: z.url({ protocol: /^https?$/ }).optional(),
+    S3_REGION: z.string().min(1).default('garage'),
+    /** Images traitées, publiques, servies depuis MEDIA_PUBLIC_URL. */
+    S3_BUCKET: z.string().min(1).default('medias'),
+    /** Téléversements bruts, privés, effacés dès le traitement (et au plus tard après un jour). */
+    S3_INCOMING_BUCKET: z.string().min(1).default('medias-entrants'),
+    /** Écrits par « pnpm infra:up » en développement. Obligatoires en production. */
+    S3_ACCESS_KEY_ID: z.string().min(1).optional(),
+    S3_SECRET_ACCESS_KEY: z.string().min(1).optional(),
+    /**
+     * Origine publique des images traitées : un domaine séparé de celui du site (#18).
+     * En développement, le site web de Garage pour le bucket « medias ».
+     */
+    MEDIA_PUBLIC_URL: z
+      .url({ protocol: /^https?$/ })
+      .refine((u) => new URL(u).origin === u, {
+        message:
+          'Origine attendue, sans chemin ni barre finale (ex. https://medias.plumiotheca.fr)',
+      })
+      .default('http://medias.web.garage.localhost:3902'),
     /** Audience exigée dans les jetons (client Keycloak de l'API). */
     JWT_AUDIENCE: z.string().min(1).default('api'),
     /** Clients autorisés à appeler l'API (claim « azp »), séparés par des virgules. */
@@ -115,6 +141,10 @@ export const Env = z
     if (env.TRUST_PROXY === undefined) {
       ctx.addIssue({ code: 'custom', path: ['TRUST_PROXY'], message: 'Obligatoire en production' });
     }
+    for (const key of ['S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY'] as const) {
+      if (!env[key])
+        ctx.addIssue({ code: 'custom', path: [key], message: 'Obligatoire en production' });
+    }
     // Sans lui, les comptes verrouillés ne seraient jamais supprimés de Keycloak (#141).
     if (!env.KEYCLOAK_ADMIN_CLIENT_SECRET) {
       ctx.addIssue({
@@ -133,6 +163,7 @@ export const Env = z
       ? env.DB_MIGRATE_ON_START === 'true'
       : env.NODE_ENV === 'development',
     KEYCLOAK_ISSUER: env.KEYCLOAK_ISSUER ?? DEV_ISSUER,
+    S3_UPLOAD_ENDPOINT: env.S3_UPLOAD_ENDPOINT ?? env.S3_ENDPOINT,
     KEYCLOAK_JWKS_URL:
       env.KEYCLOAK_JWKS_URL ?? `${env.KEYCLOAK_ISSUER ?? DEV_ISSUER}/protocol/openid-connect/certs`,
   }));

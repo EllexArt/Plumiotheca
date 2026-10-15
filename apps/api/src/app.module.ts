@@ -15,6 +15,7 @@ import type { Config } from './config/env.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './health/health.module.js';
 import { JobsModule } from './jobs/jobs.module.js';
+import { MediaModule } from './media/media.module.js';
 import { MeModule } from './me/me.module.js';
 import { StoriesModule } from './stories/stories.module.js';
 
@@ -43,6 +44,7 @@ export class AppModule {
         MeModule,
         AccountModule,
         StoriesModule,
+        MediaModule,
       ],
       providers: [
         // Ordre des gardes : limitation de débit, puis authentification et rôles.
