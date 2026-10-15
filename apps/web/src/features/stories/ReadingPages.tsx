@@ -290,6 +290,10 @@ export function StoryPage() {
               <dt>mots</dt>
               <dd>{formatNumber(s.wordCount)}</dd>
             </div>
+            <div>
+              <dt>{s.readCount === 1 ? 'lecture' : 'lectures'}</dt>
+              <dd>{formatNumber(s.readCount)}</dd>
+            </div>
           </dl>
           <StoryTags story={s} />
           {s.majorWarnings && !s.majorWarnings.length && (

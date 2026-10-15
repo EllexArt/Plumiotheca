@@ -96,6 +96,8 @@ export const StorySummary = z.strictObject({
   wordCount: z.int(),
   /** Chapitres publiés. */
   chapterCount: z.int(),
+  /** Lectures uniques : une par personne et par jour, sans la personne qui l'a écrite. */
+  readCount: z.int(),
   publishedAt: z.iso.datetime().nullable(),
   updatedAt: z.iso.datetime(),
 });

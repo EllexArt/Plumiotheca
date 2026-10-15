@@ -22,6 +22,7 @@ const summary = (id: string, title: string) => ({
   tags: ['fantasy'],
   wordCount: 100,
   chapterCount: 2,
+  readCount: 0,
   publishedAt: '2026-10-03T10:00:00.000Z',
   updatedAt: '2026-10-03T10:00:00.000Z',
 });

@@ -29,6 +29,7 @@ const detail = (overrides: Record<string, unknown> = {}) => ({
   tags: ['urbain'],
   wordCount: 0,
   chapterCount: 1,
+  readCount: 0,
   publishedAt: null,
   updatedAt: '2026-10-04T10:00:00.000Z',
   chapters: [chapter('published')],

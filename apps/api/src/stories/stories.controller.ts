@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Ip,
   HttpCode,
   Param,
   Patch,
@@ -132,8 +133,9 @@ export class StoriesController {
     @OptionalAccount() viewer: User | null,
     @Param('id', { schema: Id }) id: string,
     @Param('chapitre', { schema: Id }) chapterId: string,
+    @Ip() ip: string | undefined,
   ) {
-    return this.chapters.read(viewer, id, chapterId);
+    return this.chapters.read(viewer, id, chapterId, ip);
   }
 
   @Patch(':id/chapitres/:chapitre')
