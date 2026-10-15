@@ -28,6 +28,8 @@ export interface JobDefinition<T extends object = object> {
   retryLimit?: number;
   /** Délai avant la première nouvelle tentative, en secondes (30 par défaut), puis croissant. */
   retryDelaySeconds?: number;
+  /** Durée maximale d'une exécution, en secondes (15 minutes par défaut), puis nouvelle tentative. */
+  expireInSeconds?: number;
   /** Tâche planifiée : expression cron (fuseau Europe/Paris), lancée avec des données vides. */
   cron?: string;
 }
@@ -135,6 +137,7 @@ export class JobsService implements OnApplicationBootstrap, BeforeApplicationShu
       retryBackoff: true,
       retryDelayMax: 3_600,
       deleteAfterSeconds: KEEP_FINISHED_SECONDS,
+      expireInSeconds: definition.expireInSeconds ?? 15 * 60,
     };
     // createQueue n'écrase pas une file existante : updateQueue applique les options du code
     // (une politique de tentatives modifiée vaut aussi pour la file déjà créée).

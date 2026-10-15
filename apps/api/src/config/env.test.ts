@@ -26,7 +26,7 @@ describe('configuration', () => {
 
   it('exige en production les réglages qui n’ont pas de valeur sûre par défaut', () => {
     expect(() => loadConfig({ NODE_ENV: 'production' })).toThrow(
-      /CORS_ORIGINS : Obligatoire[\s\S]*DB_PASSWORD : Obligatoire[\s\S]*KEYCLOAK_ISSUER : Obligatoire[\s\S]*TRUST_PROXY : Obligatoire/,
+      /CORS_ORIGINS : Obligatoire[\s\S]*DB_PASSWORD : Obligatoire[\s\S]*KEYCLOAK_ISSUER : Obligatoire[\s\S]*TRUST_PROXY : Obligatoire[\s\S]*KEYCLOAK_ADMIN_CLIENT_SECRET : Obligatoire/,
     );
     const config = loadConfig({
       NODE_ENV: 'production',
@@ -34,6 +34,7 @@ describe('configuration', () => {
       TRUST_PROXY: '0',
       KEYCLOAK_ISSUER: 'https://compte.plumiotheca.example/realms/plumiotheca',
       DB_PASSWORD: 'secret',
+      KEYCLOAK_ADMIN_CLIENT_SECRET: 'secret-du-compte-de-service',
     });
     expect(config.TRUST_PROXY).toBe(0);
     expect(config.DB_MIGRATE_ON_START).toBe(false);
