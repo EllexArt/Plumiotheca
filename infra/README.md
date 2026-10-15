@@ -6,6 +6,7 @@
 | Keycloak 26.8    | comptes, connexion, MFA                        | http://localhost:8080 (console : `/admin`) |
 | Meilisearch 1.54 | recherche                                      | http://localhost:7700                      |
 | Garage 2.4       | stockage des images (compatible S3)            | http://localhost:3900                      |
+| Garage (site)    | images publiées, domaine séparé                | http://medias.web.garage.localhost:3902    |
 | Mailpit 1.31     | capture les e-mails envoyés                    | http://localhost:8025                      |
 
 Tous les ports sont liés à `127.0.0.1` : rien n'est exposé sur le réseau local.
@@ -65,5 +66,10 @@ docker run --rm --network plumiotheca_default -p 127.0.0.1:3000:3000 -e TRUST_PR
 
 ## Garage
 
-Nœud unique, bucket `medias`. `infra/scripts/garage-init.mjs` (lancé par `pnpm infra:up`) crée la disposition, le bucket et la clé d'accès de l'API, et écrit les identifiants dans `apps/api/.env`.
+Nœud unique, deux buckets (#18) :
+
+- `medias-entrants`, privé : le navigateur y téléverse directement le fichier brut (formulaire signé par l'API, 10 Mo au plus). CORS limité aux origines du site, fichiers effacés au traitement et au plus tard après un jour (règle d'expiration) ;
+- `medias`, public : images ré-encodées en WebP, sans métadonnées, servies par le site web de Garage sur un domaine séparé (`*.web.garage.localhost`, résolu vers `127.0.0.1` par les navigateurs).
+
+`infra/scripts/garage-init.mjs` (lancé par `pnpm infra:up`) crée la disposition, les buckets, ouvre `medias` en lecture publique, crée la clé d'accès de l'API, écrit les identifiants dans `apps/api/.env`, puis lance `apps/api/scripts/stockage.mjs` (CORS et expiration du bucket privé). En production, ce dernier script se lance une fois avec les variables `S3_*` et `CORS_ORIGINS` de l'API.
 MinIO a été écarté : son édition communautaire n'est plus maintenue depuis 2026.

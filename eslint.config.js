@@ -34,7 +34,7 @@ export default tseslint.config(
 
   // Scripts Node (infrastructure, configuration)
   {
-    files: ['infra/**/*.mjs', '*.js', '*.mjs'],
+    files: ['infra/**/*.mjs', 'apps/api/scripts/**/*.mjs', '*.js', '*.mjs'],
     languageOptions: { globals: globals.node },
   },
 

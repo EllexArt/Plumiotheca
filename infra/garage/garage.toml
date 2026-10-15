@@ -13,5 +13,12 @@ s3_region = "garage"
 api_bind_addr = "[::]:3900"
 root_domain = ".s3.garage.localhost"
 
+# Site web des buckets publics : http://medias.web.garage.localhost:3902 sert le bucket
+# « medias », sur un domaine séparé de celui du site (#18).
+[s3_web]
+bind_addr = "[::]:3902"
+root_domain = ".web.garage.localhost"
+index = "index.html"
+
 [admin]
 api_bind_addr = "[::]:3903"

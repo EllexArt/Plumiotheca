@@ -195,6 +195,8 @@ describe('documentation OpenAPI', () => {
       TRUST_PROXY: '1',
       KEYCLOAK_ISSUER: 'https://compte.plumiotheca.example/realms/plumiotheca',
       KEYCLOAK_ADMIN_CLIENT_SECRET: 'secret-du-compte-de-service',
+      S3_ACCESS_KEY_ID: 'cle-s3',
+      S3_SECRET_ACCESS_KEY: 'secret-s3',
     });
     await http.get('/api/docs').expect(404);
     await http.get('/api/docs-json').expect(404);
