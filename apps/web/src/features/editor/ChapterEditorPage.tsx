@@ -157,6 +157,13 @@ function useDraftSaver(
         if (error instanceof ApiError && error.status === 409) {
           conflict.current = true;
           setProblem({ kind: 'conflict' });
+        } else if (error instanceof ApiError && error.status === 413) {
+          // Trop volumineux : réessayer n'y changera rien (#148).
+          setProblem({
+            kind: 'error',
+            message:
+              'Ce chapitre est trop volumineux pour être enregistré : découpez-le en plusieurs chapitres. Votre texte reste gardé dans cet onglet.',
+          });
         } else if (error instanceof ApiError && error.status === 400) {
           // La vraie raison est dans le détail de la réponse (« Requête invalide » sinon).
           const reason = error.problem.errors?.[0]?.message;
@@ -281,6 +288,21 @@ function Editor({
     onUpdate: ({ editor: e }) => changedRef.current(e.getJSON(), language),
   });
   const saver = useDraftSaver(editor, { storyId, chapterId, initial });
+
+  // Modification refusée par l'éditeur (limite de l'API, #148) : dit, puis effacé dès que le
+  // texte change à nouveau.
+  const [refused, setRefused] = useState<string | null>(null);
+  useEffect(() => {
+    if (!editor) return;
+    const show = ({ reason }: { reason: string }) => setRefused(reason);
+    const clear = () => setRefused(null);
+    editor.on('refused', show);
+    editor.on('update', clear);
+    return () => {
+      editor.off('refused', show);
+      editor.off('update', clear);
+    };
+  }, [editor]);
   useEffect(() => {
     changedRef.current = saver.changed;
   }, [saver.changed]);
@@ -446,6 +468,11 @@ function Editor({
               Charger la version enregistrée
             </Button>
           </div>
+        </Alert>
+      )}
+      {refused && (
+        <Alert tone="warning" live title="Modification refusée.">
+          <p>{refused} Votre texte est inchangé.</p>
         </Alert>
       )}
       {saver.problem?.kind === 'error' && (

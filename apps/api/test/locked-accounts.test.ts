@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { DataSource } from 'typeorm';
+import { DataSource, LessThan } from 'typeorm';
 import { describe, expect, it, vi } from 'vitest';
 import { LockedAccountsService } from '../src/account/locked-accounts.service.js';
 import { KeycloakAdminService } from '../src/auth/keycloak-admin.service.js';
@@ -25,10 +25,17 @@ async function lockedAccount(ctx: Awaited<ReturnType<typeof start>>, daysAgo: nu
   return user;
 }
 
-/** Base partagée entre les tests : chaque test part sans compte verrouillé. */
+/**
+ * Base partagée entre les tests, et avec les autres fichiers qui tournent en parallèle :
+ * chaque test part sans compte verrouillé ancien. Seuls ces tests en fabriquent (vieux de
+ * 29 jours ou plus) ; les comptes verrouillés récents des autres fichiers ne sont pas touchés.
+ */
 async function fresh() {
   const ctx = await start();
-  await ctx.app.get(DataSource).getRepository(User).delete({ ageBand: 'under-15' });
+  await ctx.app
+    .get(DataSource)
+    .getRepository(User)
+    .delete({ ageBand: 'under-15', ageLockedAt: LessThan(new Date(Date.now() - 20 * DAY)) });
   return ctx;
 }
 

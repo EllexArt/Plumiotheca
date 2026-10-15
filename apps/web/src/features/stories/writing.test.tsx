@@ -468,6 +468,36 @@ describe('éditeur : gardes « aucune perte » (contre-vérification)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
     expect(await screen.findByText(/Caractère de contrôle interdit/)).toBeInTheDocument();
   });
+
+  it('refus 413 (trop volumineux) : message clair, pas de nouvel essai automatique', async () => {
+    signedIn();
+    api(() => ({
+      status: 413,
+      body: { type: 'trop-volumineux', title: 'Contenu trop volumineux', status: 413 },
+    }));
+    renderApp(`/ecrire/histoires/${STORY}/chapitres/${CH}`);
+    const editor = await editorOf();
+    editor.commands.insertContentAt(end(editor), ' x');
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    const message = await screen.findByText(/trop volumineux pour être enregistré/);
+    expect(message).toHaveTextContent('découpez-le');
+    expect(screen.queryByText(/nouvel essai automatique/)).toBeNull();
+  });
+
+  it('modification au-delà d’une limite de l’API : refusée par l’éditeur, et dite', async () => {
+    signedIn();
+    api(() => saved(4));
+    renderApp(`/ecrire/histoires/${STORY}/chapitres/${CH}`);
+    const editor = await editorOf();
+    const before = editor.getText();
+    editor.commands.insertContentAt(end(editor), 'a'.repeat(20_001));
+    expect(await screen.findByText('Modification refusée.')).toBeInTheDocument();
+    expect(screen.getByText(/Paragraphe trop long/)).toBeInTheDocument();
+    expect(editor.getText()).toBe(before);
+    // Le message disparaît dès que le texte change à nouveau.
+    editor.commands.insertContentAt(end(editor), ' suite');
+    await waitFor(() => expect(screen.queryByText('Modification refusée.')).toBeNull());
+  });
 });
 
 describe('éditeur : seconde contre-vérification', () => {
