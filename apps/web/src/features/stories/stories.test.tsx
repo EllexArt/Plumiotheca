@@ -20,6 +20,7 @@ const summary = {
   tags: ['fantasy'],
   wordCount: 1200,
   chapterCount: 2,
+  readCount: 37,
   publishedAt: '2026-10-03T10:00:00.000Z',
   updatedAt: '2026-10-03T10:00:00.000Z',
 };
@@ -92,6 +93,8 @@ describe('lecture', () => {
     );
     const toc = screen.getByRole('navigation', { name: 'Sommaire' });
     expect(within(toc).getAllByRole('link')).toHaveLength(2);
+    // Lectures uniques (#17).
+    expect(screen.getByText('lectures').nextElementSibling).toHaveTextContent('37');
     await expectAccessible();
   });
 

@@ -19,6 +19,7 @@ import { DataSource, type EntityManager } from 'typeorm';
 import { ApiProblem, ValidationFailed } from '../common/problem.js';
 import type { User } from '../users/user.entity.js';
 import { loadDraft, saveDraft } from './chapter-drafts.js';
+import { ReadsService } from './reads.service.js';
 import { ChapterRevision } from './chapter-revision.entity.js';
 import { Chapter } from './chapter.entity.js';
 import { StoriesService } from './stories.service.js';
@@ -69,6 +70,7 @@ export class ChaptersService {
   constructor(
     @InjectDataSource() private readonly db: DataSource,
     private readonly stories: StoriesService,
+    private readonly reads: ReadsService,
   ) {}
 
   /** Nouveau chapitre en fin d'histoire ; la position est toujours choisie par le serveur. */
@@ -255,8 +257,13 @@ export class ChaptersService {
   }
 
   /** Lecture publique d'un chapitre publié (version figée), avec ses voisins. */
-  async read(viewer: User | null, storyId: string, chapterId: string): Promise<ChapterRead> {
-    await visibleStory(this.db.manager, storyId, viewer);
+  async read(
+    viewer: User | null,
+    storyId: string,
+    chapterId: string,
+    ip?: string,
+  ): Promise<ChapterRead> {
+    const story = await visibleStory(this.db.manager, storyId, viewer);
     const published = await this.db.getRepository(Chapter).find({
       where: { story: { id: storyId }, status: 'published' },
       order: { position: 'ASC' },
@@ -268,6 +275,7 @@ export class ChaptersService {
       .getRepository(ChapterRevision)
       .findOneBy({ chapterId, current: true });
     if (!revision) throw new NotFoundException();
+    await this.reads.record(story, viewer, ip);
     return {
       id: chapter.id,
       storyId,

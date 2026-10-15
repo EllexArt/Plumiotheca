@@ -146,6 +146,7 @@ describe('page de l’éditeur', () => {
             tags: [],
             wordCount: 0,
             chapterCount: 0,
+            readCount: 0,
             publishedAt: null,
             updatedAt: '2026-10-04T10:00:00.000Z',
             chapters: [],

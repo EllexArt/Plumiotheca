@@ -31,6 +31,7 @@ import { Chapter } from './chapter.entity.js';
   `"status" <> 'published' OR ("rating" IS NOT NULL AND "major_warnings" IS NOT NULL)`,
 )
 @Check('stories_word_count_positive', `"word_count" >= 0`)
+@Check('stories_read_count_positive', `"read_count" >= 0`)
 @Index(['author', 'status'])
 // « Mes histoires » : la plus récemment modifiée d'abord.
 @Index('stories_mine', ['author', 'updatedAt', 'id'])
@@ -92,6 +93,10 @@ export class Story {
   /** Total des chapitres publiés, recalculé à la publication. */
   @Column({ type: 'integer', default: 0 })
   wordCount!: number;
+
+  /** Lectures uniques (#17) : une par personne et par jour, sans la personne qui l'a écrite. */
+  @Column({ type: 'integer', default: 0 })
+  readCount!: number;
 
   @OneToMany(() => Chapter, (chapter) => chapter.story)
   chapters!: Relation<Chapter[]>;

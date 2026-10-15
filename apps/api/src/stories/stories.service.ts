@@ -274,6 +274,7 @@ export class StoriesService {
       tags: labels.get(s.id) ?? [],
       wordCount: s.wordCount,
       chapterCount: counts.get(s.id) ?? 0,
+      readCount: s.readCount,
       publishedAt: iso(s.publishedAt),
       updatedAt: s.updatedAt.toISOString(),
     }));

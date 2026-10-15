@@ -80,6 +80,7 @@ describe('histoires', () => {
       majorWarnings: null,
       contentWarnings: [],
       chapterCount: 0,
+      readCount: 0,
     });
     expect(story.tags).toEqual(['Found family', 'Slow Burn']);
     for (const extra of [

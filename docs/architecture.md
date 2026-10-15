@@ -162,7 +162,7 @@ Plumiotheca/
 - **Médias** : téléversement vers un espace temporaire, puis traitement asynchrone (vérification du type réel, refus des SVG, ré-encodage WebP/AVIF qui supprime les métadonnées) avant publication ; servis depuis un domaine séparé. Avatars et couvertures n'acceptent que des médias internes, jamais une URL externe.
 - **Pagination** par curseur sur toutes les listes (« Mes histoires » comprise, #138). Exception : le sommaire d'une histoire, renvoyé en entier avec sa fiche, borné à 2 000 chapitres (limite de l'API) ; il ne grossit qu'avec l'écriture de la personne.
 - **Migrations TypeORM** versionnées ; `synchronize` désactivé partout.
-- **Comptage des lectures** : une lecture unique par compte connecté et par fenêtre de temps ; pour les visiteurs non connectés, un hachage quotidien salé (adresse + jour) jamais conservé au-delà de la journée. Aucune empreinte de navigateur (traceur au sens de la CNIL).
+- **Comptage des lectures** : une lecture par personne, par histoire et par jour (Europe/Paris), sans compter la personne qui a écrit l'histoire. La personne est reconnue par son compte, ou sans compte par son adresse IP ; seule une empreinte HMAC avec un sel du jour est gardée, et sel comme empreintes sont effacés le lendemain (au premier comptage du jour, et par une tâche de nuit). Le compteur de l'histoire ne dit rien de personne. Aucune empreinte de navigateur (traceur au sens de la CNIL).
 - **OpenAPI** générée depuis les contrats (conversion JSON Schema de zod), servie sur `/api/docs` hors production uniquement.
 
 ### Authentification
