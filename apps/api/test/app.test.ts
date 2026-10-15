@@ -194,6 +194,7 @@ describe('documentation OpenAPI', () => {
       CORS_ORIGINS: 'https://plumiotheca.example',
       TRUST_PROXY: '1',
       KEYCLOAK_ISSUER: 'https://compte.plumiotheca.example/realms/plumiotheca',
+      KEYCLOAK_ADMIN_CLIENT_SECRET: 'secret-du-compte-de-service',
     });
     await http.get('/api/docs').expect(404);
     await http.get('/api/docs-json').expect(404);

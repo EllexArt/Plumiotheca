@@ -451,7 +451,7 @@ describe('pseudonyme et profil', () => {
     await app
       .get(DataSource)
       .getRepository(User)
-      .update({ keycloakId: sub }, { ageBand: 'under-15' });
+      .update({ keycloakId: sub }, { ageBand: 'under-15', ageLockedAt: new Date() });
     await http.get(`/api/pseudonymes/${handle}`).expect(404);
   });
 

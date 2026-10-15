@@ -360,6 +360,77 @@ try {
 
   const weak = await fetch(`${KC}/admin/realms${R}/users`, { method: 'HEAD' });
   check(weak.status === 401, "API d'administration inaccessible sans jeton");
+
+  // Compte de service de l'API (#141) : permission fine « gérer les utilisateurs » (FGAP v2),
+  // aucun rôle d'administration. Il désactive, déconnecte et supprime un compte ; il ne peut
+  // ni lister les comptes (e-mails), ni lire leurs identifiants, ni attribuer un rôle. Il
+  // pourrait changer un mot de passe ou créer un compte : limite connue (docs/procedures.md).
+  const [service] = await kc.get(`${R}/clients?clientId=api-administration`);
+  const { value: serviceSecret } = await kc.get(`${R}/clients/${service.id}/client-secret`);
+  const serviceToken = await (
+    await fetch(`${ISSUER}/protocol/openid-connect/token`, {
+      method: 'POST',
+      body: new URLSearchParams({
+        grant_type: 'client_credentials',
+        client_id: 'api-administration',
+        client_secret: serviceSecret,
+      }),
+    })
+  ).json();
+  check(Boolean(serviceToken.access_token), "Compte de service de l'API : jeton obtenu");
+  const asService = (path, init = {}) =>
+    fetch(`${KC}/admin/realms${R}${path}`, {
+      ...init,
+      headers: { Authorization: `Bearer ${serviceToken.access_token}`, ...init.headers },
+    });
+  const json = { 'Content-Type': 'application/json' };
+  const doomed = (await createUser(`a-supprimer-${suffix}`)).id;
+  const roles = await kc.get(`${R}/users/${doomed}/role-mappings/realm`);
+  const serviceRefused = await Promise.all([
+    asService('/users?max=1'),
+    asService(`/users/${doomed}`),
+    asService(`/users/${doomed}/credentials`),
+    asService(`/users/${doomed}/role-mappings/realm`, {
+      method: 'POST',
+      headers: json,
+      body: JSON.stringify([await kc.get(`${R}/roles/administration`)]),
+    }),
+    asService('/clients'),
+  ]);
+  check(
+    serviceRefused.every((r) => r.status === 403) &&
+      (await kc.get(`${R}/users/${doomed}/role-mappings/realm`)).length === roles.length,
+    `Compte de service de l'API : ni liste des comptes, ni lecture d'un compte ou de ses identifiants, ni rôle, ni clients (${serviceRefused.map((r) => r.status).join(', ')})`,
+  );
+  const disabled = await asService(`/users/${doomed}`, {
+    method: 'PUT',
+    headers: json,
+    body: JSON.stringify({ enabled: false }),
+  });
+  const loggedOut = await asService(`/users/${doomed}/logout`, { method: 'POST' });
+  check(
+    disabled.status === 204 &&
+      loggedOut.status === 204 &&
+      (await kc.get(`${R}/users/${doomed}`)).enabled === false,
+    "Compte de service de l'API : désactivation et déconnexion d'un compte",
+  );
+  const deleted = await asService(`/users/${doomed}`, { method: 'DELETE' });
+  if (deleted.status === 204) created.splice(created.indexOf(doomed), 1);
+  check(deleted.status === 204, "Compte de service de l'API : suppression d'un compte");
+  const realmChange = await asService('', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ registrationAllowed: false }),
+  });
+  const roleChange = await asService('/roles', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: `essai-${suffix}` }),
+  });
+  check(
+    realmChange.status === 403 && roleChange.status === 403,
+    "Compte de service de l'API : ni réglages du realm ni rôles",
+  );
 } finally {
   for (const id of created) await kc.del(`${R}/users/${id}`);
 }

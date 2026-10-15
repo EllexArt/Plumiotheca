@@ -101,6 +101,23 @@ await kc.post(`${R}/clients`, {
   serviceAccountsEnabled: false,
 });
 
+// 3 bis. Client « api-administration » : compte de service de l'API (identifiants client),
+//        pour désactiver puis supprimer les comptes Keycloak (comptes verrouillés). Aucun flux
+//        de connexion, aucun rôle d'administration : sa seule permission (gérer les
+//        utilisateurs, FGAP v2) est posée par infra/scripts/keycloak-service.mjs, qui écrit aussi
+//        son secret dans apps/api/.env.
+await kc.post(`${R}/clients`, {
+  clientId: 'api-administration',
+  name: 'API Plumiotheca (administration des comptes)',
+  protocol: 'openid-connect',
+  publicClient: false,
+  bearerOnly: false,
+  standardFlowEnabled: false,
+  implicitFlowEnabled: false,
+  directAccessGrantsEnabled: false,
+  serviceAccountsEnabled: true,
+});
+
 // 4. Client « web » : application publique, code d'autorisation + PKCE obligatoire,
 //    pas de connexion par mot de passe direct, origines limitées.
 const devOrigins = ['http://localhost:5173'];
