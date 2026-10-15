@@ -436,6 +436,7 @@ describe('pseudonyme et profil', () => {
       displayName: null,
       pronouns: null,
       bio: 'Je lis de la fantasy.',
+      avatarUrl: null,
     });
   });
 

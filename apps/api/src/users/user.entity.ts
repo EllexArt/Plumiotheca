@@ -1,6 +1,7 @@
 import { AccountStatus, DeclaredAge, DeletionMode } from '@plumiotheca/contracts';
-import { Check, Column, Entity, Index } from 'typeorm';
+import { Check, Column, Entity, Index, JoinColumn, ManyToOne, type Relation } from 'typeorm';
 import { CreatedAt, IdColumn, UpdatedAt } from '../database/columns.js';
+import { Media } from '../media/media.entity.js';
 
 /**
  * Compte dans l'application. L'e-mail et le mot de passe restent dans Keycloak : la base
@@ -27,7 +28,7 @@ import { CreatedAt, IdColumn, UpdatedAt } from '../database/columns.js';
   `"status" <> 'deleted' OR ("keycloak_id" IS NULL AND "handle" IS NULL AND "handle_key" IS NULL
     AND "display_name" IS NULL AND "pronouns" IS NULL AND "bio" IS NULL AND "age_band" IS NULL
     AND "charter_version" IS NULL AND "charter_accepted_at" IS NULL AND "age_locked_at" IS NULL
-    AND "age_purge_started_at" IS NULL)`,
+    AND "age_purge_started_at" IS NULL AND "avatar_media_id" IS NULL)`,
 )
 export class User {
   @IdColumn()
@@ -55,6 +56,17 @@ export class User {
 
   @Column({ type: 'text', nullable: true })
   bio!: string | null;
+
+  /**
+   * Avatar (#26) : toujours une image interne prête, jamais une URL externe. Supprimer
+   * l'image retire l'avatar.
+   */
+  @Column({ type: 'uuid', nullable: true })
+  avatarMediaId!: string | null;
+
+  @ManyToOne(() => Media, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'avatar_media_id' })
+  avatarMedia?: Relation<Media> | null;
 
   /**
    * Âge déclaré à la première visite ; NULL tant qu'il n'est pas renseigné. « under-15 »
@@ -121,6 +133,7 @@ export const PERSONAL_FIELDS = [
   'displayName',
   'pronouns',
   'bio',
+  'avatarMediaId',
   'ageBand',
   'ageLockedAt',
   'agePurgeStartedAt',

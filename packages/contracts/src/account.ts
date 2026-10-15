@@ -101,6 +101,10 @@ export const UpdateProfile = z.strictObject({
 });
 export type UpdateProfile = z.infer<typeof UpdateProfile>;
 
+/** Avatar : une image téléversée et prête (POST /medias, usage « avatar »), jamais une URL. */
+export const SetAvatar = z.strictObject({ mediaId: z.uuid() });
+export type SetAvatar = z.infer<typeof SetAvatar>;
+
 /** Ce qu'il reste à faire avant d'utiliser Plumiotheca. */
 export const AccountStep = z.enum(['first-visit', 'charter', 'age-locked', 'ready']);
 export type AccountStep = z.infer<typeof AccountStep>;
@@ -112,6 +116,8 @@ export const MyAccount = z.strictObject({
   displayName: z.string().nullable(),
   pronouns: z.string().nullable(),
   bio: z.string().nullable(),
+  /** Image carrée de 512 px, sur le domaine des médias ; null : pas d'avatar. */
+  avatarUrl: z.url().nullable(),
   ageBand: z.enum(['15-17', '18+']).nullable(),
   charterVersion: z.string().nullable(),
   /** Date à partir de laquelle le pseudonyme peut de nouveau changer (null : maintenant). */
@@ -125,6 +131,7 @@ export const PublicProfile = z.strictObject({
   displayName: z.string().nullable(),
   pronouns: z.string().nullable(),
   bio: z.string().nullable(),
+  avatarUrl: z.url().nullable(),
 });
 export type PublicProfile = z.infer<typeof PublicProfile>;
 

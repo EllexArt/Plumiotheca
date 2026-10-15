@@ -184,6 +184,34 @@ export class MediaService implements OnModuleInit {
     return { forgotten: stale.length, orphans };
   }
 
+  /**
+   * Image utilisable pour un usage (avatar, couverture) : à cette personne, de cet usage,
+   * et prête. Sinon 422 : jamais une image d'une autre personne, ni une image non vérifiée.
+   */
+  async claim(owner: User, id: string, kind: MediaKind): Promise<Media> {
+    const media = await this.db.getRepository(Media).findOneBy({ id, ownerId: owner.id });
+    if (media?.kind !== kind || media.status !== 'ready') {
+      throw new ApiProblem(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        media && media.status !== 'ready' && media.status !== 'rejected'
+          ? 'Cette image est encore en cours de traitement.'
+          : 'Cette image ne peut pas être utilisée ici.',
+        'media-invalide',
+      );
+    }
+    return media;
+  }
+
+  /** Oublie une image (l'ancien avatar) ; le fichier public part au ménage de nuit. */
+  async forget(id: string): Promise<void> {
+    await this.db.getRepository(Media).delete(id);
+  }
+
+  /** Adresse publique d'une image prête. */
+  urlOf(id: string): string {
+    return this.storage.publicUrl(publicKey(id));
+  }
+
   private async owned(owner: User, id: string): Promise<Media> {
     const media = await this.db.getRepository(Media).findOneBy({ id, ownerId: owner.id });
     if (!media) throw new NotFoundException();
@@ -195,7 +223,7 @@ export class MediaService implements OnModuleInit {
       id: media.id,
       kind: media.kind,
       status: media.status,
-      url: media.status === 'ready' ? this.storage.publicUrl(publicKey(media.id)) : null,
+      url: media.status === 'ready' ? this.urlOf(media.id) : null,
       width: media.width,
       height: media.height,
       rejection: media.rejection,
