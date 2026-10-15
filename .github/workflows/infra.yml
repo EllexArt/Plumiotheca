@@ -45,6 +45,10 @@ jobs:
         with:
           node-version-file: .nvmrc
 
+      # garage-init.mjs règle le bucket privé avec le SDK S3 de l'API (apps/api/scripts/stockage.mjs).
+      - name: Dépendances de l'API
+        run: pnpm install --frozen-lockfile --filter @plumiotheca/api
+
       - name: Secrets de développement aléatoires
         run: node infra/scripts/setup.mjs
 
