@@ -2,7 +2,8 @@
 // aux décisions de modération ; un test vérifie que cette liste et le texte concordent.
 
 /**
- * Version en vigueur : l'augmenter oblige chacune à accepter la nouvelle charte. Règle
+ * Version en vigueur de la charte et des conditions d'utilisation (docs/conditions.md),
+ * acceptées ensemble : l'augmenter oblige chacune et chacun à accepter la nouvelle version. Règle
  * d'équipe : tout changement du texte (une virgule exceptée) fait monter ce numéro, et
  * les décisions de modération gardent la version avec l'article cité.
  */

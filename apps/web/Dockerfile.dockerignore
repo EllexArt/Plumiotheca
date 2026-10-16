@@ -11,6 +11,7 @@
 docs
 !docs/charte.md
 !docs/confidentialite.md
+!docs/conditions.md
 e2e
 infra
 apps/api

@@ -267,6 +267,9 @@ export function Layout() {
               <Link to="/charte">Charte de la communauté</Link>
             </li>
             <li>
+              <Link to="/conditions">Conditions d’utilisation</Link>
+            </li>
+            <li>
               <Link to="/confidentialite">Confidentialité</Link>
             </li>
             <li>

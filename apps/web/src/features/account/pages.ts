@@ -2,5 +2,5 @@
 export { AgeLockedPage } from './AgeLockedPage';
 export { AcceptCharterPage, CharterPage } from './CharterPages';
 export { FirstVisitPage } from './FirstVisitPage';
-export { PrivacyPage } from './PrivacyPage';
+export { ConditionsPage, PrivacyPage } from './LegalPages';
 export { AccountSettingsPage, PublicProfilePage } from './ProfilePages';

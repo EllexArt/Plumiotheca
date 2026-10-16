@@ -15,9 +15,10 @@ RUN pnpm install --frozen-lockfile --filter "@plumiotheca/web..."
 COPY packages/contracts packages/contracts
 COPY packages/editor-schema packages/editor-schema
 COPY apps/web apps/web
-# La charte et la politique de confidentialité viennent de docs/ (source unique).
+# Charte, conditions d'utilisation et confidentialité viennent de docs/ (source unique).
 COPY docs/charte.md docs/charte.md
 COPY docs/confidentialite.md docs/confidentialite.md
+COPY docs/conditions.md docs/conditions.md
 RUN pnpm --filter @plumiotheca/web build
 
 FROM nginxinc/nginx-unprivileged:1.29-alpine
