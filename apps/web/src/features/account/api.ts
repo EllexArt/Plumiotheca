@@ -1,4 +1,9 @@
 import {
+  MAX_UPLOAD_BYTES,
+  Media,
+  UPLOAD_TYPES,
+  UploadTicket,
+  type MediaRejection,
   AcceptCharter,
   ChangeHandle,
   FirstVisit,
@@ -100,6 +105,88 @@ export function useChangeHandle() {
       queryClient.setQueryData(myAccountKey, account);
       void queryClient.invalidateQueries({ queryKey: ['profils'] });
       void queryClient.invalidateQueries({ queryKey: ['histoires'] });
+    },
+  });
+}
+
+/** Étapes de l'envoi d'une image, annoncées pendant l'attente. */
+export type UploadPhase = 'envoi' | 'traitement' | 'enregistrement';
+
+const REJECTIONS: Record<MediaRejection, string> = {
+  format: 'Ce fichier n’est pas une image JPEG, PNG ou WebP.',
+  taille: 'Cette image dépasse 10 Mo.',
+  illisible: 'Cette image est abîmée ou trop grande pour être lue.',
+  absent: 'L’image n’est pas arrivée : réessayez.',
+};
+
+/** Refus immédiat, avant tout envoi (le serveur vérifie de nouveau le contenu réel). */
+export function checkImage(file: File): string | null {
+  if (!(UPLOAD_TYPES as readonly string[]).includes(file.type)) return REJECTIONS.format;
+  if (file.size > MAX_UPLOAD_BYTES) return REJECTIONS.taille;
+  return null;
+}
+
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Attente du traitement : une minute au plus. */
+const POLLS = 60;
+
+/**
+ * Nouvel avatar (#26) : autorisation de l'API, envoi direct du fichier vers le stockage,
+ * traitement (type vérifié, ré-encodage sans métadonnées), puis choix comme avatar.
+ */
+export function useSetAvatar(onPhase: (phase: UploadPhase) => void) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (file: File) => {
+      onPhase('envoi');
+      const ticket = await api(UploadTicket, '/medias', {
+        method: 'POST',
+        body: { kind: 'avatar' },
+      });
+      const form = new FormData();
+      for (const [name, value] of Object.entries(ticket.fields)) form.append(name, value);
+      form.append('file', file);
+      const sent = await fetch(ticket.url, { method: 'POST', body: form }).catch(() => null);
+      if (!sent?.ok) throw new Error('L’image n’a pas pu être envoyée : réessayez.');
+
+      onPhase('traitement');
+      await api(Media, `/medias/${ticket.id}/traitement`, { method: 'POST' });
+      let media: Media | undefined;
+      for (let i = 0; i < POLLS; i++) {
+        media = await api(Media, `/medias/${ticket.id}`);
+        if (media.status === 'ready' || media.status === 'rejected') break;
+        await pause(1000);
+      }
+      if (media?.status === 'rejected' && media.rejection) {
+        throw new Error(REJECTIONS[media.rejection]);
+      }
+      if (media?.status !== 'ready') {
+        throw new Error('Le traitement de l’image prend trop de temps : réessayez plus tard.');
+      }
+
+      onPhase('enregistrement');
+      return api(MyAccount, '/moi/compte/avatar', {
+        method: 'PUT',
+        body: { mediaId: ticket.id },
+      });
+    },
+    onSuccess: (account) => {
+      queryClient.setQueryData(myAccountKey, account);
+      void queryClient.invalidateQueries({ queryKey: ['profils'] });
+    },
+  });
+}
+
+export function useRemoveAvatar() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api(MyAccount, '/moi/compte/avatar', { method: 'DELETE' }),
+    onSuccess: (account) => {
+      queryClient.setQueryData(myAccountKey, account);
+      void queryClient.invalidateQueries({ queryKey: ['profils'] });
     },
   });
 }

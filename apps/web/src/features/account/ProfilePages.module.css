@@ -28,3 +28,17 @@
 .preLine {
   white-space: pre-line;
 }
+
+.avatar {
+  inline-size: 8rem;
+  block-size: 8rem;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--color-surface);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}

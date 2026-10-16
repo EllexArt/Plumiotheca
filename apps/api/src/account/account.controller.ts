@@ -1,4 +1,14 @@
-import { Body, Controller, Get, NotFoundException, Param, Patch, Post, Put } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+  Put,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import {
   AcceptCharter,
@@ -9,6 +19,7 @@ import {
   MyAccount,
   PublicProfile,
   UpdateProfile,
+  SetAvatar,
 } from '@plumiotheca/contracts';
 import { Public } from '../auth/decorators.js';
 import type { User } from '../users/user.entity.js';
@@ -67,6 +78,22 @@ export class AccountController {
     @Body({ schema: UpdateProfile }) input: UpdateProfile,
   ): Promise<MyAccount> {
     return this.accounts.view(await this.accounts.updateProfile(account, input));
+  }
+
+  /** Avatar : une image téléversée (usage « avatar ») et prête, jamais une URL. */
+  @Put('avatar')
+  @ApiOkResponse({ standardSchema: MyAccount })
+  async setAvatar(
+    @CurrentAccount() account: User,
+    @Body({ schema: SetAvatar }) input: SetAvatar,
+  ): Promise<MyAccount> {
+    return this.accounts.view(await this.accounts.setAvatar(account, input.mediaId));
+  }
+
+  @Delete('avatar')
+  @ApiOkResponse({ standardSchema: MyAccount })
+  async removeAvatar(@CurrentAccount() account: User): Promise<MyAccount> {
+    return this.accounts.view(await this.accounts.setAvatar(account, null));
   }
 }
 

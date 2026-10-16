@@ -24,12 +24,16 @@ FROM nginxinc/nginx-unprivileged:1.29-alpine
 #   OIDC_AUTHORITY=https://compte.exemple/realms/plumiotheca
 #   KEYCLOAK_ORIGIN=https://compte.exemple   (CSP : connexion et renouvellement des jetons)
 #   API_URL=https://api.exemple/api           API_ORIGIN=https://api.exemple
+#   MEDIA_ORIGIN=https://medias.exemple       (CSP : images publiées, domaine séparé)
+#   UPLOAD_ORIGIN=https://stockage.exemple    (CSP : envoi direct des images au stockage)
 #   HSTS="max-age=31536000; includeSubDomains" (derrière HTTPS seulement)
 ENV OIDC_AUTHORITY=http://localhost:8080/realms/plumiotheca \
     OIDC_CLIENT_ID=web \
     KEYCLOAK_ORIGIN=http://localhost:8080 \
     API_URL=/api \
     API_ORIGIN= \
+    MEDIA_ORIGIN=http://medias.web.garage.localhost:3902 \
+    UPLOAD_ORIGIN=http://localhost:3900 \
     HSTS=max-age=0
 COPY apps/web/nginx/default.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=build /repo/apps/web/dist /usr/share/nginx/html

@@ -244,6 +244,7 @@ describe('profil public', () => {
             displayName: 'Ilse Varenne',
             pronouns: 'elle',
             bio: 'J’écris la nuit.\n\nSurtout du fantastique.',
+            avatarUrl: 'http://medias.web.garage.localhost:3902/avatar-ilse.webp',
           },
         };
       }
@@ -256,6 +257,8 @@ describe('profil public', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('@Ilse.Varenne')).toBeInTheDocument();
     expect(screen.getByText('Surtout du fantastique.')).toBeInTheDocument();
+    // Avatar décoratif : le nom est déjà dans le titre.
+    expect(document.querySelector('img[src$="avatar-ilse.webp"]')).toHaveAttribute('alt', '');
     const list = await screen.findByRole('list', { name: 'Histoires de Ilse Varenne' });
     expect(within(list).getByRole('link', { name: 'Lucioles' })).toBeInTheDocument();
     expect(calls.find((c) => c.url.startsWith('/api/histoires?'))?.url).toContain(
@@ -355,7 +358,9 @@ describe('paramètres du compte', () => {
       if (url === '/api/moi/compte' && (init.method ?? 'GET') === 'GET')
         return { body: account({ handleChangeableFrom: '2099-11-05T10:00:00.000Z' }) };
       if (url.startsWith('/api/pseudonymes/'))
-        return { body: { handle: 'Ilse', displayName: null, pronouns: null, bio: null } };
+        return {
+          body: { handle: 'Ilse', displayName: null, pronouns: null, bio: null, avatarUrl: null },
+        };
       if (url.startsWith('/api/histoires?')) return { body: { items: [], nextCursor: null } };
     });
     renderApp('/compte');
@@ -386,7 +391,7 @@ describe('paramètres du compte', () => {
       if (url === '/api/moi/compte' && (init.method ?? 'GET') === 'GET')
         return { body: account({ handle }) };
       if (url.startsWith('/api/pseudonymes/'))
-        return { body: { handle, displayName: null, pronouns: null, bio: null } };
+        return { body: { handle, displayName: null, pronouns: null, bio: null, avatarUrl: null } };
       if (url.startsWith('/api/histoires?')) return { body: { items: [], nextCursor: null } };
     });
     renderApp('/compte');
@@ -398,5 +403,120 @@ describe('paramètres du compte', () => {
       await screen.findByRole('heading', { level: 1, name: '@ilse.varenne' }),
     ).toBeInTheDocument();
     expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ handle: 'ilse.varenne' });
+  });
+});
+
+describe('avatar (#26)', () => {
+  const MEDIA = '01a102e1-0000-7000-8000-00000000a7a7';
+  const URL_AVATAR = `http://medias.web.garage.localhost:3902/${MEDIA}.webp`;
+  const STORAGE = 'http://localhost:3900/medias-entrants';
+  const png = () => new File([new Uint8Array([137, 80, 78, 71])], 'moi.png', { type: 'image/png' });
+
+  /** API et stockage simulés ; `media` : état renvoyé après traitement. */
+  function api(media: Record<string, unknown> = { status: 'ready', rejection: null }) {
+    return mockApi((url, init) => {
+      const method = init.method ?? 'GET';
+      if (url === '/api/moi/compte' && method === 'GET') return { body: account() };
+      if (url === '/api/medias' && method === 'POST') {
+        return {
+          status: 201,
+          body: {
+            id: MEDIA,
+            url: STORAGE,
+            fields: { key: MEDIA, Policy: 'politique-signee' },
+            maxBytes: 10 * 1024 * 1024,
+            expiresAt: '2026-10-16T10:10:00.000Z',
+          },
+        };
+      }
+      if (url === STORAGE) return { status: 204 };
+      const view = (extra: Record<string, unknown>) => ({
+        id: MEDIA,
+        kind: 'avatar',
+        url: null,
+        width: null,
+        height: null,
+        rejection: null,
+        ...extra,
+      });
+      if (url === `/api/medias/${MEDIA}/traitement`) {
+        return { status: 202, body: view({ status: 'processing' }) };
+      }
+      if (url === `/api/medias/${MEDIA}`) {
+        return {
+          body: view(
+            media.status === 'ready'
+              ? { status: 'ready', url: URL_AVATAR, width: 512, height: 512 }
+              : media,
+          ),
+        };
+      }
+      if (url === '/api/moi/compte/avatar' && method === 'PUT') {
+        return { body: account({ avatarUrl: URL_AVATAR }) };
+      }
+      if (url === '/api/moi/compte/avatar' && method === 'DELETE') return { body: account() };
+    });
+  }
+
+  it('envoi direct vers le stockage, traitement, puis avatar affiché ; page accessible', async () => {
+    signedIn();
+    const calls = api();
+    renderApp('/compte');
+    await userEvent.upload(await screen.findByLabelText('Nouvelle image'), png());
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer l’avatar' }));
+    expect(await screen.findByRole('img', { name: 'Votre avatar actuel' })).toHaveAttribute(
+      'src',
+      URL_AVATAR,
+    );
+    expect(screen.getByLabelText('Nouvelle image')).toHaveAccessibleDescription(
+      /Avatar enregistré\./,
+    );
+    // Le fichier part directement vers le stockage, champs signés d’abord, sans jeton.
+    const sent = calls.find((c) => c.url === STORAGE);
+    expect(sent?.auth).toBeUndefined();
+    const form = sent?.body as FormData;
+    expect([...form.keys()]).toEqual(['key', 'Policy', 'file']);
+    expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ mediaId: MEDIA });
+    await expectAccessible();
+  });
+
+  it('fichier qui n’est pas une image : refusé avant tout envoi, erreur sur le champ', async () => {
+    signedIn();
+    const calls = api();
+    renderApp('/compte');
+    const input = await screen.findByLabelText('Nouvelle image');
+    const user = userEvent.setup({ applyAccept: false });
+    await user.upload(input, new File(['bonjour'], 'notes.txt', { type: 'text/plain' }));
+    await user.click(screen.getByRole('button', { name: 'Enregistrer l’avatar' }));
+    await waitFor(() => expect(input).toHaveFocus());
+    expect(input).toHaveAccessibleDescription(/n’est pas une image JPEG, PNG ou WebP/);
+    expect(calls.some((c) => c.url === '/api/medias')).toBe(false);
+  });
+
+  it('image refusée au traitement : la raison sous le champ, aucun avatar enregistré', async () => {
+    signedIn();
+    const calls = api({ status: 'rejected', rejection: 'illisible' });
+    renderApp('/compte');
+    const input = await screen.findByLabelText('Nouvelle image');
+    await userEvent.upload(input, png());
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer l’avatar' }));
+    await waitFor(() => expect(input).toHaveFocus());
+    expect(input).toHaveAccessibleDescription(/abîmée ou trop grande/);
+    expect(calls.some((c) => c.method === 'PUT')).toBe(false);
+  });
+
+  it('retirer l’avatar', async () => {
+    signedIn();
+    const calls = mockApi((url, init) => {
+      if (url === '/api/moi/compte' && (init.method ?? 'GET') === 'GET') {
+        return { body: account({ avatarUrl: URL_AVATAR }) };
+      }
+      if (url === '/api/moi/compte/avatar') return { body: account() };
+    });
+    renderApp('/compte');
+    await userEvent.click(await screen.findByRole('button', { name: 'Retirer l’avatar' }));
+    expect(await screen.findByText('Pas d’avatar pour l’instant.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Nouvelle image')).toHaveAccessibleDescription(/Avatar retiré\./);
+    expect(calls.find((c) => c.url === '/api/moi/compte/avatar')?.method).toBe('DELETE');
   });
 });
