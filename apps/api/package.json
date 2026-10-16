@@ -15,6 +15,7 @@
     "dev": "pnpm --filter @plumiotheca/contracts --filter @plumiotheca/editor-schema build && nest start --watch --env-file .env",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "search:reindex": "node --env-file-if-exists=.env dist/cli/reindex.js",
     "migration:run": "node --env-file-if-exists=.env node_modules/typeorm/cli.js -d dist/database/data-source.js migration:run",
     "migration:revert": "node --env-file-if-exists=.env node_modules/typeorm/cli.js -d dist/database/data-source.js migration:revert",
     "migration:generate": "pnpm build && node --env-file-if-exists=.env node_modules/typeorm/cli.js -d dist/database/data-source.js migration:generate --pretty",

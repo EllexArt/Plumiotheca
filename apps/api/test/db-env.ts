@@ -20,6 +20,10 @@ export function testDbEnv(): Record<string, string> {
     ...pick('DB_PORT'),
     ...pick('DB_USERNAME'),
     ...pick('DB_PASSWORD'),
+    ...pick('MEILI_URL'),
+    ...pick('MEILI_MASTER_KEY'),
+    // Index de recherche propre aux tests, vidé à chaque lancement.
+    SEARCH_INDEX: TEST_DB_NAME,
     DB_NAME: TEST_DB_NAME,
     DB_MIGRATE_ON_START: 'false',
     DB_CONNECT_RETRIES: '0',

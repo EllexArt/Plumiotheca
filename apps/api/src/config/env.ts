@@ -70,6 +70,15 @@ export const Env = z
       .enum(['true', 'false'])
       .optional()
       .transform((v) => (v === undefined ? undefined : v === 'true')),
+    /** Moteur de recherche (Meilisearch), interrogé par l'API seulement (#82). */
+    MEILI_URL: z.url({ protocol: /^https?$/ }).default('http://localhost:7700'),
+    /** Clé de Meilisearch ; jamais envoyée au navigateur. Obligatoire en production. */
+    MEILI_MASTER_KEY: z.string().min(1).optional(),
+    /** Index des histoires publiées (un autre nom pour les tests). */
+    SEARCH_INDEX: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]{1,64}$/)
+      .default('histoires'),
     /** Stockage des images (S3 ; Garage en développement). */
     S3_ENDPOINT: z.url({ protocol: /^https?$/ }).default('http://localhost:3900'),
     /**
@@ -141,7 +150,7 @@ export const Env = z
     if (env.TRUST_PROXY === undefined) {
       ctx.addIssue({ code: 'custom', path: ['TRUST_PROXY'], message: 'Obligatoire en production' });
     }
-    for (const key of ['S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY'] as const) {
+    for (const key of ['MEILI_MASTER_KEY', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY'] as const) {
       if (!env[key])
         ctx.addIssue({ code: 'custom', path: [key], message: 'Obligatoire en production' });
     }

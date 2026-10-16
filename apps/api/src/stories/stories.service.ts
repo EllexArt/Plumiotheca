@@ -244,11 +244,8 @@ export class StoriesService {
     };
   }
 
-  private async summaries(
-    tx: EntityManager,
-    stories: Story[],
-    own: boolean,
-  ): Promise<StorySummary[]> {
+  /** Fiches de ces histoires (tags, nombre de chapitres publiés), dans le même ordre. */
+  async summaries(tx: EntityManager, stories: Story[], own: boolean): Promise<StorySummary[]> {
     const ids = stories.map((s) => s.id);
     const labels = await this.tags.labels(tx, ids);
     const counts = new Map<string, number>();

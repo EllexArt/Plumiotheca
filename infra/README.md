@@ -62,7 +62,7 @@ docker run --rm --network plumiotheca_default -p 127.0.0.1:3000:3000 -e TRUST_PR
   -e CORS_ORIGINS=http://localhost:5173 -e KEYCLOAK_ISSUER=http://localhost:8080/realms/plumiotheca \
   -e KEYCLOAK_JWKS_URL=http://keycloak:8080/realms/plumiotheca/protocol/openid-connect/certs \
   -e KEYCLOAK_ADMIN_CLIENT_SECRET="$(sed -n 's/^KEYCLOAK_ADMIN_CLIENT_SECRET=//p' apps/api/.env)" \
-  -e S3_ENDPOINT=http://garage:3900 -e S3_UPLOAD_ENDPOINT=http://localhost:3900 \
+  -e MEILI_URL=http://meilisearch:7700 -e MEILI_MASTER_KEY="$MEILI_MASTER_KEY"   -e S3_ENDPOINT=http://garage:3900 -e S3_UPLOAD_ENDPOINT=http://localhost:3900 \
   -e S3_ACCESS_KEY_ID="$(sed -n 's/^S3_ACCESS_KEY_ID=//p' apps/api/.env)" \
   -e S3_SECRET_ACCESS_KEY="$(sed -n 's/^S3_SECRET_ACCESS_KEY=//p' apps/api/.env)" \
   plumiotheca-api:local

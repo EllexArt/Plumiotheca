@@ -195,6 +195,7 @@ describe('documentation OpenAPI', () => {
       TRUST_PROXY: '1',
       KEYCLOAK_ISSUER: 'https://compte.plumiotheca.example/realms/plumiotheca',
       KEYCLOAK_ADMIN_CLIENT_SECRET: 'secret-du-compte-de-service',
+      MEILI_MASTER_KEY: 'cle-meili',
       S3_ACCESS_KEY_ID: 'cle-s3',
       S3_SECRET_ACCESS_KEY: 'secret-s3',
     });
