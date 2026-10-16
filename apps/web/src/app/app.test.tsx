@@ -545,3 +545,18 @@ describe('refus et incidents à la première visite', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Plumiotheca ne répond pas.');
   });
 });
+
+describe('politique de confidentialité (#100)', () => {
+  it('lien dans le pied de page ; tableau des données et durées, page accessible', async () => {
+    renderApp('/');
+    await userEvent.click(await screen.findByRole('link', { name: 'Confidentialité' }));
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Politique de confidentialité' }),
+    ).toBeInTheDocument();
+    const table = screen.getByRole('table', {
+      name: 'Données gardées, raison et durée de conservation',
+    });
+    expect(within(table).getByRole('rowheader', { name: /^E-mail/ })).toBeInTheDocument();
+    await expectAccessible();
+  });
+});

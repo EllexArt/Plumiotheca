@@ -2,7 +2,7 @@ import { Fragment, type ReactNode } from 'react';
 
 /**
  * Rendu d'un Markdown simple et de confiance (textes de Plumiotheca : charte, aide) :
- * titres, paragraphes, listes, **gras**, *italique*, [liens](https://…). Construit des
+ * titres, paragraphes, listes, tableaux, **gras**, *italique*, [liens](https://…). Construit des
  * éléments React, jamais du HTML brut : rien ne peut s'injecter dans la page.
  *
  * `headingOffset` décale les niveaux (« # » devient h2 quand la page a déjà son h1).
@@ -14,7 +14,11 @@ export function Markdown({
   source: string;
   headingOffset?: number;
 }) {
-  const blocks = source.replace(/\r\n/g, '\n').split(/\n{2,}/);
+  const blocks = source
+    .replace(/\r\n/g, '\n')
+    // « Tableau : titre », puis une ligne vide (Prettier l'impose) et le tableau : un bloc.
+    .replace(/^(Tableau\s*:.*)\n\n(?=\|)/gm, '$1\n')
+    .split(/\n{2,}/);
   return (
     <>
       {blocks.map((block, i) => {
@@ -27,6 +31,39 @@ export function Markdown({
           return <Tag key={i}>{inline(heading[2]!)}</Tag>;
         }
         const lines = text.split('\n');
+        const table = parseTable(lines);
+        if (table) {
+          return (
+            <table key={i}>
+              {table.caption && <caption>{inline(table.caption)}</caption>}
+              <thead>
+                <tr>
+                  {table.head.map((cell, j) => (
+                    <th key={j} scope="col">
+                      {inline(cell)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {table.rows.map((row, r) => (
+                  <tr key={r}>
+                    {row.map((cell, j) =>
+                      // Première colonne : en-tête de ligne (RGAA 5.7).
+                      j === 0 ? (
+                        <th key={j} scope="row">
+                          {inline(cell)}
+                        </th>
+                      ) : (
+                        <td key={j}>{inline(cell)}</td>
+                      ),
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          );
+        }
         if (lines.every((line) => /^\s*[-*]\s+/.test(line))) {
           return (
             <ul key={i}>
@@ -40,6 +77,25 @@ export function Markdown({
       })}
     </>
   );
+}
+
+const cells = (line: string) =>
+  line
+    .trim()
+    .replace(/^\||\|$/g, '')
+    .split('|')
+    .map((cell) => cell.trim());
+
+/**
+ * Tableau : lignes « | a | b | », la deuxième étant le séparateur « | --- | --- | ».
+ * Une ligne « Tableau : titre » juste avant donne la légende (titre du tableau, RGAA 5.4).
+ */
+function parseTable(lines: string[]) {
+  const titled = /^Tableau\s*:\s*(.+)$/.exec(lines[0] ?? '');
+  const body = titled ? lines.slice(1) : lines;
+  if (body.length < 2 || !body.every((line) => line.trim().startsWith('|'))) return null;
+  if (!cells(body[1]!).every((cell) => /^:?-{3,}:?$/.test(cell))) return null;
+  return { caption: titled?.[1], head: cells(body[0]!), rows: body.slice(2).map(cells) };
 }
 
 const TOKEN = /\*\*(.+?)\*\*|\*(.+?)\*|\[([^\]]+)\]\(([^)\s]+)\)/g;
