@@ -137,6 +137,33 @@ export const StoryQuery = z.strictObject({
 });
 export type StoryQuery = z.infer<typeof StoryQuery>;
 
+/** Taille d'une page de résultats de recherche. */
+export const SEARCH_PAGE_SIZE = 20;
+
+/**
+ * Recherche plein texte dans les histoires publiées (#82) : titre, tags, nom de l'autrice ou
+ * de l'auteur, résumé ; mêmes exclusions que la liste. Pages numérotées à partir de 1.
+ */
+export const SearchQuery = StoryQuery.pick({
+  langue: true,
+  classement: true,
+  exclureClassement: true,
+  exclure: true,
+}).extend({
+  q: z.string().trim().min(1).max(200),
+  page: z.coerce.number().int().min(1).max(50).default(1),
+});
+export type SearchQuery = z.infer<typeof SearchQuery>;
+
+export const SearchPage = z.strictObject({
+  items: z.array(StorySummary),
+  /** Nombre approximatif de résultats. */
+  total: z.int(),
+  /** Page suivante ; null : dernière page. */
+  nextPage: z.int().nullable(),
+});
+export type SearchPage = z.infer<typeof SearchPage>;
+
 /** Pagination de « Mes histoires » (brouillons compris). */
 export const MyStoriesQuery = z.strictObject({
   apres: z.string().max(200).optional(),

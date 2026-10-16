@@ -2,9 +2,11 @@ import {
   ChapterDraft,
   ChapterRead,
   SavedDraft,
+  SearchPage,
   StoryDetail,
   StoryPage,
   type NewStory,
+  type StorySummary,
   type UpdateStory,
 } from '@plumiotheca/contracts';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -25,26 +27,44 @@ export const storyKeys = {
 export interface StoryFilters {
   tag?: string | undefined;
   pseudonyme?: string | undefined;
+  /** Recherche plein texte (#82) : remplace les autres filtres. */
+  q?: string | undefined;
+}
+
+/** Une page de la liste, qu'elle vienne de la liste publique ou de la recherche. */
+interface ListPage {
+  items: StorySummary[];
+  /** Curseur (liste) ou numéro de page (recherche) de la suivante ; null : dernière. */
+  next: string | number | null;
+  /** Nombre approximatif de résultats (recherche seulement). */
+  total?: number;
 }
 
 /**
- * Histoires publiées, les plus récentes d'abord, par pages de 20 (curseur de l'API) :
- * « Voir plus d'histoires » charge la suivante.
+ * Histoires publiées, les plus récentes d'abord, par pages de 20 (curseur de l'API) ; avec
+ * `q`, résultats de la recherche, les plus pertinents d'abord. « Voir plus d'histoires »
+ * charge la page suivante.
  */
 export function usePublicStories(filters: StoryFilters = {}) {
   const api = useApi();
   const auth = useAuth();
   return useInfiniteQuery({
     queryKey: [...storyKeys.public, filters, auth.isAuthenticated],
-    initialPageParam: null as string | null,
-    queryFn: ({ pageParam, signal }) => {
+    initialPageParam: null as string | number | null,
+    queryFn: async ({ pageParam, signal }): Promise<ListPage> => {
+      if (filters.q) {
+        const params = new URLSearchParams({ q: filters.q, page: String(pageParam ?? 1) });
+        const page = await api(SearchPage, `/recherche?${params}`, { signal });
+        return { items: page.items, next: page.nextPage, total: page.total };
+      }
       const params = new URLSearchParams({ limite: '20' });
       if (filters.tag) params.set('tag', filters.tag);
       if (filters.pseudonyme) params.set('pseudonyme', filters.pseudonyme);
-      if (pageParam) params.set('apres', pageParam);
-      return api(StoryPage, `/histoires?${params}`, { signal });
+      if (typeof pageParam === 'string') params.set('apres', pageParam);
+      const page = await api(StoryPage, `/histoires?${params}`, { signal });
+      return { items: page.items, next: page.nextCursor };
     },
-    getNextPageParam: (last) => last.nextCursor,
+    getNextPageParam: (last) => last.next,
   });
 }
 

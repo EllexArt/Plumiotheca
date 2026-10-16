@@ -27,12 +27,15 @@ import {
   StoryQuery,
   UpdateChapter,
   UpdateStory,
+  SearchPage,
+  SearchQuery,
 } from '@plumiotheca/contracts';
 import { z } from 'zod';
 import { CurrentAccount, OptionalAccount } from '../account/account.decorators.js';
 import { Public } from '../auth/decorators.js';
 import type { User } from '../users/user.entity.js';
 import { ChaptersService } from './chapters.service.js';
+import { SearchService } from './search.service.js';
 import { StoriesService } from './stories.service.js';
 
 const Id = z.uuid();
@@ -43,7 +46,15 @@ export class StoriesController {
   constructor(
     private readonly stories: StoriesService,
     private readonly chapters: ChaptersService,
+    private readonly search: SearchService,
   ) {}
+
+  /** Après un changement visible du public : l'histoire est réindexée pour la recherche. */
+  private async reindexed<T>(id: string, change: Promise<T>): Promise<T> {
+    const result = await change;
+    await this.search.queue(id);
+    return result;
+  }
 
   /** Histoires publiées, les plus récentes d'abord (pagination par curseur). */
   @Get()
@@ -76,28 +87,28 @@ export class StoriesController {
     @Param('id', { schema: Id }) id: string,
     @Body({ schema: UpdateStory }) input: UpdateStory,
   ) {
-    return this.stories.update(account, id, input);
+    return this.reindexed(id, this.stories.update(account, id, input));
   }
 
   @Delete(':id')
   @HttpCode(204)
   @ApiBearerAuth()
   async remove(@CurrentAccount() account: User, @Param('id', { schema: Id }) id: string) {
-    await this.stories.remove(account, id);
+    await this.reindexed(id, this.stories.remove(account, id));
   }
 
   @Post(':id/publication')
   @ApiBearerAuth()
   @ApiOkResponse({ standardSchema: StoryDetail })
   publish(@CurrentAccount() account: User, @Param('id', { schema: Id }) id: string) {
-    return this.stories.publish(account, id);
+    return this.reindexed(id, this.stories.publish(account, id));
   }
 
   @Post(':id/depublication')
   @ApiBearerAuth()
   @ApiOkResponse({ standardSchema: StoryDetail })
   unpublish(@CurrentAccount() account: User, @Param('id', { schema: Id }) id: string) {
-    return this.stories.unpublish(account, id);
+    return this.reindexed(id, this.stories.unpublish(account, id));
   }
 
   // Chapitres
@@ -158,7 +169,7 @@ export class StoriesController {
     @Param('id', { schema: Id }) id: string,
     @Param('chapitre', { schema: Id }) chapterId: string,
   ) {
-    return this.chapters.remove(account, id, chapterId);
+    return this.reindexed(id, this.chapters.remove(account, id, chapterId));
   }
 
   @Get(':id/chapitres/:chapitre/brouillon')
@@ -196,7 +207,7 @@ export class StoriesController {
     @Param('id', { schema: Id }) id: string,
     @Param('chapitre', { schema: Id }) chapterId: string,
   ) {
-    return this.chapters.publish(account, id, chapterId);
+    return this.reindexed(id, this.chapters.publish(account, id, chapterId));
   }
 
   @Post(':id/chapitres/:chapitre/depublication')
@@ -207,7 +218,7 @@ export class StoriesController {
     @Param('id', { schema: Id }) id: string,
     @Param('chapitre', { schema: Id }) chapterId: string,
   ) {
-    return this.chapters.unpublish(account, id, chapterId);
+    return this.reindexed(id, this.chapters.unpublish(account, id, chapterId));
   }
 }
 
@@ -225,5 +236,20 @@ export class MyStoriesController {
     @Query({ schema: MyStoriesQuery }) query: MyStoriesQuery,
   ): Promise<StoryPage> {
     return this.stories.mine(account, query);
+  }
+}
+
+@ApiTags('recherche')
+@Controller('recherche')
+export class SearchController {
+  constructor(private readonly search: SearchService) {}
+
+  /** Recherche dans les histoires publiées (titre, tags, nom, résumé), 20 par page. */
+  @Get()
+  @Public()
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @ApiOkResponse({ standardSchema: SearchPage })
+  find(@Query({ schema: SearchQuery }) query: SearchQuery): Promise<SearchPage> {
+    return this.search.search(query);
   }
 }

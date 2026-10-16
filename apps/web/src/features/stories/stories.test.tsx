@@ -1,4 +1,5 @@
 import { screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { expectAccessible, mockApi, renderApp } from '../../test/render';
 
@@ -119,5 +120,64 @@ describe('lecture', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Histoire introuvable' }),
     ).toBeInTheDocument();
+  });
+});
+
+describe('recherche (#82)', () => {
+  it('résultats de la recherche, nombre annoncé, requête dans l’adresse ; page accessible', async () => {
+    const calls = mockApi((url) => {
+      if (url.startsWith('/api/histoires?'))
+        return { body: { items: [summary], nextCursor: null } };
+      if (url.startsWith('/api/recherche?')) {
+        return { body: { items: [summary], total: 1, nextPage: null } };
+      }
+    });
+    renderApp('/');
+    const field = await screen.findByRole('searchbox', { name: 'Rechercher une histoire' });
+    await userEvent.type(field, 'bibliothèque engloutie');
+    await userEvent.click(screen.getByRole('button', { name: 'Rechercher' }));
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'Résultats pour « bibliothèque engloutie »',
+      }),
+    ).toBeInTheDocument();
+    const list = await screen.findByRole('list', { name: 'Résultats de la recherche' });
+    expect(
+      within(list).getByRole('link', { name: 'La bibliothèque engloutie' }),
+    ).toBeInTheDocument();
+    // Zone annoncée (<output>, rôle « status »).
+    expect(screen.getByText('1 résultat')).toBeInstanceOf(HTMLOutputElement);
+    const params = new URL(calls.at(-1)!.url, 'http://x').searchParams;
+    expect([params.get('q'), params.get('page')]).toEqual(['bibliothèque engloutie', '1']);
+    await expectAccessible();
+  });
+
+  it('aucun résultat : message clair et annoncé', async () => {
+    mockApi((url) => {
+      if (url.startsWith('/api/recherche?'))
+        return { body: { items: [], total: 0, nextPage: null } };
+    });
+    renderApp('/?q=rien');
+    expect(await screen.findByText(/Aucune histoire ne correspond à « rien »/)).toBeInTheDocument();
+    expect(screen.getByText('Aucun résultat.')).toBeInstanceOf(HTMLOutputElement);
+  });
+
+  it('recherche indisponible : alerte avec le message de l’API', async () => {
+    mockApi((url) => {
+      if (url.startsWith('/api/recherche?')) {
+        return {
+          status: 503,
+          body: {
+            type: 'indisponible',
+            title: 'Service momentanément indisponible',
+            status: 503,
+            detail: 'La recherche est momentanément indisponible. Réessayez dans un instant.',
+          },
+        };
+      }
+    });
+    renderApp('/?q=panne');
+    expect(await screen.findByRole('alert')).toHaveTextContent(/momentanément indisponible/);
   });
 });

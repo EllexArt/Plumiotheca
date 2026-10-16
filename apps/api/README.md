@@ -58,6 +58,14 @@ pnpm --filter @plumiotheca/api typecheck
 - Chapitres : `POST /api/histoires/:id/chapitres` (position choisie par le serveur), `PUT …/chapitres/ordre` (ordre complet, appliqué d'un coup), `PATCH`/`DELETE …/chapitres/:chapitre`, `GET`/`PUT …/brouillon` (document validé par `@plumiotheca/editor-schema`, identifiants de blocs complétés, 409 `brouillon-modifie` si la version est dépassée, 30 sauvegardes par minute au plus), `POST …/publication` (révision figée, dans une transaction), `GET …/chapitres/:chapitre` (public : version publiée).
 - Un chapitre adressé via une autre histoire que la sienne répond 404 (faille C2).
 
+## Recherche
+
+- `GET /api/recherche?q=&page=` (public, 60 par minute) : histoires publiées dont le titre, les tags, le nom de l'autrice ou de l'auteur ou le résumé correspondent, 20 par page, les plus pertinentes d'abord ; mêmes exclusions que la liste (`langue`, `classement`, `exclureClassement`, `exclure`). Réponse `{ items, total, nextPage }`. Meilisearch injoignable : 503.
+- **Meilisearch n'est interrogé que par l'API**, jamais par le navigateur : la clé reste sur le serveur.
+- L'index (`SEARCH_INDEX`) ne contient que la fiche publique des histoires publiées (aucun brouillon, aucun texte de chapitre), et ne renvoie que des identifiants. Les résultats sont relus dans la base avec la règle de visibilité : une histoire devenue invisible depuis l'indexation n'est jamais montrée.
+- Chaque changement d'une histoire (modification, publication, dépublication, suppression, chapitre publié, dépublié ou supprimé) la met en file `indexation-histoire`. La tâche `reindexation-recherche` reconstruit l'index chaque nuit (4 h 41), ce qui rattrape aussi les changements de pseudonyme ou de nom et les comptes verrouillés.
+- Réindexation complète à la demande : `pnpm --filter @plumiotheca/api search:reindex` (après `pnpm build`). Elle reconstruit dans un index temporaire puis l'échange avec l'index en service : la recherche reste disponible.
+
 ## Configuration
 
 Validée au démarrage par `src/config/env.ts` : l'API s'arrête avec la liste des variables en cause (sans leur valeur).
@@ -81,8 +89,11 @@ Validée au démarrage par `src/config/env.ts` : l'API s'arrête avec la liste d
 | `DB_SSL`                 | `false`                                    | connexion chiffrée à la base                                        |
 | `DB_CONNECT_RETRIES`     | `5`                                        | essais de connexion au démarrage (2 s d'écart)                      |
 | `DB_MIGRATE_ON_START`    | `true` en développement                    | applique les migrations au démarrage                                |
+| `MEILI_URL`              | `http://localhost:7700`                    | Meilisearch                                                         |
+| `MEILI_MASTER_KEY`       | —                                          | clé de Meilisearch, obligatoire en production                       |
+| `SEARCH_INDEX`           | `histoires`                                | index des histoires (les tests utilisent le nom de leur base)       |
 
-Les autres variables de `.env.example` (Meilisearch, S3, SMTP) seront lues par les prochaines étapes de la M1. Toutes sont générées par `pnpm infra:setup` dans `apps/api/.env` (jamais commité).
+Les variables S3 et de médias sont décrites dans `infra/README.md` ; celles du SMTP seront lues plus tard. Toutes sont générées par `pnpm infra:setup` dans `apps/api/.env` (jamais commité).
 
 Base de données (outils comme DBeaver) : `localhost:5433`, base `plumiotheca`, utilisateur `plumiotheca`, mot de passe `POSTGRES_PASSWORD` dans `infra/.env`.
 

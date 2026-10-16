@@ -1,11 +1,12 @@
 import type { StorySummary } from '@plumiotheca/contracts';
 import { parseDocument } from '@plumiotheca/editor-schema';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, type FormEvent, type ReactNode } from 'react';
 import { useAuth } from 'react-oidc-context';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { ApiError } from '../../shared/api/client';
 import { Button, ButtonLink } from '../../shared/ui/Button';
 import { Alert, Loading, Tag } from '../../shared/ui/Feedback';
+import { TextField } from '../../shared/ui/Field';
 import { Page, usePageTitle } from '../../shared/ui/Page';
 import { useChapter, usePublicStories, useStory, type StoryFilters } from './api';
 import { ChapterContent } from './ChapterContent';
@@ -147,7 +148,7 @@ export function StoryList({
   // Autres filtres ou page suivante en échec : plus de focus à déplacer.
   useEffect(() => {
     focusFrom.current = null;
-  }, [filters.tag, filters.pseudonyme, stories.isFetchNextPageError]);
+  }, [filters.tag, filters.pseudonyme, filters.q, stories.isFetchNextPageError]);
 
   if (stories.isPending) return <Loading label="Chargement des histoires…" />;
   // Seule la première page en échec remplace la liste ; « Voir plus » en échec la garde.
@@ -191,33 +192,75 @@ export function StoryList({
   );
 }
 
-/** Explorer (#21) : les dernières histoires publiées, filtrables par tag. */
+/**
+ * Explorer (#21) : les dernières histoires publiées, filtrables par tag ; recherche plein
+ * texte (#82) par titre, tag, nom ou résumé. La requête est dans l'adresse (partageable).
+ */
 export function ExplorePage() {
-  const [params] = useSearchParams();
-  const tag = params.get('tag')?.trim() || undefined;
-  const stories = usePublicStories({ tag });
+  const [params, setParams] = useSearchParams();
+  const q = params.get('q')?.trim() || undefined;
+  const tag = q ? undefined : params.get('tag')?.trim() || undefined;
+  const filters = { tag, q };
+  const stories = usePublicStories(filters);
   const empty = stories.isSuccess && !stories.data.pages[0]?.items.length;
+  const total = stories.data?.pages[0]?.total;
+
+  const search = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const value = String(new FormData(event.currentTarget).get('q') ?? '').trim();
+    setParams(value ? { q: value } : {});
+  };
+
   return (
     <Page
-      title={tag ? `Histoires avec le tag « ${tag} »` : 'Explorer'}
+      title={q ? `Résultats pour « ${q} »` : tag ? `Histoires avec le tag « ${tag} »` : 'Explorer'}
       lead={
-        tag
+        q || tag
           ? undefined
           : 'Les dernières histoires publiées. Bientôt : des sélections composées par des lectrices et lecteurs, des autrices et auteurs, et l’équipe. Pas de fil choisi par un algorithme.'
       }
     >
-      {tag && (
+      <form role="search" className={styles.search} onSubmit={search} key={q ?? ''}>
+        <TextField
+          label="Rechercher une histoire"
+          name="q"
+          type="search"
+          hint="Titre, tag, nom de l’autrice ou de l’auteur, résumé."
+          maxLength={200}
+          defaultValue={q ?? ''}
+        />
+        <div>
+          <Button type="submit" variant="secondary">
+            Rechercher
+          </Button>
+        </div>
+      </form>
+      {(tag || q) && (
         <p>
           <Link to="/">Voir toutes les histoires</Link>
         </p>
       )}
+      {q && (
+        // Annoncé à chaque nouvelle recherche : le focus reste dans le champ.
+        <output className={styles.meta}>
+          {stories.isSuccess ? (total ? plural(total, 'résultat') : 'Aucun résultat.') : ''}
+        </output>
+      )}
       <StoryList
-        filters={{ tag }}
-        label={tag ? `Histoires avec le tag ${tag}` : 'Dernières histoires publiées'}
+        filters={filters}
+        label={
+          q
+            ? 'Résultats de la recherche'
+            : tag
+              ? `Histoires avec le tag ${tag}`
+              : 'Dernières histoires publiées'
+        }
       />
       {empty && (
         <div className={styles.empty}>
-          {tag ? (
+          {q ? (
+            <p>Aucune histoire ne correspond à « {q} ». Essayez un autre mot, ou moins de mots.</p>
+          ) : tag ? (
             <p>Aucune histoire publiée avec ce tag pour l’instant.</p>
           ) : (
             <>

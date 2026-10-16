@@ -34,7 +34,21 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U plumiotheca" --health-interval 2s
           --health-timeout 5s --health-retries 30
+      # Recherche (#82) : même version que infra/docker-compose.yml.
+      meilisearch:
+        image: getmeili/meilisearch:v1.54.3
+        env:
+          MEILI_ENV: development
+          MEILI_MASTER_KEY: ci-uniquement-cle-meilisearch
+          MEILI_NO_ANALYTICS: true
+        ports:
+          - 7700:7700
+        options: >-
+          --health-cmd "wget -q --spider http://127.0.0.1:7700/health" --health-interval 2s
+          --health-timeout 5s --health-retries 30
     env:
+      MEILI_URL: http://localhost:7700
+      MEILI_MASTER_KEY: ci-uniquement-cle-meilisearch
       DB_HOST: localhost
       DB_PORT: '5433'
       DB_USERNAME: plumiotheca

@@ -108,7 +108,10 @@ describe('histoires', () => {
       .send({ contentWarnings: ['addiction', 'grief'] })
       .expect(200);
     expect(StoryDetail.parse(res.body).contentWarnings).toEqual(['grief', 'addiction']);
-    const list = await ctx.http.get('/api/histoires').expect(200);
+    // Liste filtrée sur la personne : les autres fichiers de tests publient en parallèle.
+    const list = await ctx.http
+      .get(`/api/histoires?pseudonyme=${encodeURIComponent(story.author.handle)}`)
+      .expect(200);
     expect(StoryPage.parse(list.body).items[0]?.contentWarnings).toEqual(['grief', 'addiction']);
     await ctx.http
       .patch(`/api/histoires/${story.id}`)
