@@ -26,18 +26,20 @@ Comptes de démonstration : `pnpm infra:seed` (mot de passe dans `infra/.env`, v
 
 `docker build -f apps/web/Dockerfile -t plumiotheca-web .` (depuis la racine) : fichiers compilés servis par nginx sans droits root, port 8080. Une même image pour tous les environnements : les adresses sont fournies au lancement et servies dans `/config.js` (lu par `src/shared/config.ts`), jamais compilées.
 
-| Variable          | Défaut                                     | Rôle                                                        |
-| ----------------- | ------------------------------------------ | ----------------------------------------------------------- |
-| `OIDC_AUTHORITY`  | `http://localhost:8080/realms/plumiotheca` | Realm Keycloak                                              |
-| `OIDC_CLIENT_ID`  | `web`                                      | Client public (PKCE)                                        |
-| `KEYCLOAK_ORIGIN` | `http://localhost:8080`                    | Origine de Keycloak, autorisée par la CSP                   |
-| `API_URL`         | `/api`                                     | Adresse de l'API vue par le navigateur                      |
-| `API_ORIGIN`      | (vide)                                     | Origine de l'API si elle est ailleurs, autorisée par la CSP |
-| `HSTS`            | `max-age=0`                                | `max-age=31536000; includeSubDomains` derrière HTTPS        |
+| Variable          | Défaut                                     | Rôle                                                                         |
+| ----------------- | ------------------------------------------ | ---------------------------------------------------------------------------- |
+| `OIDC_AUTHORITY`  | `http://localhost:8080/realms/plumiotheca` | Realm Keycloak                                                               |
+| `OIDC_CLIENT_ID`  | `web`                                      | Client public (PKCE)                                                         |
+| `KEYCLOAK_ORIGIN` | `http://localhost:8080`                    | Origine de Keycloak, autorisée par la CSP                                    |
+| `API_URL`         | `/api`                                     | Adresse de l'API vue par le navigateur                                       |
+| `API_ORIGIN`      | (vide)                                     | Origine de l'API si elle est ailleurs, autorisée par la CSP                  |
+| `MEDIA_ORIGIN`    | `http://medias.web.garage.localhost:3902`  | Domaine des images publiées (avatars, couvertures), autorisé par la CSP      |
+| `UPLOAD_ORIGIN`   | `http://localhost:3900`                    | Stockage où le navigateur envoie directement les images, autorisé par la CSP |
+| `HSTS`            | `max-age=0`                                | `max-age=31536000; includeSubDomains` derrière HTTPS                         |
 
 **En-têtes de sécurité** (`nginx/default.conf.template`, #140) sur toutes les réponses :
 
-- **CSP stricte** : aucun script en ligne (thème et configuration sont des fichiers), connexions vers l'API et Keycloak seulement, jamais affiché dans un cadre (`frame-ancestors 'none'`), ni objet ni changement de `<base>`.
+- **CSP stricte** : aucun script en ligne (thème et configuration sont des fichiers), connexions vers l'API, Keycloak et le stockage des images seulement, images du site ou du domaine des médias, jamais affiché dans un cadre (`frame-ancestors 'none'`), ni objet ni changement de `<base>`.
 - Styles en ligne seulement avec le **nonce** de la réponse : nginx en tire un nouveau à chaque requête (`$request_id`), l'écrit dans `<meta name="csp-nonce">` de `index.html`, et `src/shared/csp-nonce.ts` le transmet aux bibliothèques qui injectent une balise `<style>` (verrouillage du défilement des fenêtres de dialogue). La feuille de base de TipTap est un fichier (`prosemirror.css`).
 - `Referrer-Policy`, `X-Content-Type-Options`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`, HSTS (variable).
 - Le parcours de bout en bout de la CI tourne contre cette image et échoue à la moindre violation de la CSP.

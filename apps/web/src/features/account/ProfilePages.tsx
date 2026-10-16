@@ -17,7 +17,16 @@ import { Page } from '../../shared/ui/Page';
 import prose from '../../shared/ui/Prose.module.css';
 import { formatDate } from '../stories/labels';
 import { StoryList } from '../stories/ReadingPages';
-import { useChangeHandle, useMyAccount, usePublicProfile, useUpdateProfile } from './api';
+import {
+  checkImage,
+  useChangeHandle,
+  useMyAccount,
+  usePublicProfile,
+  useRemoveAvatar,
+  useSetAvatar,
+  useUpdateProfile,
+  type UploadPhase,
+} from './api';
 import styles from './ProfilePages.module.css';
 
 /** Texte libre en paragraphes (lignes vides) et retours à la ligne, sans HTML. */
@@ -82,6 +91,10 @@ export function PublicProfilePage() {
       }
       lead={p.displayName ? `@${p.handle}` : undefined}
     >
+      {p.avatarUrl && (
+        // Décoratif : le nom est dans le titre juste au-dessus.
+        <img className={styles.avatar} src={p.avatarUrl} alt="" width={128} height={128} />
+      )}
       {mine && (
         <div>
           <ButtonLink to="/compte" variant="secondary" size="small">
@@ -107,7 +120,7 @@ export function PublicProfilePage() {
   );
 }
 
-/** Paramètres du compte (#26) : profil public et pseudonyme. */
+/** Paramètres du compte (#26) : avatar, profil public et pseudonyme. */
 export function AccountSettingsPage() {
   const account = useMyAccount();
   if (account.isPending) return <Loading label="Chargement de votre compte…" />;
@@ -132,6 +145,7 @@ export function AccountSettingsPage() {
           <Link to={`/profils/${encodeURIComponent(a.handle)}`}>Voir mon profil public</Link>
         </p>
       )}
+      <AvatarForm current={a.avatarUrl} />
       <ProfileForm initial={{ displayName: a.displayName, pronouns: a.pronouns, bio: a.bio }} />
       <HandleForm
         key={a.handle ?? ''}
@@ -146,6 +160,106 @@ export function AccountSettingsPage() {
         </p>
       </section>
     </Page>
+  );
+}
+
+const PHASES: Record<UploadPhase, string> = {
+  envoi: 'Envoi de l’image…',
+  traitement: 'Vérification et préparation de l’image…',
+  enregistrement: 'Enregistrement de l’avatar…',
+};
+
+/**
+ * Avatar (#26) : envoi direct vers le stockage, puis traitement. Les étapes sont annoncées
+ * poliment ; une erreur va sous le champ, qui reprend le focus.
+ */
+function AvatarForm({ current }: { current: string | null }) {
+  const [phase, setPhase] = useState<UploadPhase>();
+  const [error, setError] = useState<string>();
+  const upload = useSetAvatar(setPhase);
+  const remove = useRemoveAvatar();
+  const busy = upload.isPending || remove.isPending;
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (busy) return;
+    const element = event.currentTarget;
+    const refuse = (message: string) => {
+      setError(message);
+      focusFirstInvalid(element);
+    };
+    const file = (element.elements.namedItem('avatar') as HTMLInputElement | null)?.files?.[0];
+    if (!file || file.size === 0) return refuse('Choisissez une image.');
+    const problem = checkImage(file);
+    if (problem) return refuse(problem);
+    setError(undefined);
+    remove.reset();
+    upload.mutate(file, {
+      onError: (e) => refuse(e.message),
+      onSuccess: () => element.reset(),
+      onSettled: () => setPhase(undefined),
+    });
+  };
+
+  const status = phase
+    ? PHASES[phase]
+    : upload.isSuccess
+      ? 'Avatar enregistré.'
+      : remove.isSuccess
+        ? 'Avatar retiré.'
+        : '';
+
+  return (
+    <section aria-labelledby="avatar" className={styles.section}>
+      <h2 id="avatar">Avatar</h2>
+      {current ? (
+        <img
+          className={styles.avatar}
+          src={current}
+          alt="Votre avatar actuel"
+          width={128}
+          height={128}
+        />
+      ) : (
+        <p className={styles.meta}>Pas d’avatar pour l’instant.</p>
+      )}
+      <form className={styles.form} onSubmit={submit} noValidate>
+        <TextField
+          label="Nouvelle image"
+          name="avatar"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          hint="JPEG, PNG ou WebP, 10 Mo au plus. Recadrée en carré. Les informations cachées dans la photo (lieu, appareil, date) sont retirées. Pour rester anonyme, évitez une photo de votre visage (charte, 3.3)."
+          error={error}
+          status={status}
+        />
+        {remove.isError && (
+          <Alert tone="danger" live title="L’avatar n’a pas été retiré.">
+            <p>{remove.error.message}</p>
+          </Alert>
+        )}
+        <div className={styles.actions}>
+          <Button type="submit" variant="secondary" pending={upload.isPending}>
+            {upload.isPending ? 'Envoi…' : 'Enregistrer l’avatar'}
+          </Button>
+          {current && (
+            <Button
+              type="button"
+              variant="secondary"
+              pending={remove.isPending}
+              onClick={() => {
+                if (busy) return;
+                upload.reset();
+                setError(undefined);
+                remove.mutate();
+              }}
+            >
+              Retirer l’avatar
+            </Button>
+          )}
+        </div>
+      </form>
+    </section>
   );
 }
 

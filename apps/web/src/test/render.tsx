@@ -45,7 +45,11 @@ export function mockApi(handler: Handler) {
       calls.push({
         url: input,
         method: init.method ?? 'GET',
-        body: init.body ? JSON.parse(String(init.body)) : undefined,
+        // Formulaire (envoi d'une image vers le stockage) : gardé tel quel.
+        body:
+          typeof init.body === 'string'
+            ? (JSON.parse(init.body) as unknown)
+            : (init.body ?? undefined),
         auth: headers.Authorization,
       });
       return Promise.resolve(handler(input, init)).then((answer) => {
@@ -96,6 +100,7 @@ export const account = (overrides: Record<string, unknown> = {}) => ({
   displayName: null,
   pronouns: null,
   bio: null,
+  avatarUrl: null,
   ageBand: '18+',
   charterVersion: '1',
   handleChangeableFrom: null,

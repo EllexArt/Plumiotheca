@@ -13,7 +13,7 @@ server {
   # CSP stricte : aucun script en ligne (thème et configuration sont des fichiers), styles en
   # ligne seulement avec le nonce de la réponse (balises injectées par les bibliothèques),
   # connexions vers l'API et Keycloak seulement, jamais affiché dans un cadre.
-  add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'nonce-$request_id'; img-src 'self' data:; font-src 'self'; connect-src 'self' ${API_ORIGIN} ${KEYCLOAK_ORIGIN}; frame-src ${KEYCLOAK_ORIGIN}; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'" always;
+  add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'nonce-$request_id'; img-src 'self' data: ${MEDIA_ORIGIN}; font-src 'self'; connect-src 'self' ${API_ORIGIN} ${KEYCLOAK_ORIGIN} ${UPLOAD_ORIGIN}; frame-src ${KEYCLOAK_ORIGIN}; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'" always;
   add_header Referrer-Policy "strict-origin-when-cross-origin" always;
   add_header X-Content-Type-Options "nosniff" always;
   add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()" always;
