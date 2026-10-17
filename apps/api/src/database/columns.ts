@@ -4,4 +4,9 @@ import { CreateDateColumn, PrimaryColumn, UpdateDateColumn } from 'typeorm';
 export const IdColumn = () => PrimaryColumn({ type: 'uuid', default: () => 'uuidv7()' });
 
 export const CreatedAt = () => CreateDateColumn({ type: 'timestamptz' });
-export const UpdatedAt = () => UpdateDateColumn({ type: 'timestamptz' });
+/**
+ * Date de dernière modification. `precision: 3` (milliseconde) pour une colonne qui sert de
+ * curseur de pagination : la date JavaScript du curseur la reproduit alors exactement.
+ */
+export const UpdatedAt = (precision?: 3) =>
+  UpdateDateColumn({ type: 'timestamptz', ...(precision ? { precision } : {}) });

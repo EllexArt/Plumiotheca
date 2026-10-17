@@ -1,0 +1,47 @@
+import { WebStorageStateStore, type User } from 'oidc-client-ts';
+import type { AuthProviderProps } from 'react-oidc-context';
+import { config } from '../shared/config';
+
+/** Ce que l'application retient pendant l'aller-retour vers Keycloak. */
+export interface SigninState {
+  /** Page à rouvrir après la connexion (chemin interne uniquement). */
+  returnTo: string;
+}
+
+/**
+ * Chemin de retour sûr : une page de Plumiotheca, jamais une autre adresse
+ * (« //exemple.org », « /\exemple.org » ou « https:… » feraient sortir la personne du site).
+ */
+export function safeReturnTo(value: unknown): string {
+  if (typeof value !== 'string' || !value.startsWith('/') || value.includes('\\')) return '/';
+  try {
+    const url = new URL(value, window.location.origin);
+    if (url.origin !== window.location.origin) return '/';
+    return url.pathname + url.search + url.hash;
+  } catch {
+    return '/';
+  }
+}
+
+export const returnToOf = (user: User | null | undefined): string =>
+  safeReturnTo((user?.state as Partial<SigninState> | undefined)?.returnTo);
+
+const origin = window.location.origin;
+
+/**
+ * Authorization Code + PKCE (client public « web » du realm, décision 6). Le jeton est
+ * gardé dans la session de l'onglet (fermée avec lui), jamais dans localStorage. Il est
+ * renouvelé avant expiration par TokenRenewal, et après un refus (401) par useApi : les
+ * deux passent par le même renouvellement partagé (renewOnce), car le jeton de
+ * rafraîchissement ne sert qu'une fois (deux renouvellements simultanés déconnecteraient).
+ */
+export const oidcSettings: AuthProviderProps = {
+  authority: config.oidcAuthority,
+  client_id: config.oidcClientId,
+  redirect_uri: `${origin}/connexion`,
+  post_logout_redirect_uri: `${origin}/`,
+  scope: 'openid',
+  ui_locales: 'fr',
+  automaticSilentRenew: false,
+  userStore: new WebStorageStateStore({ store: window.sessionStorage }),
+};

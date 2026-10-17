@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { Public } from '../src/auth/decorators.js';
 import { ApiProblem } from '../src/common/problem.js';
-import { expectProblem, start as startApp } from './support.js';
+import { expectProblem, readyToken, start as startApp } from './support.js';
 
 const NewStory = z.strictObject({ title: z.string().min(1).max(200) });
 
@@ -120,7 +120,7 @@ describe('erreurs', () => {
     const { http } = await start();
     const res = await http
       .post('/api/essai')
-      .send({ title: 'x'.repeat(1_100_000) })
+      .send({ title: 'x'.repeat(2_200_000) })
       .expect(413);
     const problem = expectProblem(res.body, 413);
     expect(problem.type).toBe('trop-volumineux');
@@ -178,6 +178,34 @@ describe('limitation de débit', () => {
     expect(res.headers['retry-after']).toBeDefined();
     await http.get('/api/health').expect(200);
   });
+
+  it('par compte (#137) : deux comptes derrière la même adresse ne se partagent pas leur quota', async () => {
+    const { app, http } = await start({ RATE_LIMIT_PER_MINUTE: '2' });
+    const [first, second] = [await readyToken(app), await readyToken(app)];
+    const me = (jwt: string) => http.get('/api/moi/compte').set('Authorization', `Bearer ${jwt}`);
+    await me(first).expect(200);
+    await me(first).expect(200);
+    await me(first).expect(429);
+    // Même adresse IP, autre compte : son propre quota.
+    await me(second).expect(200);
+    await me(second).expect(200);
+    // Sans compte, le quota est celui de l'adresse, distinct de ceux des comptes.
+    await http.get('/api/essai/conflit').expect(409);
+  });
+
+  it('plafond large par adresse avant l’authentification, jetons forgés compris', async () => {
+    const { app, http } = await start({ RATE_LIMIT_IP_PER_MINUTE: '3' });
+    const jwt = await readyToken(app);
+    await http.get('/api/moi/compte').set('Authorization', `Bearer ${jwt}`).expect(200);
+    await http.get('/api/moi/compte').set('Authorization', 'Bearer pas.un.jeton').expect(401);
+    await http.get('/api/essai/conflit').expect(409);
+    const res = await http
+      .get('/api/moi/compte')
+      .set('Authorization', `Bearer ${await readyToken(app)}`)
+      .expect(429);
+    expect(expectProblem(res.body, 429).type).toBe('trop-de-requetes');
+    await http.get('/api/health').expect(200);
+  });
 });
 
 describe('documentation OpenAPI', () => {
@@ -194,6 +222,10 @@ describe('documentation OpenAPI', () => {
       CORS_ORIGINS: 'https://plumiotheca.example',
       TRUST_PROXY: '1',
       KEYCLOAK_ISSUER: 'https://compte.plumiotheca.example/realms/plumiotheca',
+      KEYCLOAK_ADMIN_CLIENT_SECRET: 'secret-du-compte-de-service',
+      MEILI_MASTER_KEY: 'cle-meili',
+      S3_ACCESS_KEY_ID: 'cle-s3',
+      S3_SECRET_ACCESS_KEY: 'secret-s3',
     });
     await http.get('/api/docs').expect(404);
     await http.get('/api/docs-json').expect(404);

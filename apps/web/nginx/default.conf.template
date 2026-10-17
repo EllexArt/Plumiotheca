@@ -1,0 +1,45 @@
+# Site Plumiotheca (fichiers compilés par Vite), servi par nginx sans droits root.
+# Les ${VARIABLES} sont remplacées au démarrage du conteneur (image nginx officielle,
+# dossier /etc/nginx/templates) ; voir apps/web/README.md.
+server {
+  listen 8080;
+  server_name _;
+  root /usr/share/nginx/html;
+  server_tokens off;
+
+  # En-têtes de sécurité (#140), sur toutes les réponses. Aucun add_header dans les
+  # « location » : nginx ne transmettrait alors plus ceux-ci.
+  #
+  # CSP stricte : aucun script en ligne (thème et configuration sont des fichiers), styles en
+  # ligne seulement avec le nonce de la réponse (balises injectées par les bibliothèques),
+  # connexions vers l'API et Keycloak seulement, jamais affiché dans un cadre.
+  add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'nonce-$request_id'; img-src 'self' data: ${MEDIA_ORIGIN}; font-src 'self'; connect-src 'self' ${API_ORIGIN} ${KEYCLOAK_ORIGIN} ${UPLOAD_ORIGIN}; frame-src ${KEYCLOAK_ORIGIN}; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'" always;
+  add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+  add_header X-Content-Type-Options "nosniff" always;
+  add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()" always;
+  add_header Cross-Origin-Opener-Policy "same-origin" always;
+  # HSTS : à activer derrière HTTPS seulement (HSTS="max-age=31536000; includeSubDomains").
+  add_header Strict-Transport-Security "${HSTS}" always;
+
+  # Configuration de l'environnement, lue par l'application au démarrage (pas de cache).
+  location = /config.js {
+    default_type text/javascript;
+    expires -1;
+    return 200 'window.PLUMIOTHECA = { oidcAuthority: "${OIDC_AUTHORITY}", oidcClientId: "${OIDC_CLIENT_ID}", apiUrl: "${API_URL}" };\n';
+  }
+
+  # Fichiers compilés : nom contenant leur empreinte, gardés un an.
+  location /assets/ {
+    expires 1y;
+    try_files $uri =404;
+  }
+
+  # Application monopage : toute autre adresse sert index.html (jamais mis en cache), avec
+  # le nonce de la CSP de cette réponse (identifiant de requête : 32 caractères aléatoires).
+  location / {
+    expires -1;
+    sub_filter '__CSP_NONCE__' '$request_id';
+    sub_filter_once on;
+    try_files $uri /index.html;
+  }
+}

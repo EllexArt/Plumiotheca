@@ -1,0 +1,54 @@
+name: Flux Git
+
+# Vérifie que chaque PR suit le flux du dépôt (CONTRIBUTING.md) :
+# - vers main : seulement release/X.Y.Z ou hotfix/X.Y.Z ;
+# - vers develop : une branche de travail (feat/, fix/, docs/…), une branche Dependabot,
+#   ou le report d'une version (main, release/, hotfix/).
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions: {}
+
+jobs:
+  branches:
+    name: Flux Git (branches)
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      # Les noms de branches passent par des variables d'environnement, jamais
+      # interpolés dans le script (ils viennent de la PR).
+      - name: Vérifier la branche source et la branche cible
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD: ${{ github.head_ref }}
+        run: |
+          case "$BASE" in
+            main)
+              if [[ "$HEAD" =~ ^(release|hotfix)/[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                echo "✓ $HEAD → main"
+              else
+                echo "::error::Vers main : seulement release/X.Y.Z ou hotfix/X.Y.Z (reçu : $HEAD). Visez develop."
+                exit 1
+              fi
+              ;;
+            develop)
+              if [[ "$HEAD" =~ ^(feat|fix|docs|chore|refactor|test|ci|perf|build)/[a-z0-9._-]+$ ]] \
+                || [[ "$HEAD" =~ ^dependabot/ ]] \
+                || [[ "$HEAD" == main ]] \
+                || [[ "$HEAD" =~ ^(release|hotfix)/[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                echo "✓ $HEAD → develop"
+              else
+                echo "::error::Nom de branche attendu : feat/…, fix/…, docs/…, chore/…, refactor/…, test/…, ci/…, perf/… ou build/… en minuscules (reçu : $HEAD)."
+                exit 1
+              fi
+              ;;
+            *)
+              if [[ "$BASE" =~ ^(release|hotfix)/ ]]; then
+                echo "✓ correction de version $HEAD → $BASE"
+              else
+                echo "::error::Branche cible inattendue : $BASE (develop, main, release/… ou hotfix/…)."
+                exit 1
+              fi
+              ;;
+          esac

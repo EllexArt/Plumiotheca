@@ -35,6 +35,26 @@ export const MajorWarning = z.enum([
 ]);
 export type MajorWarning = z.infer<typeof MajorWarning>;
 
+/**
+ * Avertissements facultatifs (liste fine, §5 ter) : en plus des avertissements majeurs,
+ * pour que les personnes qui lisent puissent éviter un sujet. Liste fermée, traduisible.
+ */
+export const ContentWarning = z.enum([
+  'grief',
+  'violence',
+  'suicide',
+  'self_harm',
+  'eating_disorder',
+  'addiction',
+  'abuse',
+  'harassment',
+  'discrimination',
+  'animal_harm',
+  'pregnancy_loss',
+  'medical',
+]);
+export type ContentWarning = z.infer<typeof ContentWarning>;
+
 export const ChapterStatus = z.enum(['draft', 'published']);
 export type ChapterStatus = z.infer<typeof ChapterStatus>;
 

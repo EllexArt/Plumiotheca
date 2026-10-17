@@ -1,0 +1,83 @@
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+@media (max-width: 60rem) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.sectionTitle {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  font-family: inherit;
+}
+
+.checklist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.checklist ul {
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.state {
+  font-weight: 600;
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.note {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.preview {
+  position: sticky;
+  top: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+@media (max-width: 60rem) {
+  .preview {
+    position: static;
+  }
+}
+
+/* Aperçu sans lien : pas d'effet de survol qui ferait croire à une carte cliquable. */
+.previewCard:hover {
+  border-color: var(--color-border);
+  box-shadow: none;
+}
+
+.done:focus {
+  outline: none;
+}
+
+.done:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}

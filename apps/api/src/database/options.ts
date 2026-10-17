@@ -2,12 +2,14 @@ import type { DataSourceOptions } from 'typeorm';
 import type { Config } from '../config/env.js';
 import { ChapterRevision } from '../stories/chapter-revision.entity.js';
 import { Chapter } from '../stories/chapter.entity.js';
+import { ReadMark, ReadSalt } from '../stories/read-mark.entity.js';
 import { StoryTag } from '../stories/story-tag.entity.js';
 import { Story } from '../stories/story.entity.js';
 import { Tag } from '../tags/tag.entity.js';
 import { HandleHistory } from '../users/handle-history.entity.js';
 import { HandleRelease } from '../users/handle-release.entity.js';
 import { User } from '../users/user.entity.js';
+import { Media } from '../media/media.entity.js';
 import { migrations } from './migrations/index.js';
 import { SnakeNamingStrategy } from './naming.strategy.js';
 
@@ -19,7 +21,10 @@ export const entities = [
   StoryTag,
   Chapter,
   ChapterRevision,
+  ReadMark,
+  ReadSalt,
   Tag,
+  Media,
 ];
 
 /** Connexion PostgreSQL commune à l'API, à la ligne de commande et aux tests. */

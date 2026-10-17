@@ -26,7 +26,10 @@ const firstVisit = (http: Http, jwt: string, body: Record<string, unknown>) =>
   http
     .post('/api/moi/compte/premiere-visite')
     .set(...bearer(jwt))
-    .send({ charterVersion: CHARTER_VERSION, age: '18+', ...body });
+    // « Moins de 15 ans » : la réponse seule, comme le formulaire.
+    .send(
+      body.age === 'under-15' ? body : { charterVersion: CHARTER_VERSION, age: '18+', ...body },
+    );
 
 describe('première visite', () => {
   it('le compte est créé à la première requête, une seule fois', async () => {
@@ -73,10 +76,7 @@ describe('première visite', () => {
     const { app, http } = await start();
     const sub = randomUUID();
     const jwt = await token({ sub });
-    const res = await firstVisit(http, jwt, {
-      handle: `jeune-${unique()}`,
-      age: 'under-15',
-    }).expect(403);
+    const res = await firstVisit(http, jwt, { age: 'under-15' }).expect(403);
     expect(expectProblem(res.body, 403).type).toBe('age-minimum');
     // Changer de réponse ne suffit pas.
     await firstVisit(http, jwt, { handle: `jeune-${unique()}`, age: '18+' }).expect(403);
@@ -94,13 +94,47 @@ describe('première visite', () => {
     expect([row.ageBand, row.handle, row.charterVersion]).toEqual(['under-15', null, null]);
   });
 
+  it('moins de 15 ans : ni pseudonyme ni charte acceptés dans la requête (400)', async () => {
+    const { app, http } = await start();
+    const sub = randomUUID();
+    const jwt = await token({ sub });
+    for (const extra of [{ handle: `jeune-${unique()}` }, { charterVersion: CHARTER_VERSION }]) {
+      await http
+        .post('/api/moi/compte/premiere-visite')
+        .set(...bearer(jwt))
+        .send({ age: 'under-15', ...extra })
+        .expect(400);
+    }
+    // Rien n'est enregistré : la personne peut encore répondre.
+    const row = await app.get(DataSource).getRepository(User).findOneByOrFail({ keycloakId: sub });
+    expect(row.ageBand).toBeNull();
+    // Et 15 ans ou plus sans pseudonyme, ou sans charte, reste refusé.
+    for (const body of [
+      { age: '18+', charterVersion: CHARTER_VERSION },
+      { age: '18+', handle: `adulte-${unique()}` },
+    ]) {
+      await http
+        .post('/api/moi/compte/premiere-visite')
+        .set(...bearer(jwt))
+        .send(body)
+        .expect(400);
+    }
+    // Âge absent ou inconnu : message explicite.
+    const res = await http
+      .post('/api/moi/compte/premiere-visite')
+      .set(...bearer(jwt))
+      .send({ age: 'douze' })
+      .expect(400);
+    expect(JSON.stringify(res.body)).toContain('Âge attendu : under-15, 15-17, 18+.');
+  });
+
   it('« moins de 15 ans » et « 18+ » au même instant : jamais un compte prêt après un refus', async () => {
     const { app, http } = await start();
     for (let i = 0; i < 10; i++) {
       const sub = randomUUID();
       const jwt = await token({ sub });
       const [young, adult] = await Promise.all([
-        firstVisit(http, jwt, { handle: `course-${unique()}`, age: 'under-15' }),
+        firstVisit(http, jwt, { age: 'under-15' }),
         firstVisit(http, jwt, { handle: `course-${unique()}`, age: '18+' }),
       ]);
       const row = await app
@@ -176,6 +210,34 @@ describe('première visite', () => {
       .set(...bearer(jwt))
       .expect(200);
     expect(reserved.body).toEqual({ available: false });
+  });
+
+  it('le pseudonyme vérifié n’apparaît pas dans les journaux', async () => {
+    const { http, logs } = await start();
+    const jwt = await token();
+    const handle = `secret-${unique()}`;
+    await http
+      .get(`/api/pseudonymes/${handle}/disponibilite`)
+      .set(...bearer(jwt))
+      .expect(200);
+    // Refus aussi (pseudonyme invalide) : le chemin passe par le journal des erreurs.
+    await http
+      .get(`/api/pseudonymes/${handle}%20!/disponibilite`)
+      .set(...bearer(jwt))
+      .expect(400);
+    // Variantes acceptées par le routeur : casse, barre finale.
+    for (const path of [
+      `/api/Pseudonymes/${handle}/Disponibilite`,
+      `/api/pseudonymes/${handle}/disponibilite/`,
+    ]) {
+      await http
+        .get(path)
+        .set(...bearer(jwt))
+        .expect(200);
+    }
+    const out = logs();
+    expect(out).toContain('/api/pseudonymes/[masqué]/disponibilite');
+    expect(out).not.toContain(handle);
   });
 });
 
@@ -302,7 +364,7 @@ describe('pseudonyme et profil', () => {
     const { http } = await start();
     const fresh = await token();
     const locked = await token();
-    await firstVisit(http, locked, { handle: `v-${unique()}`, age: 'under-15' }).expect(403);
+    await firstVisit(http, locked, { age: 'under-15' }).expect(403);
     for (const jwt of [fresh, locked]) {
       await http
         .put('/api/moi/compte/pseudonyme')
@@ -329,7 +391,7 @@ describe('pseudonyme et profil', () => {
     await http
       .patch('/api/moi/compte/profil')
       .set(...bearer(jwt))
-      .send({ displayName: 'Élise‮esilé' })
+      .send({ displayName: 'Élise\u202Eesilé' })
       .expect(400);
     await http
       .patch('/api/moi/compte/profil')
@@ -374,6 +436,7 @@ describe('pseudonyme et profil', () => {
       displayName: null,
       pronouns: null,
       bio: 'Je lis de la fantasy.',
+      avatarUrl: null,
     });
   });
 
@@ -389,7 +452,7 @@ describe('pseudonyme et profil', () => {
     await app
       .get(DataSource)
       .getRepository(User)
-      .update({ keycloakId: sub }, { ageBand: 'under-15' });
+      .update({ keycloakId: sub }, { ageBand: 'under-15', ageLockedAt: new Date() });
     await http.get(`/api/pseudonymes/${handle}`).expect(404);
   });
 

@@ -3,14 +3,14 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, develop]
 
 permissions:
   contents: read
 
 concurrency:
   group: ci-${{ github.ref }}
-  # Annule les exécutions dépassées d'une PR, jamais celles de main.
+  # Annule les exécutions dépassées d'une PR, jamais celles de main ou de develop.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # Les noms des jobs servent de vérifications obligatoires dans la protection de main :
@@ -34,7 +34,21 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U plumiotheca" --health-interval 2s
           --health-timeout 5s --health-retries 30
+      # Recherche (#82) : même version que infra/docker-compose.yml.
+      meilisearch:
+        image: getmeili/meilisearch:v1.54.3
+        env:
+          MEILI_ENV: development
+          MEILI_MASTER_KEY: ci-uniquement-cle-meilisearch
+          MEILI_NO_ANALYTICS: true
+        ports:
+          - 7700:7700
+        options: >-
+          --health-cmd "wget -q --spider http://127.0.0.1:7700/health" --health-interval 2s
+          --health-timeout 5s --health-retries 30
     env:
+      MEILI_URL: http://localhost:7700
+      MEILI_MASTER_KEY: ci-uniquement-cle-meilisearch
       DB_HOST: localhost
       DB_PORT: '5433'
       DB_USERNAME: plumiotheca
@@ -52,15 +66,16 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
 
-      # « @plumiotheca/api... » : l'API et les paquets partagés dont elle dépend (contracts).
+      # « @plumiotheca/api... » : l'API et les paquets dont elle dépend ; « ./packages/* » :
+      # tous les paquets partagés, même ceux que l'API n'utilise pas encore.
       - name: Installer les dépendances
-        run: pnpm install --frozen-lockfile --filter "@plumiotheca/api..."
+        run: pnpm install --frozen-lockfile --filter "@plumiotheca/api..." --filter "./packages/*"
 
       - name: Vérifier les types
-        run: pnpm --filter "@plumiotheca/api..." typecheck
+        run: pnpm --filter "@plumiotheca/api..." --filter "./packages/*" typecheck
 
       - name: Compiler
-        run: pnpm --filter "@plumiotheca/api..." build
+        run: pnpm --filter "@plumiotheca/api..." --filter "./packages/*" build
 
       # Appliquer, annuler, réappliquer : le retour arrière doit fonctionner aussi.
       - name: Migrations sur une base vide (aller-retour)
@@ -74,7 +89,7 @@ jobs:
         run: pnpm --filter @plumiotheca/api migration:check
 
       - name: Tests
-        run: pnpm --filter "@plumiotheca/api..." test
+        run: pnpm --filter "@plumiotheca/api..." --filter "./packages/*" test
 
   web:
     name: Web (types et build)
@@ -92,14 +107,19 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
 
+      # « ... » : l'application web et les paquets du monorepo dont elle dépend.
       - name: Installer les dépendances
-        run: pnpm install --frozen-lockfile --filter "./apps/web/**"
+        run: pnpm install --frozen-lockfile --filter "@plumiotheca/web..."
 
       - name: Vérifier les types
-        run: pnpm --filter "./apps/web/apps/*" typecheck
+        run: pnpm --filter @plumiotheca/web typecheck
+
+      # Composants, parcours d'accueil, axe-core et contrastes des deux thèmes.
+      - name: Tests
+        run: pnpm --filter @plumiotheca/web test
 
       - name: Build
-        run: pnpm --filter "./apps/web/apps/*" build
+        run: pnpm --filter @plumiotheca/web build
 
   qualite:
     name: Qualité (lint, accessibilité, formatage)
@@ -125,6 +145,86 @@ jobs:
 
       - name: Formatage
         run: pnpm format:check
+
+  # Parcours écrire → publier → lire dans un vrai navigateur, contre la stack de développement
+  # (Keycloak, PostgreSQL…, API et web lancés par Playwright), axe-core compris.
+  e2e:
+    name: Parcours de bout en bout (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Installer les dépendances
+        run: pnpm install --frozen-lockfile
+
+      - name: Secrets de développement aléatoires
+        run: node infra/scripts/setup.mjs
+
+      - name: Démarrer l'infrastructure
+        run: pnpm infra:up
+
+      - name: Version de Playwright
+        id: playwright
+        run: echo "version=$(pnpm --filter @plumiotheca/e2e exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+      # Navigateur en cache (clé : version de Playwright) ; ses dépendances système
+      # s'installent à chaque fois (rapide, hors cache).
+      - name: Cache du navigateur
+        id: navigateur
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - name: Navigateur Chromium
+        if: steps.navigateur.outputs.cache-hit != 'true'
+        run: pnpm --filter @plumiotheca/e2e exec playwright install --with-deps chromium
+
+      - name: Dépendances système du navigateur
+        if: steps.navigateur.outputs.cache-hit == 'true'
+        run: pnpm --filter @plumiotheca/e2e exec playwright install-deps chromium
+
+      # Le site tel qu'il sera déployé : image nginx avec sa CSP et ses en-têtes (#140). Le
+      # parcours échoue à la moindre violation de la CSP.
+      - name: Image du site
+        run: |
+          docker build -f apps/web/Dockerfile -t plumiotheca-web:e2e .
+          docker run -d --name web -p 127.0.0.1:5173:8080 \
+            -e API_URL=http://localhost:3000/api -e API_ORIGIN=http://localhost:3000 \
+            plumiotheca-web:e2e
+          for i in $(seq 1 20); do curl -sf -o /dev/null http://localhost:5173/ && exit 0; sleep 1; done
+          docker logs web; exit 1
+
+      - name: Parcours
+        env:
+          E2E_WEB_EXTERNAL: '1'
+        run: pnpm e2e
+
+      # Les traces contiennent l'identifiant et le mot de passe du compte jetable (supprimé
+      # à la fin, Keycloak éphémère du runner) : sans risque, mais gardées peu de temps.
+      - name: Rapport et traces en cas d'échec
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+          retention-days: 3
+
+      - name: Journaux de l'infrastructure en cas d'échec
+        if: failure()
+        run: docker compose -f infra/docker-compose.yml --env-file infra/.env logs --no-color --tail 200
 
   dependances:
     name: Dépendances (vulnérabilités connues)

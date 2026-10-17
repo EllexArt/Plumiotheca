@@ -2,12 +2,7 @@ import { z } from 'zod';
 
 const DEV_ISSUER = 'http://localhost:8080/realms/plumiotheca';
 
-const DEV_ORIGINS = [
-  'http://localhost:5000',
-  'http://localhost:5001',
-  'http://localhost:5002',
-  'http://localhost:5173',
-];
+const DEV_ORIGINS = ['http://localhost:5173'];
 
 /** Liste d'origines séparées par des virgules, chacune réduite à « schéma://hôte[:port] ». */
 const origins = z
@@ -42,8 +37,13 @@ export const Env = z
      * limitation de débit). Obligatoire en production : 0 si l'API est exposée directement.
      */
     TRUST_PROXY: z.coerce.number().int().min(0).max(10).optional(),
-    /** Requêtes autorisées par minute et par adresse IP. */
+    /**
+     * Requêtes autorisées par minute, par compte (par adresse IP sans compte) ; certaines
+     * routes ont leur propre limite.
+     */
     RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).default(120),
+    /** Plafond large par adresse IP, avant l'authentification (adresses partagées). */
+    RATE_LIMIT_IP_PER_MINUTE: z.coerce.number().int().min(1).default(1200),
     /** Émetteur des jetons (claim « iss »), tel que le voit le navigateur. Obligatoire en production. */
     KEYCLOAK_ISSUER: z.url({ protocol: /^https?$/ }).optional(),
     /**
@@ -51,6 +51,10 @@ export const Env = z
      * (ex. http://keycloak:8080/... dans un conteneur). Par défaut : celle de l'émetteur.
      */
     KEYCLOAK_JWKS_URL: z.url({ protocol: /^https?$/ }).optional(),
+    /** Compte de service de l'API (identifiants client) : suppression des comptes Keycloak. */
+    KEYCLOAK_ADMIN_CLIENT_ID: z.string().min(1).default('api-administration'),
+    /** Secret de ce compte (écrit par « pnpm infra:up » en développement). Obligatoire en production. */
+    KEYCLOAK_ADMIN_CLIENT_SECRET: z.string().min(1).optional(),
     DB_HOST: z.string().min(1).default('localhost'),
     /** 5433 : port de la base de l'infrastructure de développement (infra/). */
     DB_PORT: z.coerce.number().int().min(1).max(65535).default(5433),
@@ -66,6 +70,46 @@ export const Env = z
     DB_CONNECT_RETRIES: z.coerce.number().int().min(0).max(30).default(5),
     /** Applique les migrations au démarrage (par défaut en développement seulement). */
     DB_MIGRATE_ON_START: z.enum(['true', 'false']).optional(),
+    /** File de tâches en arrière-plan (pg-boss) : active par défaut, sauf dans les tests. */
+    JOBS_ENABLED: z
+      .enum(['true', 'false'])
+      .optional()
+      .transform((v) => (v === undefined ? undefined : v === 'true')),
+    /** Moteur de recherche (Meilisearch), interrogé par l'API seulement (#82). */
+    MEILI_URL: z.url({ protocol: /^https?$/ }).default('http://localhost:7700'),
+    /** Clé de Meilisearch ; jamais envoyée au navigateur. Obligatoire en production. */
+    MEILI_MASTER_KEY: z.string().min(1).optional(),
+    /** Index des histoires publiées (un autre nom pour les tests). */
+    SEARCH_INDEX: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]{1,64}$/)
+      .default('histoires'),
+    /** Stockage des images (S3 ; Garage en développement). */
+    S3_ENDPOINT: z.url({ protocol: /^https?$/ }).default('http://localhost:3900'),
+    /**
+     * Adresse du stockage vue par le navigateur, qui y téléverse directement (#18) ; par
+     * défaut celle de l'API.
+     */
+    S3_UPLOAD_ENDPOINT: z.url({ protocol: /^https?$/ }).optional(),
+    S3_REGION: z.string().min(1).default('garage'),
+    /** Images traitées, publiques, servies depuis MEDIA_PUBLIC_URL. */
+    S3_BUCKET: z.string().min(1).default('medias'),
+    /** Téléversements bruts, privés, effacés dès le traitement (et au plus tard après un jour). */
+    S3_INCOMING_BUCKET: z.string().min(1).default('medias-entrants'),
+    /** Écrits par « pnpm infra:up » en développement. Obligatoires en production. */
+    S3_ACCESS_KEY_ID: z.string().min(1).optional(),
+    S3_SECRET_ACCESS_KEY: z.string().min(1).optional(),
+    /**
+     * Origine publique des images traitées : un domaine séparé de celui du site (#18).
+     * En développement, le site web de Garage pour le bucket « medias ».
+     */
+    MEDIA_PUBLIC_URL: z
+      .url({ protocol: /^https?$/ })
+      .refine((u) => new URL(u).origin === u, {
+        message:
+          'Origine attendue, sans chemin ni barre finale (ex. https://medias.plumiotheca.fr)',
+      })
+      .default('http://medias.web.garage.localhost:3902'),
     /** Audience exigée dans les jetons (client Keycloak de l'API). */
     JWT_AUDIENCE: z.string().min(1).default('api'),
     /** Clients autorisés à appeler l'API (claim « azp »), séparés par des virgules. */
@@ -80,6 +124,16 @@ export const Env = z
       ),
   })
   .superRefine((env, ctx) => {
+    // Le compte de service tire l'adresse du serveur et le realm de ces adresses (#141).
+    for (const key of ['KEYCLOAK_ISSUER', 'KEYCLOAK_JWKS_URL'] as const) {
+      if (env[key] && !/\/realms\/[^/]+/.test(env[key])) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [key],
+          message: 'Adresse de realm Keycloak attendue (…/realms/<realm>…)',
+        });
+      }
+    }
     if (env.NODE_ENV !== 'production') return;
     if (!env.CORS_ORIGINS?.length) {
       ctx.addIssue({
@@ -101,6 +155,18 @@ export const Env = z
     if (env.TRUST_PROXY === undefined) {
       ctx.addIssue({ code: 'custom', path: ['TRUST_PROXY'], message: 'Obligatoire en production' });
     }
+    for (const key of ['MEILI_MASTER_KEY', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY'] as const) {
+      if (!env[key])
+        ctx.addIssue({ code: 'custom', path: [key], message: 'Obligatoire en production' });
+    }
+    // Sans lui, les comptes verrouillés ne seraient jamais supprimés de Keycloak (#141).
+    if (!env.KEYCLOAK_ADMIN_CLIENT_SECRET) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['KEYCLOAK_ADMIN_CLIENT_SECRET'],
+        message: 'Obligatoire en production',
+      });
+    }
   })
   .transform((env) => ({
     ...env,
@@ -111,6 +177,7 @@ export const Env = z
       ? env.DB_MIGRATE_ON_START === 'true'
       : env.NODE_ENV === 'development',
     KEYCLOAK_ISSUER: env.KEYCLOAK_ISSUER ?? DEV_ISSUER,
+    S3_UPLOAD_ENDPOINT: env.S3_UPLOAD_ENDPOINT ?? env.S3_ENDPOINT,
     KEYCLOAK_JWKS_URL:
       env.KEYCLOAK_JWKS_URL ?? `${env.KEYCLOAK_ISSUER ?? DEV_ISSUER}/protocol/openid-connect/certs`,
   }));

@@ -21,8 +21,12 @@ export class ChapterRevision {
   id!: string;
 
   @ManyToOne(() => Chapter, { nullable: false, onDelete: 'CASCADE' })
-  @JoinColumn()
+  @JoinColumn({ name: 'chapter_id' })
   chapter!: Relation<Chapter>;
+
+  /** Jamais modifiable : une révision ne change pas de chapitre (variante de la faille C2). */
+  @Column({ type: 'uuid', update: false })
+  chapterId!: string;
 
   @Column({ type: 'enum', enum: RevisionKind.options, enumName: 'revision_kind' })
   kind!: RevisionKind;
@@ -31,7 +35,7 @@ export class ChapterRevision {
   @Column({ type: 'boolean', default: false })
   current!: boolean;
 
-  /** Nom donné par l'autrice à une version (« avant la réécriture »…). */
+  /** Nom donné à une version par la personne qui écrit (« avant la réécriture »…). */
   @Column({ type: 'varchar', length: 100, nullable: true })
   name!: string | null;
 

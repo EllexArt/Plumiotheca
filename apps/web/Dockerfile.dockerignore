@@ -1,0 +1,19 @@
+# Contexte de l'image du site (le .dockerignore racine exclut apps/web, réservé à l'API).
+**/node_modules
+**/dist
+**/coverage
+**/.env
+**/.env.*
+**/*.log
+.git
+.github
+.claude
+docs
+!docs/charte.md
+!docs/confidentialite.md
+e2e
+infra
+apps/api
+**/*.test.ts
+**/*.test.tsx
+apps/web/src/test

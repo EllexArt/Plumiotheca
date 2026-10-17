@@ -1,0 +1,44 @@
+.pronouns {
+  font-family: var(--font-ui);
+  font-size: var(--text-lg);
+  color: var(--color-text-muted);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.section > h2 {
+  font-size: var(--text-xl);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.meta {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.preLine {
+  white-space: pre-line;
+}
+
+.avatar {
+  inline-size: 8rem;
+  block-size: 8rem;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--color-surface);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}

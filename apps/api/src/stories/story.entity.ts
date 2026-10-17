@@ -1,4 +1,10 @@
-import { Completion, MajorWarning, Rating, StoryStatus } from '@plumiotheca/contracts';
+import {
+  Completion,
+  ContentWarning,
+  MajorWarning,
+  Rating,
+  StoryStatus,
+} from '@plumiotheca/contracts';
 import {
   Check,
   Column,
@@ -14,8 +20,8 @@ import { User } from '../users/user.entity.js';
 import { Chapter } from './chapter.entity.js';
 
 /**
- * Histoire. Supprimée avec le compte de son autrice dans les deux modes de suppression
- * (décision 26) ; les co-autrices arrivent avec les univers (M5).
+ * Histoire. Supprimée avec le compte de la personne qui l'a écrite, dans les deux modes de
+ * suppression (décision 26) ; la co-écriture arrive avec les univers (M5).
  */
 @Entity('stories')
 // Une histoire publiée a toujours un classement et des avertissements majeurs choisis
@@ -25,7 +31,12 @@ import { Chapter } from './chapter.entity.js';
   `"status" <> 'published' OR ("rating" IS NOT NULL AND "major_warnings" IS NOT NULL)`,
 )
 @Check('stories_word_count_positive', `"word_count" >= 0`)
+@Check('stories_read_count_positive', `"read_count" >= 0`)
 @Index(['author', 'status'])
+// « Mes histoires » : la plus récemment modifiée d'abord.
+@Index('stories_mine', ['author', 'updatedAt', 'id'])
+// Liste publique : les plus récentes d'abord (parcouru à l'envers par PostgreSQL).
+@Index('stories_public_list', ['publishedAt', 'id'], { where: `"status" = 'published'` })
 export class Story {
   @IdColumn()
   id!: string;
@@ -44,7 +55,7 @@ export class Story {
   @Column({ type: 'varchar', length: 12 })
   language!: string;
 
-  /** NULL tant que l'autrice ne l'a pas choisi ; obligatoire pour publier. */
+  /** NULL tant que l'autrice ou l'auteur ne l'a pas choisi ; obligatoire pour publier. */
   @Column({ type: 'enum', enum: Rating.options, enumName: 'rating', nullable: true })
   rating!: Rating | null;
 
@@ -69,19 +80,35 @@ export class Story {
   })
   majorWarnings!: MajorWarning[] | null;
 
+  /** Avertissements facultatifs (liste fine) ; jamais NULL. */
+  @Column({
+    type: 'enum',
+    enum: ContentWarning.options,
+    enumName: 'content_warning',
+    array: true,
+    default: '{}',
+  })
+  contentWarnings!: ContentWarning[];
+
   /** Total des chapitres publiés, recalculé à la publication. */
   @Column({ type: 'integer', default: 0 })
   wordCount!: number;
 
+  /** Lectures uniques (#17) : une par personne et par jour, sans la personne qui l'a écrite. */
+  @Column({ type: 'integer', default: 0 })
+  readCount!: number;
+
   @OneToMany(() => Chapter, (chapter) => chapter.story)
   chapters!: Relation<Chapter[]>;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  // À la milliseconde : curseur de la liste publique (date JavaScript, sans microsecondes).
+  @Column({ type: 'timestamptz', precision: 3, nullable: true })
   publishedAt!: Date | null;
 
   @CreatedAt()
   createdAt!: Date;
 
-  @UpdatedAt()
+  // À la milliseconde : curseur de « Mes histoires ».
+  @UpdatedAt(3)
   updatedAt!: Date;
 }

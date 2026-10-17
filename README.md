@@ -5,7 +5,9 @@ Une plateforme pour lire, écrire et partager des histoires et des univers : des
 > ⚠️ **Projet en reconstruction — ne pas déployer.** Le code actuel de `apps/` est un prototype qui contient des failles de sécurité connues et documentées ([revue du 2 octobre 2026](docs/revues/2026-10-02-pr-76-98-et-main.md)). Il est en cours de réécriture (jalons M0 et M1).
 
 - Architecture cible et décisions : [docs/architecture.md](docs/architecture.md)
+- Procédures d'équipe (rôles de modération et d'administration) : [docs/procedures.md](docs/procedures.md)
 - Feuille de route : [tableau du projet](https://github.com/users/EllexArt/projects/2) · [résumé](docs/backlog.md)
+- Contribuer (git flow : `develop`, `release/…`, `main`) : [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ## Développer
 
@@ -28,12 +30,23 @@ pnpm dev:api        # API seule (nécessite pnpm infra:up)
 pnpm dev:web        # application web
 ```
 
-| Dossier              | Contenu                                                                |
-| -------------------- | ---------------------------------------------------------------------- |
-| `apps/api`           | API NestJS (squelette : santé, erreurs, journaux, sécurité HTTP)       |
-| `apps/web`           | Application web (prototype en micro-frontends, en cours de réécriture) |
-| `packages/contracts` | Schémas zod partagés entre l'API et le web                             |
-| `docs/`              | Architecture, décisions, revues                                        |
+Parcours de bout en bout (Playwright, `e2e/`) : écrire, publier, puis lire sans compte, avec axe-core. L'infrastructure doit tourner ; l'API et le web sont lancés s'ils ne tournent pas déjà, et un compte Keycloak jetable est créé puis supprimé. L'histoire de test est supprimée à la fin (le profil reste, en attendant la suppression de compte). Attention : une API ou un web déjà lancé est réutilisé, même s'il vient d'un autre worktree.
+
+```bash
+pnpm --filter @plumiotheca/e2e exec playwright install chromium   # une fois
+pnpm e2e
+```
+
+Sous WSL sans droits administrateur, si Chromium ne démarre pas faute de bibliothèques (`libnss3`, `libasound2t64`…) : `playwright install-deps chromium` (avec `sudo`), ou extraire les paquets avec `apt-get download` et les indiquer dans `LD_LIBRARY_PATH`.
+
+| Dossier                  | Contenu                                                                      |
+| ------------------------ | ---------------------------------------------------------------------------- |
+| `apps/api`               | API NestJS (squelette : santé, erreurs, journaux, sécurité HTTP)             |
+| `apps/web`               | Application web React (connexion, accueil, lecture, atelier, publication)    |
+| `packages/contracts`     | Schémas zod partagés entre l'API et le web                                   |
+| `packages/editor-schema` | Schéma des chapitres (TipTap) : nœuds autorisés, identifiants de blocs, mots |
+| `e2e`                    | Parcours de bout en bout (Playwright)                                        |
+| `docs/`                  | Architecture, décisions, revues                                              |
 
 Un hook Git vérifie lint et formatage des fichiers modifiés à chaque commit (`lint-staged`). C'est un confort : la vraie barrière est la CI. Avec un client Git graphique qui ne trouve pas `pnpm`, voir `SIMPLE_GIT_HOOKS_RC` dans la documentation de simple-git-hooks.
 

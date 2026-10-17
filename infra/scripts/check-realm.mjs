@@ -53,8 +53,13 @@ async function mailTo(address) {
   return null;
 }
 
-/** Parcours « mot de passe oublié » complet dans un navigateur, jusqu'au retour à l'application. */
-async function forgotPassword(username, email) {
+/**
+ * Parcours « mot de passe oublié » complet dans un navigateur, jusqu'au retour à
+ * l'application. `kcAction` : action d'application demandée dans l'URL (ex.
+ * CONFIGURE_TOTP, pour tenter d'enregistrer un code par la boîte mail). Sans e-mail
+ * reçu (refus), renvoie la page affichée et `mailed: false`.
+ */
+async function forgotPassword(username, email, kcAction) {
   const nav = browser();
   const verifier = randomBytes(32).toString('base64url');
   const auth = new URL(`${ISSUER}/protocol/openid-connect/auth`);
@@ -66,19 +71,25 @@ async function forgotPassword(username, email) {
     code_challenge: createHash('sha256').update(verifier).digest('base64url'),
     code_challenge_method: 'S256',
     state: randomBytes(8).toString('hex'),
+    ...(kcAction ? { kc_action: kcAction } : {}),
   });
   const page = await (await nav(auth)).text();
   const resetLink = page
     .match(/href="([^"]*reset-credentials[^"]*)"/)?.[1]
     ?.replaceAll('&amp;', '&');
   const resetPage = await (await nav(new URL(resetLink, ISSUER))).text();
-  await nav(formAction(resetPage, 'kc-reset-password-form'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ username }),
-  });
+  const sent = await follow(
+    nav,
+    await nav(formAction(resetPage, 'kc-reset-password-form'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ username }),
+    }),
+  );
+  const sentPage = await sent.current.text();
   const mail = await mailTo(email);
-  const link = mail?.Text.match(/https?:\/\/\S+action-token\S+/)?.[0];
+  if (!mail) return { page: sentPage, mailed: false };
+  const link = mail.Text.match(/https?:\/\/\S+action-token\S+/)?.[0];
   const { current } = await follow(nav, await nav(link));
   const html = await current.text();
   const update = formAction(html, 'kc-passwd-update-form');
@@ -182,6 +193,26 @@ try {
   });
   check(direct.status >= 400, 'Connexion par mot de passe direct refusée pour le client « web »');
 
+  // Déconnexion depuis l'application : retour autorisé vers l'application web seulement.
+  if (tokens?.id_token) {
+    const logout = (target) => {
+      const url = new URL(`${ISSUER}/protocol/openid-connect/logout`);
+      url.search = new URLSearchParams({
+        client_id: 'web',
+        id_token_hint: tokens.id_token,
+        post_logout_redirect_uri: target,
+      });
+      return fetch(url, { redirect: 'manual' });
+    };
+    const other = await logout('http://localhost:5000/');
+    check(other.status >= 400, 'Déconnexion : retour vers une autre adresse refusé');
+    const back = await logout('http://localhost:5173/');
+    check(
+      back.status === 302 && back.headers.get('location')?.startsWith('http://localhost:5173/'),
+      `Déconnexion : retour vers l'application web (statut ${back.status})`,
+    );
+  }
+
   // Nom d'utilisateur contenant une adresse e-mail : refusé par le profil.
   let refused = false;
   try {
@@ -246,31 +277,26 @@ try {
     check(ssoAmr.includes('otp'), `Reconnexion par la session : « otp » conservé (${ssoAmr})`);
   }
 
-  // « Mot de passe oublié » d'un modérateur équipé : pas de nouveau code TOTP par e-mail
-  // (sinon la boîte mail suffirait à prendre la place du second facteur).
+  // « Mot de passe oublié » d'une personne de l'équipe : refusé avant tout e-mail (#125).
+  // Sinon le lien reçu ouvre une session où kc_action=CONFIGURE_TOTP enregistre un second
+  // code : la boîte mail suffirait à prendre la place du second facteur.
   const [equippedUser] = await kc.get(`${R}/users?username=moderateur-equipe-${suffix}&exact=true`);
-  const reset = await forgotPassword(
-    `moderateur-equipe-${suffix}`,
-    `moderateur-equipe-${suffix}@exemple.localhost`,
-  );
-  const otpCredentials = (await kc.get(`${R}/users/${equippedUser.id}/credentials`)).filter(
-    (c) => c.type === 'otp',
-  );
-  check(
-    !/kc-totp-settings|totpSecret/i.test(reset.page ?? '') && otpCredentials.length === 1,
-    `Mot de passe oublié (modérateur équipé) : aucun nouveau code TOTP enregistrable (${otpCredentials.length} code)`,
-  );
-  if (reset.tokens?.access_token) {
-    const amr = decode(reset.tokens.access_token).amr ?? [];
-    check(!amr.includes('otp'), `Mot de passe oublié : session sans preuve de MFA ([${amr}])`);
+  for (const kcAction of [undefined, 'CONFIGURE_TOTP']) {
+    const reset = await forgotPassword(
+      `moderateur-equipe-${suffix}`,
+      `moderateur-equipe-${suffix}@exemple.localhost`,
+      kcAction,
+    );
+    const otpCredentials = (await kc.get(`${R}/users/${equippedUser.id}/credentials`)).filter(
+      (c) => c.type === 'otp',
+    );
+    check(
+      reset.mailed === false &&
+        /passe par l’administration/.test(reset.page ?? '') &&
+        otpCredentials.length === 1,
+      `Mot de passe oublié (équipe${kcAction ? `, ${kcAction}` : ''}) : refusé, aucun e-mail, aucun second code (${otpCredentials.length} code)`,
+    );
   }
-  // Un code TOTP ne sert qu'une fois : attendre la fenêtre de 30 s suivante.
-  await new Promise((r) => setTimeout(r, 31_000 - (Date.now() % 30_000)));
-  const again = await login(`moderateur-equipe-${suffix}`, reset.password, { otpSecret: secret });
-  check(
-    Boolean(again.tokens?.access_token) && again.otpPrompts === 1,
-    "Après réinitialisation : l'ancien code TOTP reste exigé",
-  );
 
   // admin-cli du realm : pas de mot de passe direct (contournement de la MFA).
   const cli = await fetch(`${ISSUER}/protocol/openid-connect/token`, {
@@ -291,23 +317,36 @@ try {
     'Modération : configuration de la double authentification exigée',
   );
 
-  // « Mot de passe oublié » : Keycloak ouvre une session sans passer par le code TOTP.
-  // Le jeton ne doit alors porter aucune preuve de MFA, et l'API la refuser (#120).
+  // Rôle d'équipe sans code TOTP encore enregistré : refusé aussi (sinon le lien reçu
+  // permettrait d'enregistrer le premier code à sa place).
   await createUser(`moderatrice-oubli-${suffix}`, ['moderation']);
   const forgot = await forgotPassword(
     `moderatrice-oubli-${suffix}`,
     `moderatrice-oubli-${suffix}@exemple.localhost`,
   );
-  if (forgot.tokens?.access_token) {
-    const amr = decode(forgot.tokens.access_token).amr ?? [];
+  check(
+    forgot.mailed === false && !forgot.tokens,
+    'Mot de passe oublié (modération sans code) : refusé, aucun e-mail',
+  );
+
+  // Hors équipe, « Mot de passe oublié » fonctionne ; la session ouverte ainsi ne porte
+  // aucune preuve de MFA, et l'API la refuse (#120).
+  await createUser(`lecteur-oubli-${suffix}`);
+  const ordinary = await forgotPassword(
+    `lecteur-oubli-${suffix}`,
+    `lecteur-oubli-${suffix}@exemple.localhost`,
+  );
+  check(
+    Boolean(ordinary.tokens?.access_token),
+    'Mot de passe oublié (compte ordinaire) : parcours abouti',
+  );
+  if (ordinary.tokens?.access_token) {
+    const amr = decode(ordinary.tokens.access_token).amr ?? [];
     check(!amr.includes('otp'), `Mot de passe oublié : aucune preuve de MFA (« amr » = [${amr}])`);
-    const session = await apiSession(forgot.tokens.access_token);
+    const session = await apiSession(ordinary.tokens.access_token);
     if (session) {
       check(session.body?.mfa === false, "Mot de passe oublié : l'API ne voit pas de MFA");
     }
-  } else {
-    // Si Keycloak bloque un jour ce parcours, c'est mieux : adapter alors cette vérification.
-    check(false, 'Mot de passe oublié : parcours non abouti (à examiner)');
   }
 
   // E-mails : Keycloak envoie via Mailpit (vérification d'adresse, mot de passe oublié).
@@ -321,6 +360,77 @@ try {
 
   const weak = await fetch(`${KC}/admin/realms${R}/users`, { method: 'HEAD' });
   check(weak.status === 401, "API d'administration inaccessible sans jeton");
+
+  // Compte de service de l'API (#141) : permission fine « gérer les utilisateurs » (FGAP v2),
+  // aucun rôle d'administration. Il désactive, déconnecte et supprime un compte ; il ne peut
+  // ni lister les comptes (e-mails), ni lire leurs identifiants, ni attribuer un rôle. Il
+  // pourrait changer un mot de passe ou créer un compte : limite connue (docs/procedures.md).
+  const [service] = await kc.get(`${R}/clients?clientId=api-administration`);
+  const { value: serviceSecret } = await kc.get(`${R}/clients/${service.id}/client-secret`);
+  const serviceToken = await (
+    await fetch(`${ISSUER}/protocol/openid-connect/token`, {
+      method: 'POST',
+      body: new URLSearchParams({
+        grant_type: 'client_credentials',
+        client_id: 'api-administration',
+        client_secret: serviceSecret,
+      }),
+    })
+  ).json();
+  check(Boolean(serviceToken.access_token), "Compte de service de l'API : jeton obtenu");
+  const asService = (path, init = {}) =>
+    fetch(`${KC}/admin/realms${R}${path}`, {
+      ...init,
+      headers: { Authorization: `Bearer ${serviceToken.access_token}`, ...init.headers },
+    });
+  const json = { 'Content-Type': 'application/json' };
+  const doomed = (await createUser(`a-supprimer-${suffix}`)).id;
+  const roles = await kc.get(`${R}/users/${doomed}/role-mappings/realm`);
+  const serviceRefused = await Promise.all([
+    asService('/users?max=1'),
+    asService(`/users/${doomed}`),
+    asService(`/users/${doomed}/credentials`),
+    asService(`/users/${doomed}/role-mappings/realm`, {
+      method: 'POST',
+      headers: json,
+      body: JSON.stringify([await kc.get(`${R}/roles/administration`)]),
+    }),
+    asService('/clients'),
+  ]);
+  check(
+    serviceRefused.every((r) => r.status === 403) &&
+      (await kc.get(`${R}/users/${doomed}/role-mappings/realm`)).length === roles.length,
+    `Compte de service de l'API : ni liste des comptes, ni lecture d'un compte ou de ses identifiants, ni rôle, ni clients (${serviceRefused.map((r) => r.status).join(', ')})`,
+  );
+  const disabled = await asService(`/users/${doomed}`, {
+    method: 'PUT',
+    headers: json,
+    body: JSON.stringify({ enabled: false }),
+  });
+  const loggedOut = await asService(`/users/${doomed}/logout`, { method: 'POST' });
+  check(
+    disabled.status === 204 &&
+      loggedOut.status === 204 &&
+      (await kc.get(`${R}/users/${doomed}`)).enabled === false,
+    "Compte de service de l'API : désactivation et déconnexion d'un compte",
+  );
+  const deleted = await asService(`/users/${doomed}`, { method: 'DELETE' });
+  if (deleted.status === 204) created.splice(created.indexOf(doomed), 1);
+  check(deleted.status === 204, "Compte de service de l'API : suppression d'un compte");
+  const realmChange = await asService('', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ registrationAllowed: false }),
+  });
+  const roleChange = await asService('/roles', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: `essai-${suffix}` }),
+  });
+  check(
+    realmChange.status === 403 && roleChange.status === 403,
+    "Compte de service de l'API : ni réglages du realm ni rôles",
+  );
 } finally {
   for (const id of created) await kc.del(`${R}/users/${id}`);
 }

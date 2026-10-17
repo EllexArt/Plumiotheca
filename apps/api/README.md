@@ -44,37 +44,57 @@ pnpm --filter @plumiotheca/api typecheck
 - Le compte de l'application est créé à la première requête connectée (sans e-mail : il reste dans Keycloak).
 - **Refus par défaut** : toute route connectée exige un compte prêt (première visite faite, charte en vigueur acceptée, âge d'au moins 15 ans déclaré). Sinon `403` : `premiere-visite-requise`, `charte-a-accepter` ou `age-minimum`. Les routes du parcours d'arrivée le permettent avec `@AllowAccountSteps(...)` ; `@CurrentAccount()` donne le compte.
 - `GET /api/moi/compte` : mon compte et l'étape à franchir (`first-visit`, `charter`, `age-locked`, `ready`).
-- `POST /api/moi/compte/premiere-visite` : pseudonyme, âge déclaré (`under-15`, `15-17`, `18+`), version de la charte lue. « Moins de 15 ans » verrouille le compte : seule cette réponse est gardée.
+- `POST /api/moi/compte/premiere-visite` : pseudonyme, âge déclaré (`under-15`, `15-17`, `18+`), version de la charte lue. « Moins de 15 ans » verrouille le compte : seule cette réponse est gardée, avec sa date (`age_locked_at`). La tâche nocturne `comptes-verrouilles` les supprime 30 jours après, en deux temps : compte Keycloak désactivé et déconnecté, puis, au passage suivant (au moins une heure après, quand plus aucun jeton n'est valide), supprimé dans Keycloak (compte de service `api-administration`) puis dans la base. Un compte en échec n'arrête pas les autres.
 - `POST /api/moi/compte/charte` : accepter une nouvelle version de la charte ([docs/charte.md](../../docs/charte.md), version dans `@plumiotheca/contracts`).
 - `PUT /api/moi/compte/pseudonyme` : 3 à 30 caractères, unicité sans casse ni accents, noms officiels réservés, un changement par mois ; l'ancien pseudonyme est bloqué 90 jours.
 - `PATCH /api/moi/compte/profil` : nom affiché, pronoms, présentation.
 - `GET /api/pseudonymes/:handle` (public) : profil public, sans identifiant, âge ni e-mail ; `GET /api/pseudonymes/:handle/disponibilite`.
 
+## Histoires et chapitres
+
+- **Visibilité** (une seule règle, `src/stories/story-access.ts`) : le public ne voit que les histoires publiées dont le compte est actif et complet ; la personne qui écrit voit les siennes, brouillons compris, y compris sur les routes publiques si elle envoie son jeton. Invisible pour vous : 404 (l'existence ne fuite pas) ; visible mais pas à vous : 403 pour toute modification.
+- `GET /api/histoires` (public) : histoires publiées, les plus récentes d'abord, pagination par curseur (`apres`, `limite`), filtres `langue`, `classement`, `exclure` (avertissements majeurs), `pseudonyme`. Jamais le texte des chapitres.
+- `POST /api/histoires`, `PATCH /api/histoires/:id` (liste blanche des champs, jamais d'identifiant, d'autrice ou auteur, de statut ni de compteur), `DELETE`, `POST …/publication` (classement, avertissements et un chapitre publié exigés), `POST …/depublication`, `GET /api/moi/histoires?limite=&apres=` (mes histoires, brouillons compris, la plus récemment modifiée d'abord, page `{ items, nextCursor }`).
+- Chapitres : `POST /api/histoires/:id/chapitres` (position choisie par le serveur), `PUT …/chapitres/ordre` (ordre complet, appliqué d'un coup), `PATCH`/`DELETE …/chapitres/:chapitre`, `GET`/`PUT …/brouillon` (document validé par `@plumiotheca/editor-schema`, identifiants de blocs complétés, 409 `brouillon-modifie` si la version est dépassée, 30 sauvegardes par minute au plus), `POST …/publication` (révision figée, dans une transaction), `GET …/chapitres/:chapitre` (public : version publiée).
+- Un chapitre adressé via une autre histoire que la sienne répond 404 (faille C2).
+
+## Recherche
+
+- `GET /api/recherche?q=&page=` (public, 60 par minute) : histoires publiées dont le titre, les tags, le nom de l'autrice ou de l'auteur ou le résumé correspondent, 20 par page, les plus pertinentes d'abord ; mêmes exclusions que la liste (`langue`, `classement`, `exclureClassement`, `exclure`). Réponse `{ items, total, nextPage }`. Meilisearch injoignable : 503.
+- **Meilisearch n'est interrogé que par l'API**, jamais par le navigateur : la clé reste sur le serveur.
+- L'index (`SEARCH_INDEX`) ne contient que la fiche publique des histoires publiées (aucun brouillon, aucun texte de chapitre), et ne renvoie que des identifiants. Les résultats sont relus dans la base avec la règle de visibilité : une histoire devenue invisible depuis l'indexation n'est jamais montrée.
+- Chaque changement d'une histoire (modification, publication, dépublication, suppression, chapitre publié, dépublié ou supprimé) la met en file `indexation-histoire`. La tâche `reindexation-recherche` reconstruit l'index chaque nuit (4 h 41), ce qui rattrape aussi les changements de pseudonyme ou de nom et les comptes verrouillés.
+- Réindexation complète à la demande : `pnpm --filter @plumiotheca/api search:reindex` (après `pnpm build`). Elle reconstruit dans un index temporaire puis l'échange avec l'index en service : la recherche reste disponible.
+
 ## Configuration
 
 Validée au démarrage par `src/config/env.ts` : l'API s'arrête avec la liste des variables en cause (sans leur valeur).
 
-| Variable                 | Défaut                                     | Rôle                                                                |
-| ------------------------ | ------------------------------------------ | ------------------------------------------------------------------- |
-| `NODE_ENV`               | `development`                              | `production` désactive la documentation OpenAPI                     |
-| `HOST`                   | `127.0.0.1`                                | `0.0.0.0` dans l'image Docker                                       |
-| `PORT`                   | `3000`                                     |                                                                     |
-| `LOG_LEVEL`              | `info`                                     | niveau pino                                                         |
-| `CORS_ORIGINS`           | origines locales de dev                    | liste séparée par des virgules, obligatoire en production           |
-| `TRUST_PROXY`            | `0`                                        | proxys inverses devant l'API, obligatoire en production             |
-| `RATE_LIMIT_PER_MINUTE`  | `120`                                      | requêtes par minute et par adresse IP                               |
-| `KEYCLOAK_ISSUER`        | realm local (port 8080)                    | émetteur des jetons vu par le navigateur, obligatoire en production |
-| `KEYCLOAK_JWKS_URL`      | `<émetteur>/protocol/openid-connect/certs` | autre chemin vers les clés (ex. réseau interne d'un conteneur)      |
-| `JWT_AUDIENCE`           | `api`                                      | audience exigée                                                     |
-| `JWT_CLIENTS`            | `web`                                      | clients autorisés (`azp`), séparés par des virgules                 |
-| `DB_HOST`, `DB_PORT`     | `localhost`, `5433`                        | base PostgreSQL (infra de développement par défaut)                 |
-| `DB_USERNAME`, `DB_NAME` | `plumiotheca`                              |                                                                     |
-| `DB_PASSWORD`            | —                                          | obligatoire en production                                           |
-| `DB_SSL`                 | `false`                                    | connexion chiffrée à la base                                        |
-| `DB_CONNECT_RETRIES`     | `5`                                        | essais de connexion au démarrage (2 s d'écart)                      |
-| `DB_MIGRATE_ON_START`    | `true` en développement                    | applique les migrations au démarrage                                |
+| Variable                   | Défaut                                     | Rôle                                                                                                                   |
+| -------------------------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`                 | `development`                              | `production` désactive la documentation OpenAPI                                                                        |
+| `HOST`                     | `127.0.0.1`                                | `0.0.0.0` dans l'image Docker                                                                                          |
+| `PORT`                     | `3000`                                     |                                                                                                                        |
+| `LOG_LEVEL`                | `info`                                     | niveau pino                                                                                                            |
+| `CORS_ORIGINS`             | origines locales de dev                    | liste séparée par des virgules, obligatoire en production                                                              |
+| `TRUST_PROXY`              | `0`                                        | proxys inverses devant l'API, obligatoire en production                                                                |
+| `RATE_LIMIT_PER_MINUTE`    | `120`                                      | requêtes par minute et par route, **par compte** (par adresse IP sans compte, #137) ; certaines routes ont leur limite |
+| `RATE_LIMIT_IP_PER_MINUTE` | `1200`                                     | plafond par adresse IP, toutes routes confondues, avant l'authentification (inondation, jetons forgés)                 |
+| `KEYCLOAK_ISSUER`          | realm local (port 8080)                    | émetteur des jetons vu par le navigateur, obligatoire en production                                                    |
+| `KEYCLOAK_JWKS_URL`        | `<émetteur>/protocol/openid-connect/certs` | autre chemin vers les clés (ex. réseau interne d'un conteneur)                                                         |
+| `JWT_AUDIENCE`             | `api`                                      | audience exigée                                                                                                        |
+| `JWT_CLIENTS`              | `web`                                      | clients autorisés (`azp`), séparés par des virgules                                                                    |
+| `DB_HOST`, `DB_PORT`       | `localhost`, `5433`                        | base PostgreSQL (infra de développement par défaut)                                                                    |
+| `DB_USERNAME`, `DB_NAME`   | `plumiotheca`                              |                                                                                                                        |
+| `DB_PASSWORD`              | —                                          | obligatoire en production                                                                                              |
+| `DB_SSL`                   | `false`                                    | connexion chiffrée à la base                                                                                           |
+| `DB_CONNECT_RETRIES`       | `5`                                        | essais de connexion au démarrage (2 s d'écart)                                                                         |
+| `DB_MIGRATE_ON_START`      | `true` en développement                    | applique les migrations au démarrage                                                                                   |
+| `MEILI_URL`                | `http://localhost:7700`                    | Meilisearch                                                                                                            |
+| `MEILI_MASTER_KEY`         | —                                          | clé de Meilisearch, obligatoire en production                                                                          |
+| `SEARCH_INDEX`             | `histoires`                                | index des histoires (les tests utilisent le nom de leur base)                                                          |
 
-Les autres variables de `.env.example` (Meilisearch, S3, SMTP) seront lues par les prochaines étapes de la M1. Toutes sont générées par `pnpm infra:setup` dans `apps/api/.env` (jamais commité).
+Les variables S3 et de médias sont décrites dans `infra/README.md` ; celles du SMTP seront lues plus tard. Toutes sont générées par `pnpm infra:setup` dans `apps/api/.env` (jamais commité).
 
 Base de données (outils comme DBeaver) : `localhost:5433`, base `plumiotheca`, utilisateur `plumiotheca`, mot de passe `POSTGRES_PASSWORD` dans `infra/.env`.
 
@@ -96,6 +116,30 @@ pnpm --filter @plumiotheca/api migration:check    # échoue si une migration man
 - Brouillon d'un chapitre : toujours `saveDraft()` (mise à jour conditionnelle sur `draft_version`, 409 si le brouillon a changé ailleurs), jamais `save()`.
 - Erreurs de PostgreSQL journalisées sans message ni pile (ils peuvent citer la valeur reçue) : code SQLSTATE, contrainte et table seulement.
 - Production : migrations lancées par une tâche unique avant le déploiement, pas au démarrage de chaque instance (TypeORM ne verrouille pas les migrations concurrentes, voir #67).
+
+## Tâches en arrière-plan
+
+File **pg-boss** dans la même base, schéma `pgboss` (créé et mis à jour par pg-boss, hors migrations TypeORM). Un module déclare ses tâches à l'initialisation :
+
+```ts
+onModuleInit() {
+  this.jobs.define<{ storyId: string }>({
+    name: 'indexer-histoire',
+    handle: (data) => this.index(data.storyId),
+    retryLimit: 3, // nouvelles tentatives, délai croissant (30 s, puis plus)
+    cron: '0 3 * * *', // facultatif : tâche planifiée (Europe/Paris)
+  });
+}
+```
+
+puis `jobs.send('indexer-histoire', { storyId })`.
+
+- Une tâche en échec est rejouée (délai croissant) ; les traitements doivent être **idempotents** (une tâche interrompue est rejouée). Une tâche à la fois par traitement.
+- Journal des échecs : nom, identifiant, tentative, type, code et emplacement de l'erreur ; **jamais les données de la tâche, ni le message ou la pile de l'erreur** (ils peuvent citer une valeur). pg-boss ne garde de son côté qu'une erreur générique.
+- Conservation : une tâche terminée (avec ses données) est supprimée après 7 jours.
+- Modifier `retryLimit` ou `cron` dans le code s'applique au démarrage suivant, files existantes comprises ; retirer `cron` retire la planification.
+- `JOBS_ENABLED` : active par défaut, désactivée dans les tests (un test l'active pour la vérifier). À l'arrêt, les tâches en cours ont 10 s pour finir, **avant** la fermeture de la base.
+- Production : pg-boss crée et met à jour son schéma au démarrage (verrou, plusieurs instances possibles) ; le rôle PostgreSQL de l'API doit donc avoir le droit `CREATE` sur la base. Chaque instance ouvre 4 connexions pour la file, en plus du pool de TypeORM.
 
 ## Image Docker
 

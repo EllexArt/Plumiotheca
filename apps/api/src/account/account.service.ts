@@ -12,6 +12,7 @@ import {
 } from '@plumiotheca/contracts';
 import { DataSource, type EntityManager, IsNull, MoreThan, QueryFailedError } from 'typeorm';
 import { ApiProblem } from '../common/problem.js';
+import { MediaService } from '../media/media.service.js';
 import { HandleHistory } from '../users/handle-history.entity.js';
 import { HandleRelease } from '../users/handle-release.entity.js';
 import { User } from '../users/user.entity.js';
@@ -60,10 +61,17 @@ class Conflict extends Error {}
 
 @Injectable()
 export class AccountService {
-  constructor(@InjectDataSource() private readonly db: DataSource) {}
+  constructor(
+    @InjectDataSource() private readonly db: DataSource,
+    private readonly media: MediaService,
+  ) {}
 
   private get users() {
     return this.db.getRepository(User);
+  }
+
+  find(keycloakId: string): Promise<User | null> {
+    return this.users.findOneBy({ keycloakId });
   }
 
   /** Compte de l'application lié à cet identifiant Keycloak, créé à la première requête. */
@@ -89,6 +97,7 @@ export class AccountService {
       displayName: user.displayName,
       pronouns: user.pronouns,
       bio: user.bio,
+      avatarUrl: user.avatarMediaId ? this.media.urlOf(user.avatarMediaId) : null,
       ageBand: user.ageBand === '15-17' || user.ageBand === '18+' ? user.ageBand : null,
       charterVersion: user.charterVersion,
       handleChangeableFrom: changeable && changeable > new Date() ? changeable.toISOString() : null,
@@ -114,7 +123,7 @@ export class AccountService {
       // réponse « 18+ » envoyée au même instant ne peut ni l'écraser ni être écrasée.
       const locked = await this.users.update(
         { id: user.id, ageBand: IsNull() },
-        { ageBand: 'under-15' },
+        { ageBand: 'under-15', ageLockedAt: new Date() },
       );
       if (!locked.affected) return this.retry(user, input);
       throw ageLocked();
@@ -208,7 +217,17 @@ export class AccountService {
       displayName: user.displayName,
       pronouns: user.pronouns,
       bio: user.bio,
+      avatarUrl: user.avatarMediaId ? this.media.urlOf(user.avatarMediaId) : null,
     };
+  }
+
+  /** Avatar (#26) : une image de la personne, prête ; null le retire. L'ancienne est oubliée. */
+  async setAvatar(user: User, mediaId: string | null): Promise<User> {
+    if (mediaId) await this.media.claim(user, mediaId, 'avatar');
+    const previous = user.avatarMediaId;
+    await this.users.update(user.id, { avatarMediaId: mediaId });
+    if (previous && previous !== mediaId) await this.media.forget(previous);
+    return this.users.findOneByOrFail({ id: user.id });
   }
 
   /**

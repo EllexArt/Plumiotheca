@@ -6,6 +6,7 @@
 | Keycloak 26.8    | comptes, connexion, MFA                        | http://localhost:8080 (console : `/admin`) |
 | Meilisearch 1.54 | recherche                                      | http://localhost:7700                      |
 | Garage 2.4       | stockage des images (compatible S3)            | http://localhost:3900                      |
+| Garage (site)    | images publiées, domaine séparé                | http://medias.web.garage.localhost:3902    |
 | Mailpit 1.31     | capture les e-mails envoyés                    | http://localhost:8025                      |
 
 Tous les ports sont liés à `127.0.0.1` : rien n'est exposé sur le réseau local.
@@ -16,6 +17,7 @@ Tous les ports sont liés à `127.0.0.1` : rien n'est exposé sur le réseau loc
 pnpm infra:setup   # une fois : crée infra/.env et apps/api/.env avec des secrets aléatoires
 pnpm infra:up      # démarre tout, attend que chaque service soit prêt, initialise Garage
 node infra/scripts/check-realm.mjs   # vérifie Keycloak de bout en bout
+node infra/scripts/role-equipe.mjs verifier   # rôles d'équipe conformes (voir docs/procedures.md)
 pnpm infra:seed    # comptes de démonstration (mot de passe : DEMO_PASSWORD dans infra/.env)
 ```
 
@@ -35,9 +37,10 @@ Choix de configuration :
 - protection contre les essais de mots de passe répétés ; mots de passe de 10 caractères minimum ;
 - client `web` : public, code d'autorisation + **PKCE obligatoire**, pas de mot de passe direct ;
 - client `api` : cible d'audience des jetons, sans flux de connexion ;
-- rôles `moderation`, `administration` (**double authentification obligatoire**, un seul code demandé) et `jardinage-tags` ;
+- client `api-administration` : **compte de service** de l'API (désactivation puis suppression des comptes verrouillés). **Aucun rôle d'administration** : une permission fine (FGAP v2) « gérer les utilisateurs ». Il désactive, déconnecte et supprime un compte ; il ne peut ni lister les comptes (e-mails), ni lire un compte ou ses codes, ni attribuer un rôle (vérifié par `check-realm.mjs`). Limite connue : il pourrait changer un mot de passe ou créer un compte. `infra/scripts/keycloak-service.mjs` (lancé par `pnpm infra:up`, idempotent) active les permissions fines, pose la permission, crée le client sur un realm antérieur et écrit le secret, généré par Keycloak, dans `apps/api/.env` ;
+- rôles `moderation`, `administration` (**double authentification obligatoire**, un seul code demandé ; attribués seulement par `infra/scripts/role-equipe.mjs`, une fois le code TOTP enregistré, voir `docs/procedures.md`) et `jardinage-tags` ;
 - claim **`amr`** dans le jeton d'accès (`pwd`, `otp`, valables toute la session, renouvellement compris) : l'API exige `otp` pour la modération et l'administration, ce qui ferme le contournement par « mot de passe oublié » et les sessions ouvertes avant l'attribution du rôle ;
-- « mot de passe oublié » ne permet **jamais** de réenregistrer un code TOTP (flux `reinitialisation-plumiotheca`) : sinon la boîte mail suffirait à remplacer le second facteur. Un appareil perdu se réinitialise par un administrateur (décision 35) ;
+- « mot de passe oublié » ne réenregistre **jamais** un code TOTP, et il est **refusé** aux rôles de modération et d'administration avant tout envoi d'e-mail (flux `reinitialisation-plumiotheca`, #125) : sinon le lien reçu ouvrirait une session où un second code peut être enregistré, et la boîte mail suffirait. Mot de passe ou appareil perdu : par l'administration (décision 35) ;
 - `admin-cli` du realm sans connexion par mot de passe direct (l'administration passe par le realm `master`) ;
 - français par défaut ; e-mails envoyés vers Mailpit.
 
@@ -58,10 +61,19 @@ docker run --rm --network plumiotheca_default -p 127.0.0.1:3000:3000 -e TRUST_PR
   -e DB_PASSWORD="$POSTGRES_PASSWORD" -e DB_NAME="$POSTGRES_DB" -e DB_MIGRATE_ON_START=true \
   -e CORS_ORIGINS=http://localhost:5173 -e KEYCLOAK_ISSUER=http://localhost:8080/realms/plumiotheca \
   -e KEYCLOAK_JWKS_URL=http://keycloak:8080/realms/plumiotheca/protocol/openid-connect/certs \
+  -e KEYCLOAK_ADMIN_CLIENT_SECRET="$(sed -n 's/^KEYCLOAK_ADMIN_CLIENT_SECRET=//p' apps/api/.env)" \
+  -e MEILI_URL=http://meilisearch:7700 -e MEILI_MASTER_KEY="$MEILI_MASTER_KEY"   -e S3_ENDPOINT=http://garage:3900 -e S3_UPLOAD_ENDPOINT=http://localhost:3900 \
+  -e S3_ACCESS_KEY_ID="$(sed -n 's/^S3_ACCESS_KEY_ID=//p' apps/api/.env)" \
+  -e S3_SECRET_ACCESS_KEY="$(sed -n 's/^S3_SECRET_ACCESS_KEY=//p' apps/api/.env)" \
   plumiotheca-api:local
 ```
 
 ## Garage
 
-Nœud unique, bucket `medias`. `infra/scripts/garage-init.mjs` (lancé par `pnpm infra:up`) crée la disposition, le bucket et la clé d'accès de l'API, et écrit les identifiants dans `apps/api/.env`.
+Nœud unique, deux buckets (#18) :
+
+- `medias-entrants`, privé : le navigateur y téléverse directement le fichier brut (formulaire signé par l'API, 10 Mo au plus). CORS limité aux origines du site, fichiers effacés au traitement et au plus tard après un jour (règle d'expiration) ;
+- `medias`, public : images ré-encodées en WebP, sans métadonnées, servies par le site web de Garage sur un domaine séparé (`*.web.garage.localhost`, résolu vers `127.0.0.1` par les navigateurs).
+
+`infra/scripts/garage-init.mjs` (lancé par `pnpm infra:up`) crée la disposition, les buckets, ouvre `medias` en lecture publique, crée la clé d'accès de l'API, écrit les identifiants dans `apps/api/.env`, puis lance `apps/api/scripts/stockage.mjs` (CORS et expiration du bucket privé). En production, ce dernier script se lance une fois avec les variables `S3_*` et `CORS_ORIGINS` de l'API.
 MinIO a été écarté : son édition communautaire n'est plus maintenue depuis 2026.

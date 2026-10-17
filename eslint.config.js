@@ -10,7 +10,13 @@ import globals from 'globals';
 
 export default tseslint.config(
   {
-    ignores: ['**/dist/**', '**/coverage/**', '**/node_modules/**'],
+    ignores: [
+      '**/dist/**',
+      '**/coverage/**',
+      '**/node_modules/**',
+      '**/playwright-report/**',
+      '**/test-results/**',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -28,8 +34,14 @@ export default tseslint.config(
 
   // Scripts Node (infrastructure, configuration)
   {
-    files: ['infra/**/*.mjs', '*.js', '*.mjs'],
+    files: ['infra/**/*.mjs', 'apps/api/scripts/**/*.mjs', '*.js', '*.mjs'],
     languageOptions: { globals: globals.node },
+  },
+
+  // Scripts servis tels quels au navigateur (apps/web/public)
+  {
+    files: ['apps/web/public/**/*.js'],
+    languageOptions: { sourceType: 'script', globals: globals.browser },
   },
 
   // Application web (navigateur, React) : accessibilité vérifiée par jsx-a11y.

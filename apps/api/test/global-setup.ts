@@ -28,6 +28,13 @@ export default async function setup() {
   await admin.query(`CREATE DATABASE "${TEST_DB_NAME}"`);
   await admin.end();
 
+  // Index de recherche des tests : repart vide (recréé au démarrage de l'API de test).
+  await fetch(new URL(`/indexes/${config.SEARCH_INDEX}`, config.MEILI_URL), {
+    method: 'DELETE',
+    headers: config.MEILI_MASTER_KEY ? { Authorization: `Bearer ${config.MEILI_MASTER_KEY}` } : {},
+    signal: AbortSignal.timeout(5_000),
+  }).catch(() => undefined);
+
   const dataSource = new DataSource(dataSourceOptions(config));
   await dataSource.initialize();
   await dataSource.runMigrations({ transaction: 'each' });
