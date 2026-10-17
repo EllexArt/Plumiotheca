@@ -1,28 +1,47 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-// Contrastes WCAG 2.2 AA (RGAA 3.2 et 3.3) des jetons de couleur, pour chaque thème.
-// Chemin relatif à apps/web (racine de Vitest).
-const css = readFileSync('src/styles/tokens.css', 'utf8');
+// Contrastes WCAG 2.2 AA (RGAA 3.2 et 3.3) des jetons de couleur, pour chaque ambiance (#77)
+// en clair et en sombre. Une ambiance = un fichier de palettes/ : en ajouter une suffit à
+// la faire tester. Chemin relatif à apps/web (racine de Vitest).
+const DIR = 'src/styles/palettes';
 
-function block(selector: string): Record<string, string> {
-  const start = css.indexOf(`${selector} {`);
-  if (start < 0) throw new Error(`Bloc ${selector} introuvable`);
-  const body = css.slice(start, css.indexOf('\n}', start));
+/** Couleurs du n-ième bloc d'un fichier (0 : clair, 1 : sombre). */
+function block(file: string, css: string, index: number): Record<string, string> {
+  const bodies = [...css.matchAll(/\{([^}]*)\}/g)].map((m) => m[1]!);
+  const body = bodies[index];
+  if (body === undefined) throw new Error(`${file} : bloc ${index + 1} introuvable`);
   const colors = Object.fromEntries(
     [...body.matchAll(/--(color-[\w-]+):\s*(#[0-9a-f]{6})\s*;/gi)].map((m) => [m[1]!, m[2]!]),
   );
   // Toute couleur doit être lue : une valeur écrite autrement (#abc, rgb()…) serait sinon
-  // ignorée en silence, et le thème sombre testé avec la valeur claire.
+  // ignorée en silence.
   const declared = [...body.matchAll(/--(color-[\w-]+):/g)].map((m) => m[1]!);
   const unread = declared.filter((name) => !(name in colors));
   if (unread.length)
-    throw new Error(`${selector} : couleurs à écrire en #rrggbb : ${unread.join(', ')}`);
+    throw new Error(`${file} : couleurs à écrire en #rrggbb : ${unread.join(', ')}`);
   return colors;
 }
 
-const light = block(':root');
-const themes = { clair: light, sombre: { ...light, ...block(":root[data-theme='dark']") } };
+const files = readdirSync(DIR).filter((f) => f.endsWith('.css'));
+const themes = Object.fromEntries(
+  files.flatMap((file) => {
+    const css = readFileSync(`${DIR}/${file}`, 'utf8');
+    const name = file.replace(/\.css$/, '');
+    return [
+      [`${name}, clair`, block(file, css, 0)],
+      [`${name}, sombre`, block(file, css, 1)],
+    ];
+  }),
+);
+
+describe('ambiances : chacune complète', () => {
+  const reference = Object.keys(themes['lueur, clair'] ?? {}).sort();
+  it.each(Object.keys(themes))('%s : tous les jetons de Lueur', (theme) => {
+    expect(reference.length).toBeGreaterThan(20);
+    expect(Object.keys(themes[theme]!).sort()).toEqual(reference);
+  });
+});
 
 function luminance(hex: string): number {
   const [r, g, b] = [1, 3, 5].map((i) => {

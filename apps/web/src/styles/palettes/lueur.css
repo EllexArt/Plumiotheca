@@ -1,0 +1,79 @@
+/*
+ * Lueur : encre de nuit et ambre, identité de Plumiotheca (ambiance par défaut, #77).
+ * Clair puis sombre ; [data-ambiance] : ambiance imposée par le lecteur (#77, #28).
+ */
+
+:root,
+[data-ambiance='lueur'] {
+  --color-page: #f7f3ec;
+  --color-surface: #fbf8f2;
+  --color-raised: #ffffff;
+  --color-sunken: #efe8dc;
+  --color-border: #e2d9ca; /* séparateurs décoratifs */
+  --color-border-strong: #cfc5b5;
+  --color-control-border: #857868; /* contour des champs : 3:1 minimum */
+
+  --color-text: #1b2733;
+  --color-text-soft: #3c4752;
+  --color-text-muted: #5e6873;
+  --color-reading: #2a3440;
+
+  --color-accent: #9a5b17; /* liens, accents en texte */
+  --color-accent-hover: #7a4710;
+  --color-amber: #e0a458; /* aplats */
+  --color-on-amber: #1b2733;
+  --color-primary: #1b2733; /* bouton principal */
+  --color-on-primary: #e0a458;
+  --color-primary-hover: #2a3a48;
+
+  --color-highlight: #f6ddb5;
+  --color-success: #2f5446;
+  --color-success-bg: #e3eae0;
+  --color-warning: #6b4210;
+  --color-warning-bg: #fbf3e6;
+  --color-danger: #9b2c22;
+  --color-danger-bg: #f8e4e1;
+
+  --color-focus: #9a5b17;
+  --shadow-raised: 0 8px 24px rgb(27 39 51 / 0.12);
+
+  color-scheme: light;
+}
+
+:root[data-theme='dark'],
+:root[data-theme='dark'] [data-ambiance='lueur'] {
+
+  --color-page: #14202b;
+  --color-surface: #1a2734;
+  --color-raised: #1f3040;
+  --color-sunken: #0f1922;
+  --color-border: #2c3e4f;
+  --color-border-strong: #3a5064;
+  --color-control-border: #6d8296;
+
+  --color-text: #f3eee4;
+  --color-text-soft: #cfd6dc;
+  --color-text-muted: #9fafbc;
+  --color-reading: #e6e0d4;
+
+  --color-accent: #e0a458;
+  --color-accent-hover: #edbe7e;
+  --color-amber: #e0a458;
+  --color-on-amber: #14202b;
+  --color-primary: #e0a458;
+  --color-on-primary: #14202b;
+  --color-primary-hover: #edbe7e;
+
+  --color-highlight: #2a3a48;
+  --color-success: #9ed0c2;
+  --color-success-bg: #1d3a33;
+  --color-warning: #f2c98b;
+  --color-warning-bg: #3a2e1a;
+  --color-danger: #f0a39a;
+  --color-danger-bg: #3d2224;
+
+  --color-focus: #e0a458;
+  --shadow-raised: 0 8px 24px rgb(0 0 0 / 0.35);
+
+  color-scheme: dark;
+}

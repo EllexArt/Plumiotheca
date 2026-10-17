@@ -21,6 +21,7 @@ import {
   UpdateProfile,
   SetAvatar,
   ReadingPreferences,
+  Appearance,
 } from '@plumiotheca/contracts';
 import { Public } from '../auth/decorators.js';
 import type { User } from '../users/user.entity.js';
@@ -79,6 +80,16 @@ export class AccountController {
     @Body({ schema: UpdateProfile }) input: UpdateProfile,
   ): Promise<MyAccount> {
     return this.accounts.view(await this.accounts.updateProfile(account, input));
+  }
+
+  /** Apparence du site (#77) : ambiance et mode, retrouvés sur tous les appareils. */
+  @Put('apparence')
+  @ApiOkResponse({ standardSchema: MyAccount })
+  async setAppearance(
+    @CurrentAccount() account: User,
+    @Body({ schema: Appearance }) input: Appearance,
+  ): Promise<MyAccount> {
+    return this.accounts.view(await this.accounts.setAppearance(account, input));
   }
 
   /** Réglages de lecture (#28) : police, taille, interligne, largeur. */

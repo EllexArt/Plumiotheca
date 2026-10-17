@@ -1,0 +1,70 @@
+/*
+ * Indigo et lune : bleu nuit et clair de lune, blanc bleuté et indigo (#77). Couleurs de la maquette « Apparence » ; les jetons qu'elle
+ * ne fixe pas en sont dérivés, ajustés aux contrastes AA (contrast.test.ts).
+ */
+
+:root[data-palette='indigo'],
+[data-ambiance='indigo'] {
+  --color-page: #f6f6fa;
+  --color-surface: #fafafc;
+  --color-raised: #ffffff;
+  --color-sunken: #ececf0;
+  --color-border: #dcdde8;
+  --color-border-strong: #c4c6d2;
+  --color-control-border: #898c9f;
+  --color-text: #181c30;
+  --color-text-soft: #33384d;
+  --color-text-muted: #5c6178;
+  --color-reading: #272b40;
+  --color-accent: #3b47a8;
+  --color-accent-hover: #303a8a;
+  --color-amber: #3b47a8;
+  --color-on-amber: #ffffff;
+  --color-primary: #3b47a8;
+  --color-on-primary: #ffffff;
+  --color-primary-hover: #364196;
+  --color-highlight: #cdd0e8;
+  --color-success: #2f5446;
+  --color-success-bg: #e3eae0;
+  --color-warning: #6b4210;
+  --color-warning-bg: #fbf3e6;
+  --color-danger: #9b2c22;
+  --color-danger-bg: #f8e4e1;
+  --color-focus: #3b47a8;
+  --shadow-raised: 0 8px 24px rgb(0 0 0 / 0.1);
+
+  color-scheme: light;
+}
+
+:root[data-palette='indigo'][data-theme='dark'],
+:root[data-theme='dark'] [data-ambiance='indigo'] {
+  --color-page: #151a2d;
+  --color-surface: #1a2036;
+  --color-raised: #20273f;
+  --color-sunken: #101422;
+  --color-border: #353d5c;
+  --color-border-strong: #4b526e;
+  --color-control-border: #6a718e;
+  --color-text: #eceef6;
+  --color-text-soft: #ced2e1;
+  --color-text-muted: #a2a8c2;
+  --color-reading: #daddeb;
+  --color-accent: #f2d48a;
+  --color-accent-hover: #f4dc9f;
+  --color-amber: #f2d48a;
+  --color-on-amber: #151a2d;
+  --color-primary: #f2d48a;
+  --color-on-primary: #151a2d;
+  --color-primary-hover: #f1d89a;
+  --color-highlight: #3d3b3e;
+  --color-success: #9ed0c2;
+  --color-success-bg: #1d3a33;
+  --color-warning: #f2c98b;
+  --color-warning-bg: #3a2e1a;
+  --color-danger: #f0a39a;
+  --color-danger-bg: #3d2224;
+  --color-focus: #f2d48a;
+  --shadow-raised: 0 8px 24px rgb(0 0 0 / 0.35);
+
+  color-scheme: dark;
+}

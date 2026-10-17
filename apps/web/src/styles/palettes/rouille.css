@@ -1,0 +1,70 @@
+/*
+ * Encre et rouille : noir chaud et rouille, papier et rouille foncée (#77). Couleurs de la maquette « Apparence » ; les jetons qu'elle
+ * ne fixe pas en sont dérivés, ajustés aux contrastes AA (contrast.test.ts).
+ */
+
+:root[data-palette='rouille'],
+[data-ambiance='rouille'] {
+  --color-page: #f8f5ef;
+  --color-surface: #fcfaf7;
+  --color-raised: #ffffff;
+  --color-sunken: #eeebe5;
+  --color-border: #e3dcd0;
+  --color-border-strong: #cbc5ba;
+  --color-control-border: #928c83;
+  --color-text: #1f1d1a;
+  --color-text-soft: #3c3834;
+  --color-text-muted: #67615a;
+  --color-reading: #2e2b27;
+  --color-accent: #a24e22;
+  --color-accent-hover: #85401c;
+  --color-amber: #a24e22;
+  --color-on-amber: #ffffff;
+  --color-primary: #a24e22;
+  --color-on-primary: #ffffff;
+  --color-primary-hover: #8e4721;
+  --color-highlight: #e5d0c2;
+  --color-success: #2f5446;
+  --color-success-bg: #e3eae0;
+  --color-warning: #6b4210;
+  --color-warning-bg: #fbf3e6;
+  --color-danger: #9b2c22;
+  --color-danger-bg: #f8e4e1;
+  --color-focus: #a24e22;
+  --shadow-raised: 0 8px 24px rgb(0 0 0 / 0.1);
+
+  color-scheme: light;
+}
+
+:root[data-palette='rouille'][data-theme='dark'],
+:root[data-theme='dark'] [data-ambiance='rouille'] {
+  --color-page: #1b1a18;
+  --color-surface: #22201c;
+  --color-raised: #28261f;
+  --color-sunken: #141412;
+  --color-border: #423d35;
+  --color-border-strong: #57524a;
+  --color-control-border: #767066;
+  --color-text: #f1ece2;
+  --color-text-soft: #d5cfc4;
+  --color-text-muted: #aba496;
+  --color-reading: #e2dcd0;
+  --color-accent: #e39466;
+  --color-accent-hover: #e8a782;
+  --color-amber: #d9824f;
+  --color-on-amber: #1b1a18;
+  --color-primary: #d9824f;
+  --color-on-primary: #1b1a18;
+  --color-primary-hover: #dd9265;
+  --color-highlight: #3d2d22;
+  --color-success: #9ed0c2;
+  --color-success-bg: #1d3a33;
+  --color-warning: #f2c98b;
+  --color-warning-bg: #3a2e1a;
+  --color-danger: #f0a39a;
+  --color-danger-bg: #3d2224;
+  --color-focus: #e39466;
+  --shadow-raised: 0 8px 24px rgb(0 0 0 / 0.35);
+
+  color-scheme: dark;
+}
