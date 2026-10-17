@@ -1,18 +1,39 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { DEFAULT_PALETTE, isPalette, type PaletteId } from './palettes';
 
 /** Choix de la personne ; « system » suit le réglage clair / sombre de l'appareil. */
 export type ThemeChoice = 'light' | 'dark' | 'system';
 
+// Mêmes clés que public/theme.js, qui applique le choix avant le premier affichage.
 const KEY = 'plumiotheca.theme';
+const PALETTE_KEY = 'plumiotheca.ambiance';
 const darkQuery = () => window.matchMedia('(prefers-color-scheme: dark)');
 
-function readChoice(): ThemeChoice {
+function read(key: string): string | null {
   try {
-    const value = localStorage.getItem(KEY);
-    return value === 'light' || value === 'dark' ? value : 'system';
+    return localStorage.getItem(key);
   } catch {
-    return 'system';
+    return null;
   }
+}
+
+function write(key: string, value: string | null) {
+  try {
+    if (value === null) localStorage.removeItem(key);
+    else localStorage.setItem(key, value);
+  } catch {
+    // Stockage indisponible : le choix vaut pour cette visite seulement.
+  }
+}
+
+function readChoice(): ThemeChoice {
+  const value = read(KEY);
+  return value === 'light' || value === 'dark' ? value : 'system';
+}
+
+function readPalette(): PaletteId {
+  const value = read(PALETTE_KEY);
+  return value && isPalette(value) ? value : DEFAULT_PALETTE;
 }
 
 function apply(choice: ThemeChoice) {
@@ -23,13 +44,21 @@ function apply(choice: ThemeChoice) {
 interface ThemeContext {
   choice: ThemeChoice;
   setChoice: (choice: ThemeChoice) => void;
+  /** Ambiance (#77) : palette de tout le site. */
+  palette: PaletteId;
+  setPalette: (palette: PaletteId) => void;
 }
 
 const Context = createContext<ThemeContext | null>(null);
 
-/** Thème clair / sombre (les ambiances de lecture viendront avec #77). */
+/**
+ * Apparence sur cet appareil : mode clair / sombre et ambiance (#77), gardés pour les
+ * prochaines visites (public/theme.js les applique avant le premier affichage). Le compte
+ * en garde aussi une copie : voir app/appearance.tsx.
+ */
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [choice, setState] = useState<ThemeChoice>(readChoice);
+  const [choice, setChoiceState] = useState<ThemeChoice>(readChoice);
+  const [palette, setPaletteState] = useState<PaletteId>(readPalette);
 
   useEffect(() => {
     apply(choice);
@@ -40,17 +69,21 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return () => query.removeEventListener('change', onChange);
   }, [choice]);
 
+  useEffect(() => {
+    document.documentElement.dataset.palette = palette;
+  }, [palette]);
+
   const setChoice = useCallback((next: ThemeChoice) => {
-    try {
-      if (next === 'system') localStorage.removeItem(KEY);
-      else localStorage.setItem(KEY, next);
-    } catch {
-      // Stockage indisponible : le choix vaut pour cette visite seulement.
-    }
-    setState(next);
+    write(KEY, next === 'system' ? null : next);
+    setChoiceState(next);
   }, []);
 
-  return <Context value={{ choice, setChoice }}>{children}</Context>;
+  const setPalette = useCallback((next: PaletteId) => {
+    write(PALETTE_KEY, next === DEFAULT_PALETTE ? null : next);
+    setPaletteState(next);
+  }, []);
+
+  return <Context value={{ choice, setChoice, palette, setPalette }}>{children}</Context>;
 }
 
 export function useTheme(): ThemeContext {

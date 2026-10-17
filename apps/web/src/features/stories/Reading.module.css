@@ -454,3 +454,10 @@
   grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
   gap: var(--space-2) var(--space-4);
 }
+
+/* Ambiance imposée au lecteur (#77) : fond et texte de l'ambiance sur l'article. */
+.reader[data-ambiance] {
+  background: var(--color-page);
+  color: var(--color-text);
+  border-radius: var(--radius-xl);
+}

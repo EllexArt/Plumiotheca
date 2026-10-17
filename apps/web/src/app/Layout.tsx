@@ -12,10 +12,13 @@ import { Alert } from '../shared/ui/Feedback';
 import { AccountGate } from './AccountGate';
 import type { SigninState } from './auth';
 import styles from './Layout.module.css';
-import { useTheme, type ThemeChoice } from './theme';
+import { AppearanceSync, useAppearance } from './appearance';
+import type { ThemeChoice } from './theme';
 
+// Le logo garde l'identité Lueur, quelle que soit l'ambiance choisie (#77).
 const Plume = () => (
   <svg
+    data-ambiance="lueur"
     width="26"
     height="26"
     viewBox="0 0 24 24"
@@ -57,7 +60,7 @@ function AccountMenu() {
   const auth = useAuth();
   const queryClient = useQueryClient();
   const { data: account } = useMyAccount();
-  const { choice, setChoice } = useTheme();
+  const appearance = useAppearance();
   const handle = account?.handle;
   const initials = (handle ?? '?').slice(0, 2).toUpperCase();
 
@@ -98,8 +101,8 @@ function AccountMenu() {
           <DropdownMenu.Separator className={styles.separator} />
           <DropdownMenu.Label className={styles.menuLabel}>Thème</DropdownMenu.Label>
           <DropdownMenu.RadioGroup
-            value={choice}
-            onValueChange={(v) => setChoice(v as ThemeChoice)}
+            value={appearance.mode}
+            onValueChange={(v) => appearance.change({ mode: v as ThemeChoice })}
           >
             {themes.map(([value, label]) => (
               <DropdownMenu.RadioItem key={value} value={value} className={styles.menuItem}>
@@ -252,6 +255,7 @@ export function Layout() {
       <a href="#contenu" className={styles.skip}>
         Aller au contenu
       </a>
+      <AppearanceSync />
       <Header />
       <main id="contenu" ref={main} tabIndex={-1} className={styles.main}>
         <SigninError />

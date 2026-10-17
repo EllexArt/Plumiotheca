@@ -42,7 +42,6 @@
 
 :root[data-theme='dark'],
 :root[data-theme='dark'] [data-ambiance='lueur'] {
-
   --color-page: #14202b;
   --color-surface: #1a2734;
   --color-raised: #1f3040;

@@ -293,3 +293,21 @@ describe('accessibilité du lecteur (#36)', () => {
     await expectAccessible();
   });
 });
+
+describe('ambiance du lecteur (#77)', () => {
+  it('le lecteur peut imposer une ambiance, ou suivre celle du site', async () => {
+    api();
+    renderApp(`/histoires/${STORY}/chapitres/${CH1}`);
+    await userEvent.click(await screen.findByRole('button', { name: 'Réglages de lecture' }));
+    const group = within(await screen.findByRole('dialog')).getByRole('group', {
+      name: 'Ambiance du lecteur',
+    });
+    const article = () => document.querySelector('article[data-font]');
+    expect(within(group).getByRole('radio', { name: 'Celle du site' })).toBeChecked();
+    await userEvent.click(within(group).getByRole('radio', { name: /Indigo et lune/ }));
+    expect(article()).toHaveAttribute('data-ambiance', 'indigo');
+    await userEvent.click(within(group).getByRole('radio', { name: 'Celle du site' }));
+    expect(article()).not.toHaveAttribute('data-ambiance');
+    expect(localStorage.getItem('plumiotheca.lecture')).not.toContain('ambiance');
+  });
+});
