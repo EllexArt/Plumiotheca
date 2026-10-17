@@ -12,6 +12,7 @@ import {
   type SearchPage,
   type SearchQuery,
   type StorySummary,
+  normalizeTag,
 } from '@plumiotheca/contracts';
 import { DataSource, In } from 'typeorm';
 import { z } from 'zod';
@@ -28,7 +29,7 @@ const SYNC_JOB = 'indexation-histoire';
 /** Réglages de l'index : où chercher, sur quoi filtrer ; seul l'identifiant est renvoyé. */
 const SETTINGS = {
   searchableAttributes: ['title', 'tags', 'authorName', 'authorHandle', 'summary'],
-  filterableAttributes: ['language', 'rating', 'majorWarnings', 'contentWarnings'],
+  filterableAttributes: ['language', 'rating', 'majorWarnings', 'contentWarnings', 'tagKeys'],
   displayedAttributes: ['id'],
 };
 
@@ -39,6 +40,8 @@ function toDocument(story: StorySummary) {
     title: story.title,
     summary: story.summary,
     tags: story.tags,
+    // Forme normalisée des tags : pour masquer ceux de Mes limites (#81).
+    tagKeys: story.tags.map(normalizeTag),
     authorName: story.author.displayName,
     authorHandle: story.author.handle,
     language: story.language,
@@ -189,6 +192,8 @@ export class SearchService implements OnModuleInit, OnApplicationBootstrap {
     const excluded = [
       query.exclure?.length && `majorWarnings IN ${JSON.stringify(query.exclure)}`,
       query.exclureAutres?.length && `contentWarnings IN ${JSON.stringify(query.exclureAutres)}`,
+      query.masquerTags?.length &&
+        `tagKeys IN ${JSON.stringify(query.masquerTags.map(normalizeTag))}`,
     ].filter((f): f is string => Boolean(f));
     const index = `/indexes/${this.config.SEARCH_INDEX}/search`;
     let result: z.infer<typeof Hits>;
@@ -227,9 +232,11 @@ export class SearchService implements OnModuleInit, OnApplicationBootstrap {
     const ids = result.hits.slice(0, SEARCH_PAGE_SIZE).map((h) => h.id);
     // Relu dans la base : une histoire dépubliée depuis l'indexation n'apparaît pas, ni une
     // histoire dont les avertissements ont changé depuis (index en retard).
+    const maskedTags = new Set((query.masquerTags ?? []).map(normalizeTag));
     const masked = (story: StorySummary) =>
       (story.majorWarnings ?? []).some((w) => query.exclure?.includes(w)) ||
-      story.contentWarnings.some((w) => query.exclureAutres?.includes(w));
+      story.contentWarnings.some((w) => query.exclureAutres?.includes(w)) ||
+      story.tags.some((t) => maskedTags.has(normalizeTag(t)));
     const found = new Map(
       (await this.publicSummaries(ids)).filter((s) => !masked(s)).map((s) => [s.id, s]),
     );

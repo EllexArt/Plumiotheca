@@ -504,3 +504,26 @@
   flex-direction: column;
   gap: var(--space-4);
 }
+
+.hiddenNote {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* Mes limites (#81) : plusieurs groupes et les tags masqués. */
+.limitsPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.tagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

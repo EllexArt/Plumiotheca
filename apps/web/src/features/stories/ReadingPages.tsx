@@ -1,6 +1,13 @@
 import type { StorySummary } from '@plumiotheca/contracts';
 import { parseDocument } from '@plumiotheca/editor-schema';
-import { useEffect, useRef, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type FormEvent,
+  type ReactNode,
+} from 'react';
 import { useAuth } from 'react-oidc-context';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router';
 import { ApiError } from '../../shared/api/client';
@@ -27,6 +34,7 @@ import { ShelfSelect } from './ShelfSelect';
 import { useResume, useTrackPosition } from './readingPosition';
 import styles from './Reading.module.css';
 import { LimitsPanel } from './LimitsPanel';
+import { limitReasons, useLimits } from './limits';
 import { useReadingPreferences } from './readingPreferences';
 import { ReadingProgress } from './ReadingProgress';
 import { ReadingSettings } from './ReadingSettings';
@@ -108,7 +116,17 @@ function StoryTags({ story }: { story: StorySummary }) {
   );
 }
 
-export function StoryCard({ story }: { story: StorySummary }) {
+/**
+ * Carte d'une histoire. `hiddenBecause` : histoire affichée exceptionnellement alors que
+ * Mes limites la masquent d'habitude ; la raison est dite (#81).
+ */
+export function StoryCard({
+  story,
+  hiddenBecause = [],
+}: {
+  story: StorySummary;
+  hiddenBecause?: string[];
+}) {
   return (
     <article className={styles.card}>
       <div className={styles.spine} style={coverColors(story.id)} aria-hidden="true">
@@ -130,6 +148,12 @@ export function StoryCard({ story }: { story: StorySummary }) {
           </p>
         )}
         <StoryTags story={story} />
+        {hiddenBecause.length > 0 && (
+          <p className={styles.meta}>
+            <Tag kind="neutral">Masquée d’habitude</Tag> par vos limites :{' '}
+            {hiddenBecause.join(', ')}.
+          </p>
+        )}
       </div>
     </article>
   );
@@ -146,20 +170,33 @@ export function StoryList({
   /** Affiché quand il n'y a aucune histoire. */
   empty?: ReactNode;
 }) {
-  const stories = usePublicStories(filters);
+  // « Les afficher pour cette fois » (#81) : ce qui est masqué reste toujours consultable.
+  const [revealed, setRevealed] = useState(false);
+  const { limits } = useLimits();
+  const stories = usePublicStories({ ...filters, reveal: revealed });
   const items = stories.data?.pages.flatMap((page) => page.items) ?? [];
   const { list, loadMore } = useLoadMore(
     items.map((story) => story.id),
     stories,
-    `${filters.tag}|${filters.pseudonyme}|${filters.q}`,
+    `${filters.tag}|${filters.pseudonyme}|${filters.q}|${revealed}`,
   );
 
   const hidden = stories.data?.pages[0]?.hidden ?? 0;
   // Toujours présente : une zone annoncée doit exister avant que son contenu change.
   const hiddenNote = (
-    <output className={styles.meta}>
-      {hidden > 0 && `${plural(hidden, 'histoire masquée', 'histoires masquées')} par vos limites.`}
-    </output>
+    <div className={styles.hiddenNote}>
+      <output className={styles.meta}>
+        {revealed
+          ? 'Les histoires masquées par vos limites sont affichées pour cette fois.'
+          : hidden > 0 &&
+            `${plural(hidden, 'histoire masquée', 'histoires masquées')} par vos limites.`}
+      </output>
+      {(revealed || hidden > 0) && (
+        <Button variant="ghost" size="small" onClick={() => setRevealed(!revealed)}>
+          {revealed ? 'Les masquer de nouveau' : 'Les afficher pour cette fois'}
+        </Button>
+      )}
+    </div>
   );
 
   if (stories.isPending) {
@@ -192,7 +229,7 @@ export function StoryList({
       <ul className={styles.grid} aria-label={label} ref={list}>
         {items.map((story) => (
           <li key={story.id}>
-            <StoryCard story={story} />
+            <StoryCard story={story} hiddenBecause={revealed ? limitReasons(story, limits) : []} />
           </li>
         ))}
       </ul>

@@ -135,6 +135,13 @@ export const StoryQuery = z.strictObject({
     .transform((s) => s.split(',').filter(Boolean))
     .pipe(z.array(MajorWarning))
     .optional(),
+  /** Tags à masquer (#81), séparés par des virgules, sous leur forme normalisée. */
+  masquerTags: z
+    .string()
+    .max(5000)
+    .transform((s) => s.split(',').filter(Boolean))
+    .pipe(z.array(TagName).max(50))
+    .optional(),
   /** Avertissements facultatifs à exclure, séparés par des virgules (#152). */
   exclureAutres: z
     .string()
@@ -162,6 +169,7 @@ export const SearchQuery = StoryQuery.pick({
   exclureClassement: true,
   exclure: true,
   exclureAutres: true,
+  masquerTags: true,
 }).extend({
   q: z.string().trim().min(1).max(200),
   page: z.coerce.number().int().min(1).max(50).default(1),
@@ -264,3 +272,21 @@ export const ReorderChapters = z.strictObject({
     .refine((ids) => new Set(ids).size === ids.length, { message: 'Chapitre en double' }),
 });
 export type ReorderChapters = z.infer<typeof ReorderChapters>;
+
+/**
+ * Forme normalisée d'un tag (casse, accents, tirets, espaces) : « Slow-Burn », « slow burn »
+ * et « slowburn » ne donnent pas encore le même tag (synonymes : jardiniers, #78), mais
+ * « Slow Burn » et « slow  burn » oui.
+ */
+export function normalizeTag(name: string): string {
+  return (
+    name
+      .normalize('NFKD')
+      .replace(/\p{M}/gu, '')
+      .toLowerCase()
+      // Liaisons invisibles (ZWNJ, ZWJ) : « roma‌nce » est le même tag que « romance ».
+      .replace(/[\u200C\u200D]/gu, '')
+      .replace(/[\s_-]+/g, ' ')
+      .trim()
+  );
+}

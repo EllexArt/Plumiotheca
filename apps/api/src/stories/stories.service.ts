@@ -140,7 +140,10 @@ export class StoriesService {
     const exclude = {
       exclure: query.exclure?.length ? query.exclure : null,
       autres: query.exclureAutres?.length ? query.exclureAutres : null,
+      tags: query.masquerTags?.length ? query.masquerTags.map(normalizeTag) : null,
     };
+    const tagged = `EXISTS (SELECT 1 FROM story_tags st JOIN tags t ON t.id = st.tag_id
+                     WHERE st.story_id = story.id AND t.normalized = ANY(:tags))`;
     const qb = base();
     if (exclude.exclure) {
       qb.andWhere('NOT (story.major_warnings && CAST(:exclure AS major_warning[]))', exclude);
@@ -148,6 +151,7 @@ export class StoriesService {
     if (exclude.autres) {
       qb.andWhere('NOT (story.content_warnings && CAST(:autres AS content_warning[]))', exclude);
     }
+    if (exclude.tags) qb.andWhere(`NOT ${tagged}`, exclude);
     if (query.apres) {
       const [date, id] = decodeCursor(query.apres);
       qb.andWhere('(story.published_at, story.id) < (:date, :id)', { date, id });
@@ -160,14 +164,15 @@ export class StoriesService {
       .getMany();
     const page = rows.slice(0, query.limite);
     // Ce qui a été masqué, pour le dire (et pouvoir le montrer) : mêmes filtres, sauf les
-    // avertissements exclus, inversés.
+    // avertissements et tags exclus, inversés.
     const hidden =
-      !query.apres && (exclude.exclure || exclude.autres)
+      !query.apres && (exclude.exclure || exclude.autres || exclude.tags)
         ? await base()
             .andWhere(
               `(${[
                 exclude.exclure && 'story.major_warnings && CAST(:exclure AS major_warning[])',
                 exclude.autres && 'story.content_warnings && CAST(:autres AS content_warning[])',
+                exclude.tags && tagged,
               ]
                 .filter(Boolean)
                 .join(' OR ')})`,

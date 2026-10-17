@@ -12,6 +12,7 @@ import { Dialog } from '../../shared/ui/Dialog';
 import { Alert, Loading, Tag } from '../../shared/ui/Feedback';
 import { Checkbox, RadioGroup, TextArea, TextField } from '../../shared/ui/Field';
 import { Page, usePageTitle } from '../../shared/ui/Page';
+import { limitReasons, useLimits } from './limits';
 import { AuthorLink, StoryCard } from './ReadingPages';
 import styles from './Reading.module.css';
 import { plural } from './labels';
@@ -247,11 +248,40 @@ export function SelectionPage() {
         )}
       </p>
       {s.mine && <EditSelection selection={s} />}
-      {s.stories.length ? (
+      <LimitedStories selection={s} />
+    </Page>
+  );
+}
+
+/** Histoires de la sélection, avec Mes limites appliquées (#81) ; ce qui est masqué reste consultable. */
+function LimitedStories({ selection: s }: { selection: Selection }) {
+  const { limits } = useLimits();
+  const [revealed, setRevealed] = useState(false);
+  const masked = s.stories.filter((story) => limitReasons(story, limits).length);
+  const shown = revealed ? s.stories : s.stories.filter((story) => !masked.includes(story));
+  return (
+    <>
+      <div className={styles.hiddenNote}>
+        <output className={styles.meta}>
+          {revealed
+            ? 'Les histoires masquées par vos limites sont affichées pour cette fois.'
+            : masked.length > 0 &&
+              `${plural(masked.length, 'histoire masquée', 'histoires masquées')} par vos limites.`}
+        </output>
+        {masked.length > 0 && (
+          <Button variant="ghost" size="small" onClick={() => setRevealed(!revealed)}>
+            {revealed ? 'Les masquer de nouveau' : 'Les afficher pour cette fois'}
+          </Button>
+        )}
+      </div>
+      {shown.length ? (
         <ul className={styles.grid} aria-label={`Histoires de la sélection ${s.title}`}>
-          {s.stories.map((story) => (
+          {shown.map((story) => (
             <li key={story.id} className={styles.libraryItem}>
-              <StoryCard story={story} />
+              <StoryCard
+                story={story}
+                hiddenBecause={revealed ? limitReasons(story, limits) : []}
+              />
               {s.mine && (
                 <RemoveFromSelection selectionId={s.id} storyId={story.id} title={story.title} />
               )}
@@ -260,11 +290,13 @@ export function SelectionPage() {
         </ul>
       ) : (
         <p>
-          Aucune histoire pour l’instant.
-          {s.mine && <> Ajoutez-en depuis la fiche d’une histoire.</>}
+          {s.stories.length
+            ? 'Toutes ses histoires sont masquées par vos limites.'
+            : 'Aucune histoire pour l’instant.'}
+          {s.mine && !s.stories.length && <> Ajoutez-en depuis la fiche d’une histoire.</>}
         </p>
       )}
-    </Page>
+    </>
   );
 }
 
