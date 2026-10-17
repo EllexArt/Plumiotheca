@@ -1,19 +1,7 @@
-import { AxeBuilder } from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { randomBytes } from 'node:crypto';
+import { expectAccessible } from '../axe.js';
 import { expect, test } from '../fixtures.js';
-
-/** Aucune violation axe-core (WCAG 2.2 A et AA, contrastes compris) sur la page affichée. */
-async function expectAccessible(page: Page) {
-  const results = await new AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
-    .analyze();
-  expect(
-    results.violations.flatMap((v) =>
-      v.nodes.map((n) => `${v.id} : ${n.target.join(' ')} : ${n.failureSummary ?? v.help}`),
-    ),
-  ).toEqual([]);
-}
 
 /**
  * Supprime une histoire avec le jeton de la session (gardé par le client OIDC dans la

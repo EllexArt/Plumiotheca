@@ -1,0 +1,44 @@
+/* Apparence (#77) : choix d’ambiance avec aperçu. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.meta {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.choice {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* Les couleurs viennent de l’ambiance posée sur l’élément (data-ambiance). */
+.swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  inline-size: 4.5rem;
+  block-size: 2rem;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-page);
+}
+
+.swatchText {
+  font-family: var(--font-reading);
+  font-size: var(--text-md);
+  color: var(--color-text);
+}
+
+.swatchAccent {
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  border-radius: var(--radius-full);
+  background: var(--color-amber);
+}

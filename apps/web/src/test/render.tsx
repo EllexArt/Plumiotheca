@@ -102,6 +102,8 @@ export const account = (overrides: Record<string, unknown> = {}) => ({
   bio: null,
   avatarUrl: null,
   readingPreferences: null,
+  limits: null,
+  appearance: null,
   ageBand: '18+',
   charterVersion: '1',
   handleChangeableFrom: null,

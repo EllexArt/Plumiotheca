@@ -7,11 +7,19 @@ import {
   ReadingWidth,
   type ReadingPreferences,
 } from '@plumiotheca/contracts';
+import { paletteChoices } from '../../app/AppearancePanel';
 import { Button } from '../../shared/ui/Button';
 import { Dialog } from '../../shared/ui/Dialog';
 import { Alert } from '../../shared/ui/Feedback';
 import { RadioGroup } from '../../shared/ui/Field';
 import styles from './Reading.module.css';
+
+/** Réglages sans ambiance imposée : le lecteur suit celle du site. */
+function withoutAmbiance(preferences: ReadingPreferences): ReadingPreferences {
+  const rest = { ...preferences };
+  delete rest.ambiance;
+  return rest;
+}
 
 interface Choice<V extends string> {
   value: V;
@@ -114,6 +122,20 @@ export function ReadingSettings({
             </Button>
           </div>
         </fieldset>
+        <RadioGroup
+          label="Ambiance du lecteur"
+          name="ambiance-lecteur"
+          hint="Celle du site, ou une autre rien que pour lire."
+          choices={[{ value: 'site', label: 'Celle du site' }, ...paletteChoices]}
+          checkedChoice={preferences.ambiance ?? 'site'}
+          onChange={(e) =>
+            onChange(
+              e.target.value === 'site'
+                ? withoutAmbiance(preferences)
+                : { ...preferences, ambiance: e.target.value },
+            )
+          }
+        />
         <RadioGroup
           label="Interligne"
           name="interligne"

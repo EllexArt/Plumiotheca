@@ -14,6 +14,21 @@ export type ReadingLineHeight = z.infer<typeof ReadingLineHeight>;
 export const ReadingWidth = z.enum(['etroite', 'normale', 'large']);
 export type ReadingWidth = z.infer<typeof ReadingWidth>;
 
+/**
+ * Ambiance (#77) : identifiant d'une palette du site (« lueur », « bougie »…). La liste
+ * des ambiances est tenue par le site : en ajouter une ne change pas l'API.
+ */
+export const Palette = z.string().regex(/^[a-z][a-z0-9-]{1,30}$/);
+export type Palette = z.infer<typeof Palette>;
+
+/** Mode : clair, sombre, ou celui de l'appareil. */
+export const ThemeMode = z.enum(['light', 'dark', 'system']);
+export type ThemeMode = z.infer<typeof ThemeMode>;
+
+/** Apparence de tout le site (#77), gardée sur le compte. */
+export const Appearance = z.strictObject({ palette: Palette, mode: ThemeMode });
+export type Appearance = z.infer<typeof Appearance>;
+
 /** Taille du texte, en pour cent de la taille par défaut, par pas de 10. */
 export const READING_SIZE_MIN = 80;
 export const READING_SIZE_MAX = 200;
@@ -23,6 +38,8 @@ export const ReadingPreferences = z.strictObject({
   size: z.int().min(READING_SIZE_MIN).max(READING_SIZE_MAX).multipleOf(10),
   lineHeight: ReadingLineHeight,
   width: ReadingWidth,
+  /** Ambiance imposée au lecteur (#77) ; absente : celle du site. */
+  ambiance: Palette.optional(),
 });
 export type ReadingPreferences = z.infer<typeof ReadingPreferences>;
 

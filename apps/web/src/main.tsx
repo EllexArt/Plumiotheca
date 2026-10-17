@@ -7,6 +7,8 @@ import '@fontsource-variable/literata/opsz.css';
 import '@fontsource-variable/literata/opsz-italic.css';
 import '@fontsource-variable/figtree/wght.css';
 import './styles/tokens.css';
+// Ambiances (#77) : un fichier par palette, chargées toutes (quelques jetons chacune).
+import.meta.glob('./styles/palettes/*.css', { eager: true });
 import './styles/base.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';

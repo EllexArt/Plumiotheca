@@ -10,7 +10,7 @@ import type {
   UpdateStory,
 } from '@plumiotheca/contracts';
 import { handleKey } from '@plumiotheca/contracts';
-import { DataSource, type EntityManager } from 'typeorm';
+import { DataSource, type EntityManager, type SelectQueryBuilder } from 'typeorm';
 import { z } from 'zod';
 import { ApiProblem } from '../common/problem.js';
 import { normalizeTag } from '../tags/tag-normalize.js';
@@ -143,37 +143,31 @@ export class StoriesService {
     return this.detail(id, account);
   }
 
-  /** Liste publique, la plus récente d'abord, par curseur (jamais par numéro de page). */
+  /**
+   * Liste publique, la plus récente d'abord, par curseur (jamais par numéro de page). Avec
+   * des avertissements exclus, la première page dit aussi combien d'histoires sont masquées.
+   */
   async list(query: StoryQuery): Promise<StoryPage> {
-    const qb = publicStories(
-      this.db
-        .getRepository(Story)
-        .createQueryBuilder('story')
-        .innerJoinAndSelect('story.author', 'author'),
-    );
-    if (query.langue) qb.andWhere('story.language = :langue', { langue: query.langue });
-    if (query.classement) {
-      qb.andWhere('story.rating = :classement', { classement: query.classement });
-    }
-    if (query.exclureClassement?.length) {
-      qb.andWhere('story.rating <> ALL(CAST(:exclus AS rating[]))', {
-        exclus: query.exclureClassement,
-      });
-    }
-    if (query.exclure?.length) {
-      qb.andWhere('NOT (story.major_warnings && CAST(:exclure AS major_warning[]))', {
-        exclure: query.exclure,
-      });
-    }
-    if (query.pseudonyme) {
-      qb.andWhere('author.handle_key = :key', { key: handleKey(query.pseudonyme) });
-    }
-    if (query.tag) {
-      qb.andWhere(
-        `EXISTS (SELECT 1 FROM story_tags st JOIN tags t ON t.id = st.tag_id
-                 WHERE st.story_id = story.id AND t.normalized = :tag)`,
-        { tag: normalizeTag(query.tag) },
+    const base = () =>
+      this.filtered(
+        publicStories(
+          this.db
+            .getRepository(Story)
+            .createQueryBuilder('story')
+            .innerJoinAndSelect('story.author', 'author'),
+        ),
+        query,
       );
+    const exclude = {
+      exclure: query.exclure?.length ? query.exclure : null,
+      autres: query.exclureAutres?.length ? query.exclureAutres : null,
+    };
+    const qb = base();
+    if (exclude.exclure) {
+      qb.andWhere('NOT (story.major_warnings && CAST(:exclure AS major_warning[]))', exclude);
+    }
+    if (exclude.autres) {
+      qb.andWhere('NOT (story.content_warnings && CAST(:autres AS content_warning[]))', exclude);
     }
     if (query.apres) {
       const [date, id] = decodeCursor(query.apres);
@@ -186,13 +180,54 @@ export class StoriesService {
       .limit(query.limite + 1)
       .getMany();
     const page = rows.slice(0, query.limite);
+    // Ce qui a été masqué, pour le dire (et pouvoir le montrer) : mêmes filtres, sauf les
+    // avertissements exclus, inversés.
+    const hidden =
+      !query.apres && (exclude.exclure || exclude.autres)
+        ? await base()
+            .andWhere(
+              `(${[
+                exclude.exclure && 'story.major_warnings && CAST(:exclure AS major_warning[])',
+                exclude.autres && 'story.content_warnings && CAST(:autres AS content_warning[])',
+              ]
+                .filter(Boolean)
+                .join(' OR ')})`,
+              exclude,
+            )
+            .getCount()
+        : undefined;
     return {
       items: await this.summaries(this.db.manager, page, false),
       nextCursor:
         rows.length > query.limite
           ? encodeCursor(page.at(-1)!.publishedAt!, page.at(-1)!.id)
           : null,
+      ...(hidden === undefined ? {} : { hidden }),
     };
+  }
+
+  /** Filtres de la liste publique, hors avertissements exclus et curseur. */
+  private filtered(qb: SelectQueryBuilder<Story>, query: StoryQuery) {
+    if (query.langue) qb.andWhere('story.language = :langue', { langue: query.langue });
+    if (query.classement) {
+      qb.andWhere('story.rating = :classement', { classement: query.classement });
+    }
+    if (query.exclureClassement?.length) {
+      qb.andWhere('story.rating <> ALL(CAST(:exclus AS rating[]))', {
+        exclus: query.exclureClassement,
+      });
+    }
+    if (query.pseudonyme) {
+      qb.andWhere('author.handle_key = :key', { key: handleKey(query.pseudonyme) });
+    }
+    if (query.tag) {
+      qb.andWhere(
+        `EXISTS (SELECT 1 FROM story_tags st JOIN tags t ON t.id = st.tag_id
+                 WHERE st.story_id = story.id AND t.normalized = :tag)`,
+        { tag: normalizeTag(query.tag) },
+      );
+    }
+    return qb;
   }
 
   /** Mes histoires, brouillons compris, la plus récemment modifiée d'abord, par curseur. */
