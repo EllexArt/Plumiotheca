@@ -59,9 +59,9 @@ class EssaiTaches implements OnModuleInit {
   }
 }
 
-async function until(check: () => boolean, timeout = 20_000) {
+async function until(check: () => boolean | Promise<boolean>, timeout = 20_000) {
   const end = Date.now() + timeout;
-  while (!check()) {
+  while (!(await check())) {
     if (Date.now() > end) throw new Error('Délai dépassé');
     await new Promise((r) => setTimeout(r, 200));
   }
@@ -101,10 +101,16 @@ describe('file de tâches', () => {
       expect(out).toContain('"name":"essai-echec"');
       expect(out).toContain('"type":"TypeError"');
       expect(out).not.toContain('camille');
-      // pg-boss garde l'erreur relancée dans sa table : ni message d'origine ni pile.
-      const [row] = await app
-        .get(DataSource)
-        .query<{ output: unknown }[]>(`SELECT output FROM pgboss.job WHERE id = $1`, [id]);
+      // pg-boss garde l'erreur relancée dans sa table : ni message d'origine ni pile. Il
+      // l'écrit après notre journal (une fois l'erreur relancée) : on attend l'écriture.
+      const output = async () =>
+        (
+          await app
+            .get(DataSource)
+            .query<{ output: unknown }[]>(`SELECT output FROM pgboss.job WHERE id = $1`, [id])
+        )[0];
+      await until(async () => (await output())?.output != null);
+      const row = await output();
       expect(JSON.stringify(row?.output)).toContain('Échec de la tâche (TypeError)');
       expect(JSON.stringify(row?.output)).not.toContain('camille');
     },
