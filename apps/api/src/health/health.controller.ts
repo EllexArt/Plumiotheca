@@ -6,7 +6,7 @@ import { Health } from '@plumiotheca/contracts';
 
 @ApiTags('santé')
 @Public()
-@SkipThrottle()
+@SkipThrottle({ default: true, inondation: true })
 @Controller('health')
 export class HealthController {
   /** Vivacité du processus (sondes de l'orchestrateur, supervision). */
