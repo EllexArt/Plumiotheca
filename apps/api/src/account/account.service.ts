@@ -10,6 +10,8 @@ import {
   type PublicProfile,
   type UpdateProfile,
   ReadingPreferences,
+  ReadingLimits,
+  ContentWarning,
 } from '@plumiotheca/contracts';
 import { DataSource, type EntityManager, IsNull, MoreThan, QueryFailedError } from 'typeorm';
 import { ApiProblem } from '../common/problem.js';
@@ -101,6 +103,7 @@ export class AccountService {
       avatarUrl: user.avatarMediaId ? this.media.urlOf(user.avatarMediaId) : null,
       // Valeur illisible (ancienne forme) : réglages par défaut plutôt qu'une erreur.
       readingPreferences: ReadingPreferences.safeParse(user.readingPreferences).data ?? null,
+      limits: ReadingLimits.safeParse(user.limits).data ?? null,
       ageBand: user.ageBand === '15-17' || user.ageBand === '18+' ? user.ageBand : null,
       charterVersion: user.charterVersion,
       handleChangeableFrom: changeable && changeable > new Date() ? changeable.toISOString() : null,
@@ -222,6 +225,16 @@ export class AccountService {
       bio: user.bio,
       avatarUrl: user.avatarMediaId ? this.media.urlOf(user.avatarMediaId) : null,
     };
+  }
+
+  /** Mes limites (#152) ; aucune limite : rien n'est gardé. */
+  async setLimits(user: User, limits: ReadingLimits): Promise<User> {
+    // Sans doublon, dans l'ordre de la liste.
+    const hidden = ContentWarning.options.filter((w) => limits.hiddenContentWarnings.includes(w));
+    await this.users.update(user.id, {
+      limits: hidden.length ? { hiddenContentWarnings: hidden } : null,
+    });
+    return this.users.findOneByOrFail({ id: user.id });
   }
 
   /** Réglages de lecture (#28) ; null revient aux réglages de l'appareil. */

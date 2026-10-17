@@ -23,6 +23,7 @@ import {
 } from './labels';
 import { lastChapter, rememberChapter } from './progress';
 import styles from './Reading.module.css';
+import { LimitsPanel } from './LimitsPanel';
 import { useReadingPreferences } from './readingPreferences';
 import { ReadingProgress } from './ReadingProgress';
 import { ReadingSettings } from './ReadingSettings';
@@ -150,7 +151,22 @@ export function StoryList({
     `${filters.tag}|${filters.pseudonyme}|${filters.q}`,
   );
 
-  if (stories.isPending) return <Loading label="Chargement des histoires…" />;
+  const hidden = stories.data?.pages[0]?.hidden ?? 0;
+  // Toujours présente : une zone annoncée doit exister avant que son contenu change.
+  const hiddenNote = (
+    <output className={styles.meta}>
+      {hidden > 0 && `${plural(hidden, 'histoire masquée', 'histoires masquées')} par vos limites.`}
+    </output>
+  );
+
+  if (stories.isPending) {
+    return (
+      <>
+        {hiddenNote}
+        <Loading label="Chargement des histoires…" />
+      </>
+    );
+  }
   // Seule la première page en échec remplace la liste ; « Voir plus » en échec la garde.
   if (stories.isError && !stories.data) {
     return (
@@ -159,9 +175,17 @@ export function StoryList({
       </Alert>
     );
   }
-  if (!items.length) return <>{empty}</>;
+  if (!items.length) {
+    return (
+      <>
+        {hiddenNote}
+        {empty}
+      </>
+    );
+  }
   return (
     <>
+      {hiddenNote}
       <ul className={styles.grid} aria-label={label} ref={list}>
         {items.map((story) => (
           <li key={story.id}>
@@ -222,6 +246,10 @@ export function ExplorePage() {
           </Button>
         </div>
       </form>
+      <details className={styles.limitsDetails}>
+        <summary>Masquer certains sujets</summary>
+        <LimitsPanel />
+      </details>
       {(tag || q) && (
         <p>
           <Link to="/">Voir toutes les histoires</Link>

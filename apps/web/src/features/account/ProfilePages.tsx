@@ -16,6 +16,7 @@ import { TextArea, TextField } from '../../shared/ui/Field';
 import { Page } from '../../shared/ui/Page';
 import prose from '../../shared/ui/Prose.module.css';
 import { formatDate } from '../stories/labels';
+import { LimitsPanel } from '../stories/LimitsPanel';
 import { StoryList } from '../stories/ReadingPages';
 import {
   checkImage,
@@ -152,6 +153,10 @@ export function AccountSettingsPage() {
         current={a.handle ?? ''}
         changeableFrom={a.handleChangeableFrom}
       />
+      <section aria-labelledby="limites" className={styles.section}>
+        <h2 id="limites">Mes limites</h2>
+        <LimitsPanel />
+      </section>
       <section aria-labelledby="donnees" className={styles.section}>
         <h2 id="donnees">Vos données</h2>
         <p>
