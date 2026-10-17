@@ -1,7 +1,7 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import { expectAccessible, mockApi, renderApp } from '../../test/render';
+import { account, expectAccessible, mockApi, renderApp, signedIn } from '../../test/render';
 
 const STORY = '01a102e1-bc65-7d35-b6b2-50377a7804f7';
 const CH1 = '01a102e1-bc70-7583-8a7d-c381bcb3647a';
@@ -34,8 +34,13 @@ const chapter = (id: string, number: number) => ({
   publishedAt: '2026-10-03T10:00:00.000Z',
 });
 
-function api() {
-  return mockApi((url) => {
+type Reply = { status?: number; body?: unknown } | undefined;
+
+/** API simulée ; `extra` répond d'abord (compte, réglages…). */
+function api(extra?: (url: string, init: RequestInit) => Reply) {
+  return mockApi((url, init) => {
+    const first = extra?.(url, init);
+    if (first) return first;
     if (url.startsWith('/api/histoires?')) return { body: { items: [summary], nextCursor: null } };
     if (url === `/api/histoires/${STORY}`) {
       return { body: { ...summary, chapters: [chapter(CH1, 1), chapter(CH2, 2)] } };
@@ -179,5 +184,78 @@ describe('recherche (#82)', () => {
     });
     renderApp('/?q=panne');
     expect(await screen.findByRole('alert')).toHaveTextContent(/momentanément indisponible/);
+  });
+});
+
+describe('réglages de lecture (#28)', () => {
+  // Le lecteur, même quand la fenêtre de réglages masque le reste aux aides techniques.
+  const reader = () => document.querySelector<HTMLElement>('article[data-font]')!;
+
+  it('sans compte : appliqués aussitôt, gardés sur l’appareil ; fenêtre accessible', async () => {
+    api();
+    const { unmount } = renderApp(`/histoires/${STORY}/chapitres/${CH1}`);
+    await userEvent.click(await screen.findByRole('button', { name: 'Réglages de lecture' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Réglages de lecture' });
+    expect(dialog).toHaveTextContent('Gardés sur cet appareil');
+    await userEvent.click(within(dialog).getByRole('radio', { name: /Sans empattements/ }));
+    await userEvent.click(within(dialog).getByRole('radio', { name: 'Aéré' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Plus grand' }));
+    expect(within(dialog).getByText('110 %')).toBeInTheDocument();
+    expect(reader()).toHaveAttribute('data-font', 'sans');
+    expect(reader()).toHaveAttribute('data-leading', 'aere');
+    expect(reader().style.getPropertyValue('--reader-scale')).toBe('1.1');
+    await expectAccessible();
+
+    // Visite suivante sur le même appareil : mêmes réglages.
+    unmount();
+    renderApp(`/histoires/${STORY}/chapitres/${CH1}`);
+    await screen.findByRole('heading', { level: 1, name: 'Ce que la mer rend' });
+    expect(reader()).toHaveAttribute('data-font', 'sans');
+  });
+
+  it('taille : bornée, le bouton garde le focus à la limite', async () => {
+    api();
+    renderApp(`/histoires/${STORY}/chapitres/${CH1}`);
+    await userEvent.click(await screen.findByRole('button', { name: 'Réglages de lecture' }));
+    const smaller = await screen.findByRole('button', { name: 'Plus petit' });
+    await userEvent.click(smaller);
+    await userEvent.click(smaller);
+    await userEvent.click(smaller);
+    expect(screen.getByText('80 %')).toBeInTheDocument();
+    expect(smaller).toHaveAttribute('aria-disabled', 'true');
+    expect(smaller).toHaveFocus();
+  });
+
+  it('avec un compte : ceux du compte, chaque changement enregistré ; retour aux réglages par défaut', async () => {
+    signedIn();
+    const saved = { font: 'sans', size: 130, lineHeight: 'serre', width: 'etroite' };
+    const calls = api((url, init) => {
+      if (url === '/api/moi/compte') return { body: account({ readingPreferences: saved }) };
+      if (url === '/api/moi/compte/lecture') {
+        const body = init.method === 'PUT' ? (JSON.parse(String(init.body)) as unknown) : null;
+        return { body: account({ readingPreferences: body }) };
+      }
+      return undefined;
+    });
+    renderApp(`/histoires/${STORY}/chapitres/${CH1}`);
+    await screen.findByRole('heading', { level: 1, name: 'Ce que la mer rend' });
+    await waitFor(() => expect(reader()).toHaveAttribute('data-width', 'etroite'));
+    expect(reader().style.getPropertyValue('--reader-scale')).toBe('1.3');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Réglages de lecture' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toHaveTextContent('Gardés sur votre compte');
+    await userEvent.click(within(dialog).getByRole('radio', { name: 'Large' }));
+    expect(reader()).toHaveAttribute('data-width', 'large');
+    await waitFor(() =>
+      expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ ...saved, width: 'large' }),
+    );
+
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Revenir aux réglages par défaut' }),
+    );
+    await waitFor(() => expect(calls.some((c) => c.method === 'DELETE')).toBe(true));
+    expect(reader()).toHaveAttribute('data-font', 'lecture');
+    expect(localStorage.getItem('plumiotheca.lecture')).toBeNull();
   });
 });

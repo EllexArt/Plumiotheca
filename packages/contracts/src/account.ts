@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { DeclaredAge } from './domain.js';
+import { ReadingPreferences } from './reading.js';
 
 // Pseudonyme public (@handle) : 3 à 30 caractères, lettres latines (accents compris),
 // chiffres, point, tiret, tiret bas. L'unicité ignore la casse et les accents
@@ -120,6 +121,8 @@ export const MyAccount = z.strictObject({
   avatarUrl: z.url().nullable(),
   ageBand: z.enum(['15-17', '18+']).nullable(),
   charterVersion: z.string().nullable(),
+  /** Réglages de lecture (#28) ; null : ceux de l'appareil, ou ceux par défaut. */
+  readingPreferences: ReadingPreferences.nullable(),
   /** Date à partir de laquelle le pseudonyme peut de nouveau changer (null : maintenant). */
   handleChangeableFrom: z.iso.datetime().nullable(),
 });

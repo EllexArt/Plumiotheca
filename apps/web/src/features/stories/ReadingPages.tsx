@@ -1,6 +1,6 @@
 import type { StorySummary } from '@plumiotheca/contracts';
 import { parseDocument } from '@plumiotheca/editor-schema';
-import { useEffect, useRef, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { useAuth } from 'react-oidc-context';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { ApiError } from '../../shared/api/client';
@@ -22,7 +22,9 @@ import {
 } from './labels';
 import { lastChapter, rememberChapter } from './progress';
 import styles from './Reading.module.css';
+import { useReadingPreferences } from './readingPreferences';
 import { ReadingProgress } from './ReadingProgress';
+import { ReadingSettings } from './ReadingSettings';
 
 const missing = {
   story: {
@@ -383,6 +385,7 @@ export function ReaderPage() {
   const article = useRef<HTMLElement>(null);
   const opened = chapter.isSuccess;
   const signedIn = useAuth().isAuthenticated;
+  const reading = useReadingPreferences();
   useEffect(() => {
     if (opened && signedIn) rememberChapter(storyId, chapterId);
   }, [opened, signedIn, storyId, chapterId]);
@@ -396,13 +399,29 @@ export function ReaderPage() {
   const c = chapter.data;
 
   return (
-    <article className={styles.reader} ref={article}>
+    <article
+      className={styles.reader}
+      ref={article}
+      data-font={reading.preferences.font}
+      data-leading={reading.preferences.lineHeight}
+      data-width={reading.preferences.width}
+      // Variable CSS posée par le DOM (pas d'attribut style dans le HTML) : permise par la CSP.
+      style={{ '--reader-scale': reading.preferences.size / 100 } as CSSProperties}
+    >
       <ReadingProgress target={article} />
-      <p className={styles.crumb}>
-        <Link to={`/histoires/${storyId}`}>{story.data?.title ?? 'Retour à l’histoire'}</Link>
-        {' · '}
-        {plural(c.readingMinutes, 'minute')} de lecture
-      </p>
+      <div className={styles.readerBar}>
+        <p className={styles.crumb}>
+          <Link to={`/histoires/${storyId}`}>{story.data?.title ?? 'Retour à l’histoire'}</Link>
+          {' · '}
+          {plural(c.readingMinutes, 'minute')} de lecture
+        </p>
+        <ReadingSettings
+          preferences={reading.preferences}
+          onChange={reading.change}
+          onAccount={reading.onAccount}
+          saveFailed={reading.saveFailed}
+        />
+      </div>
       <div>
         <p className={styles.eyebrow}>Chapitre {c.number}</p>
         <h1 className={styles.chapterTitle}>{c.title || `Chapitre ${c.number}`}</h1>

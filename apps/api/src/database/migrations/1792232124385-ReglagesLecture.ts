@@ -1,0 +1,44 @@
+import { MigrationInterface, QueryRunner } from 'typeorm';
+
+const DELETED_IS_EMPTY = (extra: string) => `
+            ALTER TABLE "users" ADD CONSTRAINT "users_deleted_is_empty" CHECK (
+                "status" <> 'deleted'
+                OR (
+                    "keycloak_id" IS NULL
+                    AND "handle" IS NULL
+                    AND "handle_key" IS NULL
+                    AND "display_name" IS NULL
+                    AND "pronouns" IS NULL
+                    AND "bio" IS NULL
+                    AND "age_band" IS NULL
+                    AND "charter_version" IS NULL
+                    AND "charter_accepted_at" IS NULL
+                    AND "age_locked_at" IS NULL
+                    AND "age_purge_started_at" IS NULL
+                    AND "avatar_media_id" IS NULL${extra}
+                )
+            )
+        `;
+
+/**
+ * Réglages de lecture (#28) : police, taille, interligne, largeur, sur le compte. Un compte
+ * supprimé (anonymisé) n'en garde pas.
+ */
+export class ReglagesLecture1792232124385 implements MigrationInterface {
+  name = 'ReglagesLecture1792232124385';
+
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`ALTER TABLE "users" ADD "reading_preferences" jsonb`);
+    await queryRunner.query(`ALTER TABLE "users" DROP CONSTRAINT "users_deleted_is_empty"`);
+    await queryRunner.query(
+      DELETED_IS_EMPTY(`
+                    AND "reading_preferences" IS NULL`),
+    );
+  }
+
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`ALTER TABLE "users" DROP CONSTRAINT "users_deleted_is_empty"`);
+    await queryRunner.query(DELETED_IS_EMPTY(''));
+    await queryRunner.query(`ALTER TABLE "users" DROP COLUMN "reading_preferences"`);
+  }
+}

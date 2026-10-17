@@ -1,4 +1,9 @@
-import { AccountStatus, DeclaredAge, DeletionMode } from '@plumiotheca/contracts';
+import {
+  AccountStatus,
+  DeclaredAge,
+  DeletionMode,
+  type ReadingPreferences,
+} from '@plumiotheca/contracts';
 import { Check, Column, Entity, Index, JoinColumn, ManyToOne, type Relation } from 'typeorm';
 import { CreatedAt, IdColumn, UpdatedAt } from '../database/columns.js';
 import { Media } from '../media/media.entity.js';
@@ -28,7 +33,7 @@ import { Media } from '../media/media.entity.js';
   `"status" <> 'deleted' OR ("keycloak_id" IS NULL AND "handle" IS NULL AND "handle_key" IS NULL
     AND "display_name" IS NULL AND "pronouns" IS NULL AND "bio" IS NULL AND "age_band" IS NULL
     AND "charter_version" IS NULL AND "charter_accepted_at" IS NULL AND "age_locked_at" IS NULL
-    AND "age_purge_started_at" IS NULL AND "avatar_media_id" IS NULL)`,
+    AND "age_purge_started_at" IS NULL AND "avatar_media_id" IS NULL AND "reading_preferences" IS NULL)`,
 )
 export class User {
   @IdColumn()
@@ -63,6 +68,10 @@ export class User {
    */
   @Column({ type: 'uuid', nullable: true })
   avatarMediaId!: string | null;
+
+  /** Réglages de lecture (#28), validés à l'écriture comme à la lecture. */
+  @Column({ type: 'jsonb', nullable: true })
+  readingPreferences!: ReadingPreferences | null;
 
   @ManyToOne(() => Media, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'avatar_media_id' })
@@ -134,6 +143,7 @@ export const PERSONAL_FIELDS = [
   'pronouns',
   'bio',
   'avatarMediaId',
+  'readingPreferences',
   'ageBand',
   'ageLockedAt',
   'agePurgeStartedAt',
