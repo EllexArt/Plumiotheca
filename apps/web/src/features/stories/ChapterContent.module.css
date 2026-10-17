@@ -1,7 +1,8 @@
 .content {
-  font-family: var(--font-reading);
-  font-size: var(--text-lg);
-  line-height: var(--leading-reading);
+  /* Réglages de lecture (#28), posés par le lecteur ; sinon les valeurs par défaut. */
+  font-family: var(--reader-font, var(--font-reading));
+  font-size: calc(var(--text-lg) * var(--reader-scale, 1));
+  line-height: var(--reader-leading, var(--leading-reading));
   color: var(--color-reading);
   display: flex;
   flex-direction: column;

@@ -252,7 +252,7 @@
 
 /* ---- Lecteur ---- */
 .reader {
-  max-width: var(--reading-width);
+  max-width: var(--reader-width, var(--reading-width));
   margin: 0 auto;
   padding: var(--space-7) var(--space-5) var(--space-8);
   display: flex;
@@ -351,4 +351,66 @@
 
 .search > :first-child {
   flex: 1 1 18rem;
+}
+
+/* Réglages de lecture (#28) : posés sur le lecteur, lus par le texte du chapitre. */
+.reader[data-font='sans'] {
+  --reader-font: var(--font-ui);
+}
+
+.reader[data-leading='serre'] {
+  --reader-leading: 1.5;
+}
+
+.reader[data-leading='aere'] {
+  --reader-leading: 2.1;
+}
+
+.reader[data-width='etroite'] {
+  --reader-width: 34rem;
+}
+
+.reader[data-width='large'] {
+  --reader-width: 52rem;
+}
+
+.readerBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.sizeField {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sizeField legend {
+  font-weight: 600;
+  padding: 0;
+  margin-bottom: var(--space-2);
+}
+
+.sizeControls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.sizeControls output {
+  min-width: 4ch;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }

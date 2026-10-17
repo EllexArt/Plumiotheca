@@ -150,6 +150,16 @@ test('écrire → publier → lire', async ({ page, browser, account }) => {
       await expect(reader.getByRole('heading', { level: 1, name: 'La lanterne' })).toBeVisible();
       await expect(reader.getByText(text)).toBeVisible();
       await expectAccessible(reader);
+
+      // Réglages de lecture (#28) : appliqués aussitôt, sans style en ligne (CSP).
+      await reader.getByRole('button', { name: 'Réglages de lecture' }).click();
+      const settings = reader.getByRole('dialog', { name: 'Réglages de lecture' });
+      await settings.getByRole('button', { name: 'Plus grand' }).click();
+      await settings.getByText('Sans empattements').click();
+      await expect(settings.getByText('110 %')).toBeVisible();
+      await expectAccessible(reader);
+      await reader.keyboard.press('Escape');
+      await expect(reader.locator('article[data-font="sans"]')).toBeVisible();
       const chapterUrl = reader.url();
       await visitor.close();
 

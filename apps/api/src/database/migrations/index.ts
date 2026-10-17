@@ -5,6 +5,7 @@ import { PremiereVisite1791018239120 } from './1791018239120-PremiereVisite.js';
 import { HistoiresEtChapitres1791029268234 } from './1791029268234-HistoiresEtChapitres.js';
 import { AvertissementsFacultatifs1791201913977 } from './1791201913977-AvertissementsFacultatifs.js';
 import { HorodatagesMilliseconde1791477431997 } from './1791477431997-HorodatagesMilliseconde.js';
+import { ReglagesLecture1792232124385 } from './1792232124385-ReglagesLecture.js';
 import { Avatar1792101373024 } from './1792101373024-Avatar.js';
 import { Medias1792100161436 } from './1792100161436-Medias.js';
 import { ComptageLectures1792099476494 } from './1792099476494-ComptageLectures.js';
@@ -20,4 +21,5 @@ export const migrations = [
   ComptageLectures1792099476494,
   Medias1792100161436,
   Avatar1792101373024,
+  ReglagesLecture1792232124385,
 ];

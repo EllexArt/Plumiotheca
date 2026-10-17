@@ -9,6 +9,7 @@ import {
   type MyAccount,
   type PublicProfile,
   type UpdateProfile,
+  ReadingPreferences,
 } from '@plumiotheca/contracts';
 import { DataSource, type EntityManager, IsNull, MoreThan, QueryFailedError } from 'typeorm';
 import { ApiProblem } from '../common/problem.js';
@@ -98,6 +99,8 @@ export class AccountService {
       pronouns: user.pronouns,
       bio: user.bio,
       avatarUrl: user.avatarMediaId ? this.media.urlOf(user.avatarMediaId) : null,
+      // Valeur illisible (ancienne forme) : réglages par défaut plutôt qu'une erreur.
+      readingPreferences: ReadingPreferences.safeParse(user.readingPreferences).data ?? null,
       ageBand: user.ageBand === '15-17' || user.ageBand === '18+' ? user.ageBand : null,
       charterVersion: user.charterVersion,
       handleChangeableFrom: changeable && changeable > new Date() ? changeable.toISOString() : null,
@@ -219,6 +222,12 @@ export class AccountService {
       bio: user.bio,
       avatarUrl: user.avatarMediaId ? this.media.urlOf(user.avatarMediaId) : null,
     };
+  }
+
+  /** Réglages de lecture (#28) ; null revient aux réglages de l'appareil. */
+  async setReading(user: User, preferences: ReadingPreferences | null): Promise<User> {
+    await this.users.update(user.id, { readingPreferences: preferences });
+    return this.users.findOneByOrFail({ id: user.id });
   }
 
   /** Avatar (#26) : une image de la personne, prête ; null le retire. L'ancienne est oubliée. */

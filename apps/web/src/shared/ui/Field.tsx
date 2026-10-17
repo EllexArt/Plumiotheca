@@ -162,11 +162,14 @@ export function RadioGroup({
   error,
   choices,
   defaultChoice,
+  checkedChoice,
   required,
   ...input
 }: Omit<FieldText, 'status'> & {
   choices: Choice[];
   /** Valeur cochée au départ. */ defaultChoice?: string | undefined;
+  /** Valeur cochée, pilotée par le parent (avec onChange) ; à la place de defaultChoice. */
+  checkedChoice?: string | undefined;
 } & Omit<ComponentProps<'input'>, 'type' | 'id' | 'value' | 'defaultValue'>) {
   const { id, ids, describedBy } = useDescriptions(hint, error, undefined);
   return (
@@ -190,9 +193,12 @@ export function RadioGroup({
                 id={inputId}
                 type="radio"
                 value={choice.value}
-                defaultChecked={
-                  defaultChoice === undefined ? undefined : choice.value === defaultChoice
-                }
+                {...(checkedChoice === undefined
+                  ? {
+                      defaultChecked:
+                        defaultChoice === undefined ? undefined : choice.value === defaultChoice,
+                    }
+                  : { checked: choice.value === checkedChoice })}
                 required={required}
                 aria-describedby={[optionHint, describedBy].filter(Boolean).join(' ') || undefined}
                 {...input}

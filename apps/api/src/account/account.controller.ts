@@ -20,6 +20,7 @@ import {
   PublicProfile,
   UpdateProfile,
   SetAvatar,
+  ReadingPreferences,
 } from '@plumiotheca/contracts';
 import { Public } from '../auth/decorators.js';
 import type { User } from '../users/user.entity.js';
@@ -78,6 +79,23 @@ export class AccountController {
     @Body({ schema: UpdateProfile }) input: UpdateProfile,
   ): Promise<MyAccount> {
     return this.accounts.view(await this.accounts.updateProfile(account, input));
+  }
+
+  /** Réglages de lecture (#28) : police, taille, interligne, largeur. */
+  @Put('lecture')
+  @ApiOkResponse({ standardSchema: MyAccount })
+  async setReading(
+    @CurrentAccount() account: User,
+    @Body({ schema: ReadingPreferences }) input: ReadingPreferences,
+  ): Promise<MyAccount> {
+    return this.accounts.view(await this.accounts.setReading(account, input));
+  }
+
+  /** Retour aux réglages de lecture de l'appareil (ou par défaut). */
+  @Delete('lecture')
+  @ApiOkResponse({ standardSchema: MyAccount })
+  async resetReading(@CurrentAccount() account: User): Promise<MyAccount> {
+    return this.accounts.view(await this.accounts.setReading(account, null));
   }
 
   /** Avatar : une image téléversée (usage « avatar ») et prête, jamais une URL. */
