@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { Button, ButtonLink } from '../../shared/ui/Button';
 import { Alert, Loading, Tag } from '../../shared/ui/Feedback';
+import { LoadMoreFooter, useLoadMore } from '../../shared/ui/LoadMore';
 import { TextField } from '../../shared/ui/Field';
 import { Page } from '../../shared/ui/Page';
 import { useMyStories, useStory, useWriterActions } from './api';
@@ -15,23 +16,10 @@ const statusLabel = { draft: 'brouillon', published: 'publiée', archived: 'arch
 export function WritePage() {
   const stories = useMyStories();
   const items = stories.data?.pages.flatMap((page) => page.items) ?? [];
-  // Rang de la première histoire ajoutée par « Voir plus » : le focus y va une fois affichée.
-  const focusFrom = useRef<number | null>(null);
-  const list = useRef<HTMLUListElement>(null);
-
-  useEffect(() => {
-    const from = focusFrom.current;
-    if (from === null || items.length <= from) return;
-    list.current?.querySelectorAll<HTMLAnchorElement>('h2 a')[from]?.focus();
-    focusFrom.current = null;
-  }, [items.length]);
-  // Chargement fini sans nouvelle histoire (échec, ou page vide) : plus de focus à déplacer,
-  // sinon il sauterait plus tard, à un ajout sans rapport.
-  const fetchingMore = stories.isFetchingNextPage;
-  useEffect(() => {
-    const from = focusFrom.current;
-    if (!fetchingMore && from !== null && items.length <= from) focusFrom.current = null;
-  }, [fetchingMore, items.length]);
+  const { list, loadMore } = useLoadMore(
+    items.map((story) => story.id),
+    stories,
+  );
 
   return (
     <Page title="Écrire" lead="Votre atelier : vos histoires, publiées ou en brouillon.">
@@ -54,7 +42,9 @@ export function WritePage() {
               <li key={story.id} className={styles.row}>
                 <div>
                   <h2 className={styles.rowTitle}>
-                    <Link to={`/ecrire/histoires/${story.id}`}>{story.title}</Link>
+                    <Link to={`/ecrire/histoires/${story.id}`} data-focus={story.id}>
+                      {story.title}
+                    </Link>
                   </h2>
                   <p className={styles.meta}>
                     {plural(story.chapterCount, 'chapitre publié', 'chapitres publiés')} ·{' '}
@@ -70,25 +60,12 @@ export function WritePage() {
         ) : (
           <p>Vous n’avez pas encore d’histoire. Lancez-vous !</p>
         ))}
-      {stories.isFetchNextPageError && (
-        <Alert tone="danger" live title="Les histoires suivantes n’ont pas pu être chargées.">
-          <p>{stories.error?.message} Vous pouvez réessayer avec le bouton ci-dessous.</p>
-        </Alert>
-      )}
-      {stories.hasNextPage && (
-        <div>
-          <Button
-            variant="secondary"
-            pending={stories.isFetchingNextPage}
-            onClick={() => {
-              focusFrom.current = items.length;
-              void stories.fetchNextPage();
-            }}
-          >
-            {stories.isFetchingNextPage ? 'Chargement…' : 'Voir plus d’histoires'}
-          </Button>
-        </div>
-      )}
+      <LoadMoreFooter
+        query={stories}
+        onLoadMore={loadMore}
+        label="Voir plus d’histoires"
+        errorTitle="Les histoires suivantes n’ont pas pu être chargées."
+      />
     </Page>
   );
 }
