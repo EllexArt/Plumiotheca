@@ -208,6 +208,16 @@ describe('limitation de débit', () => {
   });
 });
 
+describe('robots et fouille de textes (conditions, 4.3)', () => {
+  it('fouille de textes réservée sur toutes les réponses ; aucun robot sur l’API', async () => {
+    const { http } = await start();
+    expect((await http.get('/api/health').expect(200)).headers['tdm-reservation']).toBe('1');
+    const robots = await http.get('/robots.txt').expect(200);
+    expect(robots.headers['content-type']).toMatch(/^text\/plain/);
+    expect(robots.text).toBe('User-agent: *\nDisallow: /\n');
+  });
+});
+
 describe('documentation OpenAPI', () => {
   it('est servie hors production, avec les schémas des contrats', async () => {
     const { http } = await start();

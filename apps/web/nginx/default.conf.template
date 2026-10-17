@@ -18,6 +18,9 @@ server {
   add_header X-Content-Type-Options "nosniff" always;
   add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()" always;
   add_header Cross-Origin-Opener-Policy "same-origin" always;
+  # Fouille de textes et de données réservée (directive européenne 2019/790, art. 4 ;
+  # protocole TDMRep du W3C, aussi dans /.well-known/tdmrep.json) : conditions, 4.3.
+  add_header tdm-reservation "1" always;
   # HSTS : à activer derrière HTTPS seulement (HSTS="max-age=31536000; includeSubDomains").
   add_header Strict-Transport-Security "${HSTS}" always;
 

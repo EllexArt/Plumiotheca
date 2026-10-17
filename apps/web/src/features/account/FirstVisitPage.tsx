@@ -21,6 +21,7 @@ import { Page } from '../../shared/ui/Page';
 import prose from '../../shared/ui/Prose.module.css';
 import { myAccountKey, useFirstVisit, useHandleAvailability } from './api';
 import { charterBody } from './charter';
+import { conditionsBody } from './LegalPages';
 import styles from './FirstVisitPage.module.css';
 
 /**
@@ -57,7 +58,7 @@ const Form = z
       ctx.addIssue({
         code: 'custom',
         path: ['charter'],
-        message: 'Acceptez la charte pour continuer.',
+        message: 'Acceptez la charte et les conditions d’utilisation pour continuer.',
       });
     }
   });
@@ -246,8 +247,20 @@ export function FirstVisitPage() {
                   <Markdown source={charterBody} headingOffset={1} />
                 </div>
               </Dialog>
+              <Dialog
+                title="Conditions d’utilisation"
+                trigger={
+                  <Button variant="secondary" size="small">
+                    Lire les conditions d’utilisation
+                  </Button>
+                }
+              >
+                <div className={prose.prose}>
+                  <Markdown source={conditionsBody} headingOffset={1} />
+                </div>
+              </Dialog>
               <Checkbox
-                label="J’ai lu la charte et je m’engage à la respecter."
+                label="J’ai lu la charte et les conditions d’utilisation, et je m’engage à les respecter."
                 error={errors.charter?.message}
                 {...register('charter')}
               />

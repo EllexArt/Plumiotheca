@@ -139,7 +139,7 @@ describe('première visite', () => {
     expect(handle).toHaveAttribute('aria-invalid', 'true');
     expect(handle).toHaveAccessibleDescription(expect.stringContaining(tooShort));
     expect(screen.getByRole('checkbox')).toHaveAccessibleDescription(
-      'Acceptez la charte pour continuer.',
+      'Acceptez la charte et les conditions d’utilisation pour continuer.',
     );
     // Erreurs de l'envoi : lues par le focus, pas annoncées en plus (#143). Seul le
     // pseudonyme, vérifié aussi à la sortie du champ, garde sa zone annoncée.
@@ -148,7 +148,9 @@ describe('première visite', () => {
       .filter(Boolean);
     expect(announced).toEqual([expect.stringContaining(tooShort)]);
     expect(
-      screen.getByText('Acceptez la charte pour continuer.').closest('[aria-live]'),
+      screen
+        .getByText('Acceptez la charte et les conditions d’utilisation pour continuer.')
+        .closest('[aria-live]'),
     ).toBeNull();
     await expectAccessible();
   });
@@ -557,6 +559,25 @@ describe('politique de confidentialité (#100)', () => {
       name: 'Données gardées, raison et durée de conservation',
     });
     expect(within(table).getByRole('rowheader', { name: /^E-mail/ })).toBeInTheDocument();
+    await expectAccessible();
+  });
+});
+
+describe('conditions d’utilisation (#37)', () => {
+  it('lien dans le pied de page ; texte avec ses liens vers la charte et la confidentialité', async () => {
+    renderApp('/');
+    await userEvent.click(await screen.findByRole('link', { name: 'Conditions d’utilisation' }));
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Conditions d’utilisation' }),
+    ).toBeInTheDocument();
+    const main = screen.getByRole('main');
+    expect(within(main).getByRole('link', { name: 'charte de la communauté' })).toHaveAttribute(
+      'href',
+      '/charte',
+    );
+    expect(
+      within(main).getByRole('heading', { name: /Vos textes et vos images/ }),
+    ).toBeInTheDocument();
     await expectAccessible();
   });
 });
