@@ -22,4 +22,27 @@ describe('Markdown', () => {
     expect(screen.queryByRole('link', { name: 'piège' })).toBeNull();
     expect(screen.getByRole('link', { name: 'aide' })).toHaveAttribute('href', '/aide');
   });
+
+  it('tableau : légende, en-têtes de colonnes et de lignes', () => {
+    render(
+      <Markdown
+        source={[
+          'Tableau : Durées',
+          '| Donnée | Durée |',
+          '| --- | --- |',
+          '| E-mail | **compte** |',
+          '| Journaux | 30 jours |',
+        ].join('\n')}
+      />,
+    );
+    const table = screen.getByRole('table', { name: 'Durées' });
+    expect(table.querySelectorAll('th[scope="col"]')).toHaveLength(2);
+    expect(screen.getByRole('rowheader', { name: 'Journaux' })).toBeInTheDocument();
+    expect(screen.getByText('compte').tagName).toBe('STRONG');
+  });
+
+  it('lignes avec des barres mais sans séparateur : un simple paragraphe', () => {
+    render(<Markdown source={'| a | b |\n| c | d |'} />);
+    expect(screen.queryByRole('table')).toBeNull();
+  });
 });

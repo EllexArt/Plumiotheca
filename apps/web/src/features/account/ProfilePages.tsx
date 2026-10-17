@@ -156,7 +156,8 @@ export function AccountSettingsPage() {
         <h2 id="donnees">Vos données</h2>
         <p>
           L’export de vos données et la suppression du compte arrivent bientôt. La suppression vous
-          laissera choisir d’effacer ou d’anonymiser vos contributions.
+          laissera choisir d’effacer ou d’anonymiser vos contributions. Ce que nous gardons et
+          combien de temps : <Link to="/confidentialite">politique de confidentialité</Link>.
         </p>
       </section>
     </Page>

@@ -10,6 +10,7 @@
 .claude
 docs
 !docs/charte.md
+!docs/confidentialite.md
 e2e
 infra
 apps/api
