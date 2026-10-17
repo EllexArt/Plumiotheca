@@ -62,21 +62,23 @@ Choix fondateurs, validés en octobre 2026 :
 
 ## 1 quater. Données personnelles (protection dès la conception)
 
-À intégrer au modèle de données dès le jalon M1 (#13), pas en fin de projet.
+À intégrer au modèle de données dès le jalon M1 (#13), pas en fin de projet. Version publique, pour les personnes qui utilisent le site : `docs/confidentialite.md`, affichée sur `/confidentialite` (#100).
 
-| Donnée                                               | Pourquoi                                                  | Durée de conservation                                                                         |
-| ---------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| E-mail                                               | connexion, récupération du compte, notifications choisies | durée du compte, **dans Keycloak seulement**                                                  |
-| Pseudonyme, profil, pronoms                          | affichage public choisi par la personne                   | durée du compte                                                                               |
-| Tranche d'âge déclarée                               | protection des mineurs                                    | durée du compte                                                                               |
-| Contenus (histoires, notes, images, fiches)          | service                                                   | durée du compte, puis selon le choix de suppression                                           |
-| Journaux techniques                                  | sécurité, débogage                                        | 30 jours, **sans e-mail ni contenu** (masquage automatique)                                   |
-| Décisions de modération                              | DSA, appels                                               | 3 ans, rattachées à un identifiant interne                                                    |
-| Ancien pseudonyme (sans lien vers le compte)         | empêcher l'usurpation                                     | 90 jours après l'abandon                                                                      |
-| Historique des pseudonymes (lié au compte)           | rattacher un signalement à un compte (modération seule)   | 1 an                                                                                          |
-| Réponse « moins de 15 ans »                          | empêcher de recommencer aussitôt en changeant d'âge       | 30 jours, puis suppression du compte                                                          |
-| Comptage des lectures anonymes                       | statistiques                                              | hachage effacé chaque jour                                                                    |
-| Dernier chapitre ouvert par histoire (« Reprendre ») | reprise de lecture                                        | sur l'appareil seulement, comptes connectés, 50 histoires au plus, effacé à la fin de session |
+| Donnée                                               | Pourquoi                                                  | Durée de conservation                                                                                    |
+| ---------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| E-mail                                               | connexion, récupération du compte, notifications choisies | durée du compte, **dans Keycloak seulement**                                                             |
+| Pseudonyme, profil, pronoms                          | affichage public choisi par la personne                   | durée du compte                                                                                          |
+| Tranche d'âge déclarée                               | protection des mineurs                                    | durée du compte                                                                                          |
+| Contenus (histoires, notes, images, fiches)          | service                                                   | durée du compte, puis selon le choix de suppression                                                      |
+| Journaux techniques                                  | sécurité, débogage                                        | 30 jours, **sans e-mail ni contenu** (masquage automatique)                                              |
+| Décisions de modération                              | DSA, appels                                               | 3 ans, rattachées à un identifiant interne                                                               |
+| Ancien pseudonyme (sans lien vers le compte)         | empêcher l'usurpation                                     | 90 jours après l'abandon                                                                                 |
+| Historique des pseudonymes (lié au compte)           | rattacher un signalement à un compte (modération seule)   | 1 an                                                                                                     |
+| Réponse « moins de 15 ans »                          | empêcher de recommencer aussitôt en changeant d'âge       | 30 jours, puis suppression du compte                                                                     |
+| Lectures (compte, ou adresse IP sans compte)         | une lecture par personne et par jour                      | brouillées (HMAC) avec un sel du jour, sel et empreintes effacés le lendemain                            |
+| Images envoyées                                      | avatar, couvertures                                       | fichier brut effacé au traitement (un jour au plus) ; image ré-encodée sans métadonnées, durée du compte |
+| Tâches en arrière-plan (pg-boss)                     | traitement d'images, recherche                            | 7 jours, identifiants internes seulement                                                                 |
+| Dernier chapitre ouvert par histoire (« Reprendre ») | reprise de lecture                                        | sur l'appareil seulement, comptes connectés, 50 histoires au plus, effacé à la fin de session            |
 
 - **Dans la base de l'application** : ni e-mail ni mot de passe (ils restent dans Keycloak) ; l'identifiant Keycloak n'est jamais exposé. Le compte porte son statut et le mode de suppression choisi : « effacer » supprime la ligne et ses contenus en cascade ; « anonymiser » garde une ligne « compte supprimé » dont toutes les colonnes personnelles sont vidées, pour que les contributions conservées y restent liées. Les révisions faites par une personne co-autrice dont le compte est effacé restent, sans auteur. La base refuse un compte « supprimé » qui garderait une donnée personnelle ; la liste des colonnes personnelles est tenue dans le code et vérifiée par les tests.
 - **E-mails sortants** (notifications, suppression de compte) : l'API lit l'adresse dans Keycloak au moment de l'envoi, avec un compte de service limité à la lecture des comptes (puis à leur suppression pour #70), secret hors dépôt ; si Keycloak est indisponible, l'envoi est réessayé par la file de tâches.
