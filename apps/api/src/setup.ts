@@ -54,6 +54,15 @@ export function configureApp(app: NestExpressApplication, config: Config): INest
   app.use((req: Request, res: Response, next: NextFunction) =>
     (docs && isDocs(req.path) ? docsHeaders : strictHeaders)(req, res, next),
   );
+  // Fouille de textes et de données réservée (conditions d'utilisation, 4.3 ; TDMRep du W3C),
+  // et aucun robot sur l'API : les textes des chapitres passent par elle.
+  app.use((_req: Request, res: Response, next: NextFunction) => {
+    res.setHeader('tdm-reservation', '1');
+    next();
+  });
+  app.use('/robots.txt', (_req: Request, res: Response) => {
+    res.type('text/plain').send('User-agent: *\nDisallow: /\n');
+  });
   app.enableCors({
     origin: config.CORS_ORIGINS,
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],

@@ -32,7 +32,7 @@ Plumiotheca est éditée par _à compléter avant l'ouverture (personne ou assoc
 
 **4.2** Pour que le service fonctionne, vous autorisez Plumiotheca, gratuitement et sans exclusivité, à héberger, reproduire et afficher vos contenus publiés, sur le site et dans ses résultats de recherche, tant qu'ils sont publiés. Cette autorisation prend fin quand vous dépubliez ou supprimez un contenu, sous réserve des copies de sauvegarde, effacées dans leur cycle normal.
 
-**4.3** Plumiotheca n'utilise pas vos contenus à d'autres fins : pas de vente, pas de cession, pas d'entraînement d'intelligence artificielle, ni par nous ni par un tiers à qui nous les donnerions. _À valider._
+**4.3** Plumiotheca n'utilise pas vos contenus à d'autres fins : pas de vente, pas de cession, pas d'entraînement d'intelligence artificielle, ni par nous ni par un tiers à qui nous les donnerions. Nous demandons aussi aux robots d'intelligence artificielle de ne pas collecter vos textes : refus des robots d'IA connus et réserve de fouille de textes et de données, prévue par le droit européen. Un robot malhonnête peut passer outre ; s'il le fait, c'est sans notre accord et contre ces conditions.
 
 **4.4** Vous ne publiez que ce que vous avez le droit de publier (charte, section 5), et vous restez responsable de ce que vous publiez.
 
