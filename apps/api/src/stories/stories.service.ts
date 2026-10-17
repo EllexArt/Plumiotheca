@@ -18,7 +18,6 @@ import {
   encodeNumberCursor,
 } from '../common/cursor.js';
 import { ApiProblem } from '../common/problem.js';
-import { normalizeTag } from '../tags/tag-normalize.js';
 import { TagsService } from '../tags/tags.service.js';
 import type { User } from '../users/user.entity.js';
 import { Chapter } from './chapter.entity.js';
@@ -156,6 +155,14 @@ export class StoriesService {
    * des avertissements exclus, la première page dit aussi combien d'histoires sont masquées.
    */
   async list(query: StoryQuery): Promise<StoryPage> {
+    // Tags demandés ou masqués, avec leurs synonymes (#31).
+    const tx = this.db.manager;
+    const [include, masked, [tagFamily]] = await Promise.all([
+      this.tags.families(tx, query.tags ?? []),
+      this.tags.families(tx, query.masquerTags ?? []),
+      this.tags.families(tx, query.tag ? [query.tag] : []),
+    ]);
+    const families = { include, tag: tagFamily };
     const base = () =>
       this.filtered(
         publicStories(
@@ -165,11 +172,12 @@ export class StoriesService {
             .innerJoinAndSelect('story.author', 'author'),
         ),
         query,
+        families,
       );
     const exclude = {
       exclure: query.exclure?.length ? query.exclure : null,
       autres: query.exclureAutres?.length ? query.exclureAutres : null,
-      tags: query.masquerTags?.length ? query.masquerTags.map(normalizeTag) : null,
+      tags: masked.length ? masked.flat() : null,
     };
     const tagged = `EXISTS (SELECT 1 FROM story_tags st JOIN tags t ON t.id = st.tag_id
                      WHERE st.story_id = story.id AND t.normalized = ANY(:tags))`;
@@ -222,20 +230,22 @@ export class StoriesService {
   }
 
   /** Filtres de la liste publique, hors avertissements exclus et curseur. */
-  private filtered(qb: SelectQueryBuilder<Story>, query: StoryQuery) {
+  private filtered(
+    qb: SelectQueryBuilder<Story>,
+    query: StoryQuery,
+    families: { include: string[][]; tag: string[] | undefined },
+  ) {
+    const tagged = (param: string) =>
+      `EXISTS (SELECT 1 FROM story_tags st JOIN tags t ON t.id = st.tag_id
+               WHERE st.story_id = story.id AND t.normalized = ANY(:${param}))`;
     if (query.langues?.length) qb.andWhere('story.language IN (:...langues)', query);
     if (query.statut) qb.andWhere('story.completion = :statut', query);
     if (query.motsMin !== undefined) qb.andWhere('story.word_count >= :motsMin', query);
     if (query.motsMax !== undefined) qb.andWhere('story.word_count <= :motsMax', query);
-    if (query.tags?.length) {
-      // Tous les tags demandés (forme normalisée), et pas seulement l'un d'eux.
-      const inclure = [...new Set(query.tags.map(normalizeTag))];
-      qb.andWhere(
-        `(SELECT count(DISTINCT t.normalized) FROM story_tags st JOIN tags t ON t.id = st.tag_id
-          WHERE st.story_id = story.id AND t.normalized = ANY(:inclure)) = :nInclure`,
-        { inclure, nInclure: inclure.length },
-      );
-    }
+    // Tous les tags demandés, et pas seulement l'un d'eux ; un synonyme vaut son tag.
+    families.include.forEach((family, i) =>
+      qb.andWhere(tagged(`inclure${i}`), { [`inclure${i}`]: family }),
+    );
     if (query.langue) qb.andWhere('story.language = :langue', { langue: query.langue });
     if (query.classement) {
       qb.andWhere('story.rating = :classement', { classement: query.classement });
@@ -248,13 +258,7 @@ export class StoriesService {
     if (query.pseudonyme) {
       qb.andWhere('author.handle_key = :key', { key: handleKey(query.pseudonyme) });
     }
-    if (query.tag) {
-      qb.andWhere(
-        `EXISTS (SELECT 1 FROM story_tags st JOIN tags t ON t.id = st.tag_id
-                 WHERE st.story_id = story.id AND t.normalized = :tag)`,
-        { tag: normalizeTag(query.tag) },
-      );
-    }
+    if (families.tag) qb.andWhere(tagged('pageTag'), { pageTag: families.tag });
     return qb;
   }
 

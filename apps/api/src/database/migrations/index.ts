@@ -6,6 +6,7 @@ import { HistoiresEtChapitres1791029268234 } from './1791029268234-HistoiresEtCh
 import { AvertissementsFacultatifs1791201913977 } from './1791201913977-AvertissementsFacultatifs.js';
 import { HorodatagesMilliseconde1791477431997 } from './1791477431997-HorodatagesMilliseconde.js';
 import { Selections1792253380573 } from './1792253380573-Selections.js';
+import { SaisieIntelligente1792254000000 } from './1792254000000-SaisieIntelligente.js';
 import { MesLectures1792252868090 } from './1792252868090-MesLectures.js';
 import { Apparence1792251152107 } from './1792251152107-Apparence.js';
 import { Limites1792250556806 } from './1792250556806-Limites.js';
@@ -30,4 +31,5 @@ export const migrations = [
   Apparence1792251152107,
   MesLectures1792252868090,
   Selections1792253380573,
+  SaisieIntelligente1792254000000,
 ];

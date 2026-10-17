@@ -20,6 +20,8 @@ import { Media } from '../media/media.entity.js';
  *   colonnes personnelles remises à NULL, pour que les contributions gardées y restent liées.
  */
 @Entity('users')
+// Index de trigrammes (#31, suggestions de pseudonymes), créé à la main en migration.
+@Index('users_handle_key_trgm', { synchronize: false })
 // Un compte actif est toujours lié à Keycloak ; un compte supprimé ne garde aucune donnée
 // personnelle (liste tenue dans PERSONAL_FIELDS, vérifiée par les tests).
 @Check('users_active_has_keycloak_id', `"status" = 'deleted' OR "keycloak_id" IS NOT NULL`)

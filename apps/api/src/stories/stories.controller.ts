@@ -29,6 +29,8 @@ import {
   UpdateStory,
   SearchPage,
   SearchQuery,
+  SuggestQuery,
+  Suggestions,
 } from '@plumiotheca/contracts';
 import { z } from 'zod';
 import { CurrentAccount, OptionalAccount } from '../account/account.decorators.js';
@@ -251,5 +253,17 @@ export class SearchController {
   @ApiOkResponse({ standardSchema: SearchPage })
   find(@Query({ schema: SearchQuery }) query: SearchQuery): Promise<SearchPage> {
     return this.search.search(query);
+  }
+
+  /**
+   * Suggestions pendant la saisie (#31) : tags, histoires, autrices et auteurs. Appelée à
+   * chaque pause de la frappe, d'où une limite plus large que la recherche.
+   */
+  @Get('suggestions')
+  @Public()
+  @Throttle({ default: { limit: 180, ttl: 60_000 } })
+  @ApiOkResponse({ standardSchema: Suggestions })
+  suggest(@Query({ schema: SuggestQuery }) query: SuggestQuery): Promise<Suggestions> {
+    return this.search.suggest(query);
   }
 }
