@@ -375,9 +375,10 @@ describe('compte connecté', () => {
       if (header !== 'Bearer nouveau') return problem(401, 'non-authentifie');
       if (url === '/api/moi/compte') return { body: account() };
     });
-    renderApp('/mes-lectures');
+    // Page qui ne fait qu'un appel (le compte).
+    renderApp('/compte');
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'Mes lectures' }),
+      await screen.findByRole('heading', { level: 1, name: 'Paramètres du compte' }),
     ).toBeInTheDocument();
     expect(auth.signinRedirect).not.toHaveBeenCalled();
     expect(calls.map((c) => c.auth)).toEqual(['Bearer jeton-de-test', 'Bearer nouveau']);

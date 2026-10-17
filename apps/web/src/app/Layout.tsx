@@ -232,14 +232,12 @@ export function Layout() {
   const location = useLocation();
   const main = useRef<HTMLElement>(null);
   const first = useRef(true);
-  const auth = useAuth();
-  const signedOut = !auth.isLoading && !auth.isAuthenticated;
 
-  // Sans session (visite sans compte, session expirée, déconnexion ailleurs) : pas
-  // d'historique de lecture sur l'appareil (décision 54).
+  // L'historique de lecture n'est plus gardé sur l'appareil : il est sur le compte, dans
+  // Mes lectures (#30, décision 54 amendée). L'ancien est effacé.
   useEffect(() => {
-    if (signedOut) forgetReadings();
-  }, [signedOut]);
+    forgetReadings();
+  }, []);
 
   useEffect(() => {
     if (first.current) {

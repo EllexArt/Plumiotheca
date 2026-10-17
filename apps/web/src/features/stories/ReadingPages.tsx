@@ -21,7 +21,8 @@ import {
   ratingLabel,
   warningsText,
 } from './labels';
-import { lastBlock, lastChapter, rememberChapter } from './progress';
+import { useLibraryStatus, useSavePosition } from './library';
+import { ShelfSelect } from './ShelfSelect';
 import { useResume, useTrackPosition } from './readingPosition';
 import styles from './Reading.module.css';
 import { LimitsPanel } from './LimitsPanel';
@@ -106,7 +107,7 @@ function StoryTags({ story }: { story: StorySummary }) {
   );
 }
 
-function StoryCard({ story }: { story: StorySummary }) {
+export function StoryCard({ story }: { story: StorySummary }) {
   return (
     <article className={styles.card}>
       <div className={styles.spine} style={coverColors(story.id)} aria-hidden="true">
@@ -297,6 +298,8 @@ export function StoryPage() {
   const { storyId = '' } = useParams();
   const story = useStory(storyId);
   const auth = useAuth();
+  // Mes lectures (#30) : où reprendre, sur tous les appareils.
+  const library = useLibraryStatus(storyId);
   usePageTitle(story.data?.title ?? 'Histoire');
 
   if (story.isPending) return <Loading label="Chargement de l’histoire…" />;
@@ -304,9 +307,9 @@ export function StoryPage() {
   const s = story.data;
   const published = s.chapters.filter((c) => c.status === 'published');
   const first = published[0];
-  // Dernier chapitre ouvert sur cet appareil (comptes connectés), s'il est toujours publié.
-  const lastId = auth.isAuthenticated ? lastChapter(s.id) : null;
-  const resumeAt = published.findIndex((c) => c.id === lastId);
+  // Chapitre où reprendre (Mes lectures), s'il est toujours publié.
+  const entry = auth.isAuthenticated ? library.data?.entry : null;
+  const resumeAt = entry?.chapterId ? published.findIndex((c) => c.id === entry.chapterId) : -1;
 
   return (
     <div className={styles.storyPage}>
@@ -319,7 +322,7 @@ export function StoryPage() {
             <ButtonLink
               to={`/histoires/${s.id}/chapitres/${published[resumeAt]!.id}`}
               // Le lecteur ramène au dernier paragraphe lu (#29).
-              state={{ reprise: lastBlock(s.id) }}
+              state={{ reprise: entry?.blockId }}
               variant="primary"
               wide
             >
@@ -331,6 +334,9 @@ export function StoryPage() {
                 Commencer la lecture
               </ButtonLink>
             )
+          )}
+          {auth.isAuthenticated && library.isSuccess && (
+            <ShelfSelect storyId={s.id} shelf={library.data.entry?.shelf ?? null} />
           )}
         </div>
 
@@ -404,11 +410,16 @@ export function ReaderPage() {
   const opened = chapter.isSuccess;
   const signedIn = useAuth().isAuthenticated;
   const reading = useReadingPreferences();
+  // Mes lectures (#30) : ouvrir un chapitre l'y ajoute (en cours) ; rouvrir le même chapitre
+  // garde le paragraphe retenu. Puis le paragraphe en cours, au fil de la lecture.
+  const library = useLibraryStatus(storyId);
+  const { mutate: savePosition } = useSavePosition(storyId);
+  const known = library.data?.entry?.chapterId;
+  const tracking = opened && signedIn && library.isSuccess;
   useEffect(() => {
-    if (opened && signedIn) rememberChapter(storyId, chapterId);
-  }, [opened, signedIn, storyId, chapterId]);
-  // Paragraphe en cours, retenu sur l'appareil (comptes connectés, décision 54) ; reprise.
-  useTrackPosition(article, storyId, chapterId, opened && signedIn);
+    if (tracking && known !== chapterId) savePosition({ chapterId, blockId: null });
+  }, [tracking, known, chapterId, savePosition]);
+  useTrackPosition(article, tracking, (blockId) => savePosition({ chapterId, blockId }));
   const resume = (useLocation().state as { reprise?: string | null } | null)?.reprise;
   useResume(resume, opened);
   const title = chapter.data

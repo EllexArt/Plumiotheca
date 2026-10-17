@@ -1,12 +1,9 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import { account, auth, expectAccessible, mockApi, renderApp, signedIn } from '../../test/render';
-import { lastChapter, MAX_READINGS, rememberChapter } from '../stories/progress';
+import { account, expectAccessible, mockApi, renderApp, signedIn } from '../../test/render';
 
 const STORY = '01a102e1-bc65-7d35-b6b2-50377a7804f7';
-const CH1 = '01a102e1-bc70-7583-8a7d-c381bcb3647a';
-const CH2 = '01a102e1-bc70-7583-8a7d-c381bcb3647b';
 
 const summary = (id: string, title: string) => ({
   id,
@@ -115,122 +112,6 @@ describe('Explorer : pagination et tags', () => {
       '/',
     );
     await expectAccessible();
-  });
-});
-
-describe('fiche et lecteur', () => {
-  const detail = {
-    ...summary(STORY, 'Lucioles'),
-    chapters: [
-      {
-        id: CH1,
-        number: 1,
-        title: 'Un',
-        status: 'published',
-        wordCount: 50,
-        publishedAt: '2026-10-03T10:00:00.000Z',
-      },
-      {
-        id: CH2,
-        number: 2,
-        title: 'Deux',
-        status: 'published',
-        wordCount: 50,
-        publishedAt: '2026-10-03T10:00:00.000Z',
-      },
-    ],
-  };
-  const chapter = {
-    id: CH2,
-    storyId: STORY,
-    number: 2,
-    title: 'Deux',
-    revisionId: CH2,
-    content: {
-      type: 'doc',
-      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Texte.' }] }],
-    },
-    wordCount: 1,
-    readingMinutes: 1,
-    publishedAt: '2026-10-03T10:00:00.000Z',
-    previousId: CH1,
-    nextId: null,
-  };
-  const api = (story: typeof detail = detail) =>
-    mockApi((url) => {
-      if (url === '/api/moi/compte') return { body: account() };
-      if (url === `/api/histoires/${STORY}`) return { body: story };
-      if (url === `/api/histoires/${STORY}/chapitres/${CH2}`) return { body: chapter };
-    });
-
-  it('lecteur : barre de progression ; le chapitre ouvert devient « Reprendre » sur la fiche', async () => {
-    signedIn();
-    api();
-    const { router } = renderApp(`/histoires/${STORY}/chapitres/${CH2}`);
-    expect(
-      await screen.findByRole('progressbar', { name: 'Progression dans le chapitre' }),
-    ).toBeInTheDocument();
-    await router.navigate(`/histoires/${STORY}`);
-    expect(await screen.findByRole('link', { name: 'Reprendre au chapitre 2' })).toHaveAttribute(
-      'href',
-      `/histoires/${STORY}/chapitres/${CH2}`,
-    );
-    expect(screen.getByRole('link', { name: 'Ilse Varenne' })).toHaveAttribute(
-      'href',
-      '/profils/Ilse.Varenne',
-    );
-  });
-
-  it('chapitre retenu puis dépublié : « Commencer la lecture »', async () => {
-    rememberChapter(STORY, CH2);
-    signedIn();
-    api({
-      ...detail,
-      chapters: [detail.chapters[0]!, { ...detail.chapters[1]!, status: 'draft' }],
-    });
-    renderApp(`/histoires/${STORY}`);
-    expect(await screen.findByRole('link', { name: 'Commencer la lecture' })).toHaveAttribute(
-      'href',
-      `/histoires/${STORY}/chapitres/${CH1}`,
-    );
-  });
-
-  it('sans compte : rien n’est retenu, et un ancien historique est effacé', async () => {
-    localStorage.setItem(`plumiotheca.lecture.${STORY}`, CH1);
-    rememberChapter(STORY, CH1);
-    api();
-    const { router } = renderApp(`/histoires/${STORY}/chapitres/${CH2}`);
-    expect(
-      await screen.findByRole('progressbar', { name: 'Progression dans le chapitre' }),
-    ).toBeInTheDocument();
-    await waitFor(() => expect(lastChapter(STORY)).toBeNull());
-    expect(localStorage.getItem(`plumiotheca.lecture.${STORY}`)).toBeNull();
-    await router.navigate(`/histoires/${STORY}`);
-    expect(await screen.findByRole('link', { name: 'Commencer la lecture' })).toBeInTheDocument();
-    expect(lastChapter(STORY)).toBeNull();
-  });
-
-  it('déconnexion : l’historique de lecture de l’appareil est effacé', async () => {
-    rememberChapter(STORY, CH2);
-    signedIn();
-    mockApi((url) => (url === '/api/moi/compte' ? { body: account() } : undefined));
-    renderApp('/charte');
-    await userEvent.click(await screen.findByRole('button', { name: 'Mon compte, @ilse' }));
-    await userEvent.click(await screen.findByRole('menuitem', { name: 'Se déconnecter' }));
-    expect(auth.signoutRedirect).toHaveBeenCalled();
-    expect(lastChapter(STORY)).toBeNull();
-  });
-
-  it('historique : 50 histoires au plus, la plus ancienne oubliée', () => {
-    for (let i = 0; i <= MAX_READINGS; i++) rememberChapter(`histoire-${i}`, `chapitre-${i}`);
-    expect(lastChapter('histoire-0')).toBeNull();
-    expect(lastChapter('histoire-1')).toBe('chapitre-1');
-    expect(lastChapter(`histoire-${MAX_READINGS}`)).toBe(`chapitre-${MAX_READINGS}`);
-    // Relire une histoire la remet en tête.
-    rememberChapter('histoire-1', 'chapitre-x');
-    rememberChapter('nouvelle', 'chapitre-y');
-    expect(lastChapter('histoire-1')).toBe('chapitre-x');
-    expect(lastChapter('histoire-2')).toBeNull();
   });
 });
 

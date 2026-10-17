@@ -15,6 +15,7 @@ export * from './charter.js';
 export * from './domain.js';
 export * from './errors.js';
 export * from './health.js';
+export * from './library.js';
 export * from './media.js';
 export * from './reading.js';
 export * from './session.js';

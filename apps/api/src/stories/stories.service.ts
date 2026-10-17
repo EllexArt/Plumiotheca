@@ -11,7 +11,7 @@ import type {
 } from '@plumiotheca/contracts';
 import { handleKey } from '@plumiotheca/contracts';
 import { DataSource, type EntityManager, type SelectQueryBuilder } from 'typeorm';
-import { z } from 'zod';
+import { decodeCursor, encodeCursor } from '../common/cursor.js';
 import { ApiProblem } from '../common/problem.js';
 import { normalizeTag } from '../tags/tag-normalize.js';
 import { TagsService } from '../tags/tags.service.js';
@@ -21,27 +21,6 @@ import { lockStory, ownedStory, publicStories, visibleStory } from './story-acce
 import { Story } from './story.entity.js';
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
-
-/**
- * Curseur opaque de pagination : date de tri (publication pour la liste publique,
- * dernière modification pour « Mes histoires ») et identifiant de la dernière ligne.
- */
-const encodeCursor = (date: Date, id: string) =>
-  Buffer.from(`${date.toISOString()}|${id}`).toString('base64url');
-
-// Bornes de date : PostgreSQL refuse l'année 0000, que la norme ISO accepte.
-const Cursor = z.tuple([
-  z.iso.datetime().refine((d) => Date.parse(d) >= Date.UTC(2000, 0, 1)),
-  z.uuid(),
-]);
-
-function decodeCursor(cursor: string): [string, string] {
-  const parsed = Cursor.safeParse(Buffer.from(cursor, 'base64url').toString().split('|'));
-  if (!parsed.success) {
-    throw new ApiProblem(HttpStatus.BAD_REQUEST, 'Curseur de pagination invalide.');
-  }
-  return parsed.data;
-}
 
 @Injectable()
 export class StoriesService {

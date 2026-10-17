@@ -1,19 +1,24 @@
-import { useEffect, type RefObject } from 'react';
-import { rememberBlock } from './progress';
+import { useEffect, useRef, type RefObject } from 'react';
 
 /** Hauteur à partir de laquelle un paragraphe compte comme « en cours » (sous l'en-tête). */
 const TOP = 96;
 
 /**
- * Retient le paragraphe en cours de lecture (#29) : le premier dont le bas est encore sous
- * l'en-tête. Écrit au plus une fois par demi-seconde, et au départ de la page.
+ * Suit le paragraphe en cours de lecture (#29, #30) : le premier dont le bas est encore sous
+ * l'en-tête. `save` est appelé au plus une fois toutes les trois secondes, et au départ de
+ * la page, avec le dernier paragraphe vu.
  */
 export function useTrackPosition(
   container: RefObject<HTMLElement | null>,
-  storyId: string,
-  chapterId: string,
   enabled: boolean,
+  save: (blockId: string) => void,
 ) {
+  // Toujours la dernière fonction, sans relancer le suivi à chaque rendu.
+  const saveRef = useRef(save);
+  useEffect(() => {
+    saveRef.current = save;
+  });
+
   useEffect(() => {
     if (!enabled) return;
     let frame = 0;
@@ -24,7 +29,7 @@ export function useTrackPosition(
     const flush = () => {
       timer = undefined;
       if (current && current !== saved) {
-        rememberBlock(storyId, chapterId, current);
+        saveRef.current(current);
         saved = current;
       }
     };
@@ -36,7 +41,7 @@ export function useTrackPosition(
       // En haut du chapitre : rien à retenir de plus que le chapitre lui-même.
       if (!id || id === current || window.scrollY < TOP) return;
       current = id;
-      timer ??= setTimeout(flush, 500);
+      timer ??= setTimeout(flush, 3000);
     };
     const onScroll = () => {
       if (!frame) frame = requestAnimationFrame(measure);
@@ -48,7 +53,7 @@ export function useTrackPosition(
       if (timer) clearTimeout(timer);
       flush();
     };
-  }, [container, storyId, chapterId, enabled]);
+  }, [container, enabled]);
 }
 
 /**

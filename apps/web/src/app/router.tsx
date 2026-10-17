@@ -1,13 +1,7 @@
 import type { ComponentType } from 'react';
 import { createBrowserRouter, Outlet, type RouteObject } from 'react-router';
 import { ExplorePage, ReaderPage, StoryPage } from '../features/stories/ReadingPages';
-import {
-  ErrorPage,
-  NotFoundPage,
-  ReadingsPage,
-  RequireAuth,
-  SigninCallbackPage,
-} from '../pages/SimplePages';
+import { ErrorPage, NotFoundPage, RequireAuth, SigninCallbackPage } from '../pages/SimplePages';
 import { Loading } from '../shared/ui/Feedback';
 import { Layout } from './Layout';
 
@@ -55,7 +49,10 @@ export const routes: RouteObject[] = [
               { path: 'charte/accepter', lazy: lazyPage(account, 'AcceptCharterPage') },
               { path: 'compte-verrouille', lazy: lazyPage(account, 'AgeLockedPage') },
               { path: 'compte', lazy: lazyPage(account, 'AccountSettingsPage') },
-              { path: 'mes-lectures', element: <ReadingsPage /> },
+              {
+                path: 'mes-lectures',
+                lazy: lazyPage(() => import('../features/stories/LibraryPage'), 'LibraryPage'),
+              },
               { path: 'ecrire', lazy: lazyPage(writing, 'WritePage') },
               { path: 'ecrire/nouvelle', lazy: lazyPage(writing, 'NewStoryPage') },
               { path: 'ecrire/histoires/:storyId', lazy: lazyPage(writing, 'ManageStoryPage') },

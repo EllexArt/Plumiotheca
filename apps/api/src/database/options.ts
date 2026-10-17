@@ -2,6 +2,7 @@ import type { DataSourceOptions } from 'typeorm';
 import type { Config } from '../config/env.js';
 import { ChapterRevision } from '../stories/chapter-revision.entity.js';
 import { Chapter } from '../stories/chapter.entity.js';
+import { LibraryEntry } from '../stories/library-entry.entity.js';
 import { ReadMark, ReadSalt } from '../stories/read-mark.entity.js';
 import { StoryTag } from '../stories/story-tag.entity.js';
 import { Story } from '../stories/story.entity.js';
@@ -25,6 +26,7 @@ export const entities = [
   ReadSalt,
   Tag,
   Media,
+  LibraryEntry,
 ];
 
 /** Connexion PostgreSQL commune à l'API, à la ligne de commande et aux tests. */
