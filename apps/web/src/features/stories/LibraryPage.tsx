@@ -7,6 +7,7 @@ import { Page } from '../../shared/ui/Page';
 import { shelfLabel, useShelf } from './library';
 import styles from './Reading.module.css';
 import { StoryCard } from './ReadingPages';
+import { MySelections } from './SelectionPages';
 import { ShelfSelect } from './ShelfSelect';
 
 const EMPTY: Record<Shelf, string> = {
@@ -25,6 +26,7 @@ export function LibraryPage() {
       {Shelf.options.map((shelf) => (
         <ShelfSection key={shelf} shelf={shelf} />
       ))}
+      <MySelections />
       <p>
         <Link to="/">Trouver une histoire dans Explorer</Link>
       </p>
@@ -64,8 +66,7 @@ function ShelfSection({ shelf }: { shelf: Shelf }) {
                     variant="secondary"
                     size="small"
                   >
-                    Reprendre
-                    <span className="visually-hidden"> {item.story.title}</span>
+                    Reprendre <span className="visually-hidden">« {item.story.title} »</span>
                   </ButtonLink>
                 )}
                 <ShelfSelect

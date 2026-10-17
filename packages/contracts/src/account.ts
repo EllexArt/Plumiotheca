@@ -75,7 +75,7 @@ export const ChangeHandle = z.strictObject({ handle: Handle });
 export type ChangeHandle = z.infer<typeof ChangeHandle>;
 
 /** Texte court sur une ligne : ni caractère de contrôle, ni caractère invisible de mise en forme. */
-const singleLine = (max: number) =>
+export const singleLine = (max: number) =>
   z
     .string()
     .trim()
@@ -83,7 +83,7 @@ const singleLine = (max: number) =>
     .regex(/^[^\p{Cc}\p{Cf}]*$/u, { message: 'Caractères invisibles ou de contrôle interdits.' });
 
 /** Texte libre : retours à la ligne permis, autres caractères de contrôle interdits. */
-const freeText = (max: number) =>
+export const freeText = (max: number) =>
   z
     .string()
     .trim()

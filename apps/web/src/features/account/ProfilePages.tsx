@@ -18,6 +18,7 @@ import prose from '../../shared/ui/Prose.module.css';
 import { AppearancePanel } from '../../app/AppearancePanel';
 import { formatDate } from '../stories/labels';
 import { LimitsPanel } from '../stories/LimitsPanel';
+import { PublicShelves } from '../stories/SelectionPages';
 import { StoryList } from '../stories/ReadingPages';
 import {
   checkImage,
@@ -110,6 +111,7 @@ export function PublicProfilePage() {
           <Paragraphs text={p.bio} />
         </section>
       )}
+      <PublicShelves handle={p.handle} title={`Sélections de ${name}`} />
       <section aria-labelledby="histoires" className={styles.section}>
         <h2 id="histoires">Histoires</h2>
         <StoryList

@@ -31,6 +31,10 @@ export const routes: RouteObject[] = [
         errorElement: <ErrorPage />,
         children: [
           { index: true, element: <ExplorePage /> },
+          {
+            path: 'selections/:id',
+            lazy: lazyPage(() => import('../features/stories/SelectionPages'), 'SelectionPage'),
+          },
           { path: 'connexion', element: <SigninCallbackPage /> },
           { path: 'histoires/:storyId', element: <StoryPage /> },
           { path: 'histoires/:storyId/chapitres/:chapterId', element: <ReaderPage /> },
