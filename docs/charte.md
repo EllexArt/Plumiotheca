@@ -32,7 +32,7 @@ Plumiotheca est une bibliothèque vivante : on y écrit, on y lit, on s'y entrai
 
 **3.3** Protégez aussi vos propres informations : évitez de publier votre nom, votre adresse, votre école ou votre numéro dans vos textes, votre profil ou vos notes.
 
-**3.4** On n'usurpe pas l'identité d'une autre personne, d'une autrice connue ou de l'équipe de Plumiotheca (pseudonyme, nom affiché ou image qui imiteraient l'équipe).
+**3.4** On n'usurpe l'identité de personne : ni d'un membre de Plumiotheca, ni d'une personne réelle (autrice, auteur, artiste, personnalité, quelqu'un de votre entourage…), ni de l'équipe de Plumiotheca. Pseudonyme, nom affiché, image ou texte : rien ne doit faire croire qu'on est quelqu'un d'autre.
 
 ## 4. Contenus et classements
 
@@ -46,17 +46,17 @@ Plumiotheca est une bibliothèque vivante : on y écrit, on y lit, on s'y entrai
 
 **4.5** Les violences extrêmes, l'automutilation, le suicide ou les troubles alimentaires peuvent être racontés, avec les avertissements adaptés ; jamais présentés comme un mode d'emploi ou un encouragement. Si ces sujets vous touchent personnellement, vous n'êtes pas seul·e : 3114 (prévention du suicide, 24 h/24), Fil Santé Jeunes (0 800 235 236), 3018 (cyberharcèlement), 119 (enfance en danger).
 
-**4.6** Pas de contenu illégal, d'apologie du terrorisme ou de crimes contre l'humanité, ni de promotion d'activités dangereuses.
+**4.6** La fiction peut tout raconter : mafia, guerre, crimes, méchants abominables, y compris de leur point de vue et sans morale finale. Ce qui est interdit, c'est ce qui sort de la fiction pour agir dans le monde réel : appeler à commettre un crime ou un attentat, glorifier un acte terroriste ou un crime contre l'humanité réels, donner un mode d'emploi réellement utilisable (fabriquer une arme, une drogue…), ou publier un contenu illégal en lui-même.
 
-**4.7** Les fictions mettant en scène des personnes réelles (célébrités, personnalités) sont permises sans contenu sexuel, sans diffamation et sans les présenter comme vraies ; aucune personne réelle de votre entourage, et aucun montage réaliste (photo, voix) d'une personne réelle.
+**4.7** S'inspirer de sa propre vie est au cœur de l'écriture : autofiction et récits personnels sont les bienvenus, tout comme les fictions sur des personnalités publiques. Quand une histoire met en scène des personnes réelles, on veille à ne pas leur nuire : pas de contenu sexuel les impliquant, rien qui permette d'identifier un proche qui n'a rien demandé, pas d'accusation inventée présentée comme vraie, et aucun montage réaliste (photo, voix, vidéo) d'une personne réelle.
 
 ## 5. Création, droits et images
 
 **5.1** On ne publie que ce qu'on a créé soi-même, ou avec l'accord de la personne qui l'a créé. Pas de plagiat, pas de copie d'une histoire publiée ailleurs sous un autre nom.
 
-**5.2** Les fanfictions sont bienvenues : on crédite l'œuvre d'origine et on respecte le choix d'une autrice de Plumiotheca qui n'ouvre pas son univers aux fanfictions.
+**5.2** Les fanfictions sont les bienvenues, qu'elles s'inspirent d'un livre, d'un manga, d'une série, d'un film, d'un jeu, de personnalités publiques (dans le respect de l'article 4.7) ou d'un univers publié sur Plumiotheca. On crédite toujours l'œuvre d'origine, et on respecte le choix d'une autrice ou d'un auteur de Plumiotheca qui n'ouvre pas son univers aux fanfictions.
 
-**5.3** Les images respectent les droits des artistes : pas d'image trouvée sur Internet sans autorisation. Un fan art offert à une autrice reste l'œuvre de son artiste.
+**5.3** Les images respectent les droits des artistes : pas d'image trouvée sur Internet sans autorisation. Un fan art offert à une autrice ou un auteur reste l'œuvre de son artiste.
 
 **5.4** Toute image décrit ce qu'elle montre (description pour les personnes qui ne la voient pas).
 
@@ -64,9 +64,9 @@ Plumiotheca est une bibliothèque vivante : on y écrit, on y lit, on s'y entrai
 
 ## 6. Communauté et sécurité
 
-**6.1** On ne fausse pas la communauté : pas de faux comptes, de lectures ou de recommandations achetées ou automatisées, de publicité non sollicitée ni de liens trompeurs.
+**6.1** On ne fausse pas la communauté : pas de lectures, de recommandations ou d'abonnements achetés ou automatisés, pas de comptes créés pour se recommander soi-même ou gonfler ses chiffres, pas de publicité non sollicitée ni de liens trompeurs.
 
-**6.2** Un seul compte par personne, et jamais de compte secondaire pour contourner une sanction.
+**6.2** Vous pouvez avoir plusieurs comptes, par exemple pour séparer vos styles d'écriture ou vos communautés. Mais jamais pour échapper à une sanction (un compte suspendu ou fermé vaut pour la personne, pas pour le pseudonyme), ni pour harceler, ni pour tricher : un seul compte par personne dans un même cercle ou un même défi.
 
 **6.3** Plumiotheca est ouverte à partir de 15 ans. L'âge déclaré doit être vrai : il sert à protéger les plus jeunes. S'il apparaît qu'une personne a moins de 15 ans, son compte est fermé et ses contenus retirés ; elle pourra revenir à 15 ans.
 
@@ -78,7 +78,7 @@ Plumiotheca est une bibliothèque vivante : on y écrit, on y lit, on s'y entrai
 
 **7.2** L'équipe de Plumiotheca décide, selon la gravité et la répétition : rappel de la règle, retrait d'un contenu, avertissement, limitation temporaire (par exemple ne plus commenter), suspension temporaire, fermeture du compte. Les décisions sont prises par des personnes, jamais par un automatisme seul. Chaque décision vous est expliquée : les faits, l'article de cette charte concerné et la façon de faire appel.
 
-**7.3** Vous pouvez faire appel de toute décision dans les six mois, depuis la notification reçue ; l'appel est examiné par une autre personne que celle qui a décidé. La personne qui a signalé un contenu peut, elle aussi, contester la décision prise sur son signalement. Vous gardez par ailleurs vos recours extérieurs (médiation, justice).
+**7.3** Vous pouvez demander le réexamen de toute décision dans les six mois, depuis la notification reçue, en expliquant votre point de vue. La personne qui a signalé un contenu peut, elle aussi, contester la décision prise sur son signalement. Le réexamen reprend tout le dossier avec un regard neuf ; il est confié à une autre personne que celle qui a décidé dès que l'équipe le permet. Vous gardez par ailleurs vos recours extérieurs (médiation, justice).
 
 **7.4** En cas de danger pour une personne (menace, détresse, mineur en danger), l'équipe peut agir immédiatement et alerter les services compétents (119, services de secours, plateforme PHAROS).
 
