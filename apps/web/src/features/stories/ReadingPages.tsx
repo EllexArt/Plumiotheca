@@ -2,7 +2,7 @@ import type { StorySummary } from '@plumiotheca/contracts';
 import { parseDocument } from '@plumiotheca/editor-schema';
 import { useEffect, useRef, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { useAuth } from 'react-oidc-context';
-import { Link, useParams, useSearchParams } from 'react-router';
+import { Link, useLocation, useParams, useSearchParams } from 'react-router';
 import { ApiError } from '../../shared/api/client';
 import { Button, ButtonLink } from '../../shared/ui/Button';
 import { Alert, Loading, Tag } from '../../shared/ui/Feedback';
@@ -21,7 +21,8 @@ import {
   ratingLabel,
   warningsText,
 } from './labels';
-import { lastChapter, rememberChapter } from './progress';
+import { lastBlock, lastChapter, rememberChapter } from './progress';
+import { useResume, useTrackPosition } from './readingPosition';
 import styles from './Reading.module.css';
 import { LimitsPanel } from './LimitsPanel';
 import { useReadingPreferences } from './readingPreferences';
@@ -317,6 +318,8 @@ export function StoryPage() {
           {resumeAt >= 0 ? (
             <ButtonLink
               to={`/histoires/${s.id}/chapitres/${published[resumeAt]!.id}`}
+              // Le lecteur ramène au dernier paragraphe lu (#29).
+              state={{ reprise: lastBlock(s.id) }}
               variant="primary"
               wide
             >
@@ -404,6 +407,10 @@ export function ReaderPage() {
   useEffect(() => {
     if (opened && signedIn) rememberChapter(storyId, chapterId);
   }, [opened, signedIn, storyId, chapterId]);
+  // Paragraphe en cours, retenu sur l'appareil (comptes connectés, décision 54) ; reprise.
+  useTrackPosition(article, storyId, chapterId, opened && signedIn);
+  const resume = (useLocation().state as { reprise?: string | null } | null)?.reprise;
+  useResume(resume, opened);
   const title = chapter.data
     ? `${chapter.data.title || `Chapitre ${chapter.data.number}`} — ${story.data?.title ?? ''}`
     : 'Chapitre';

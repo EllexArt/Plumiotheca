@@ -49,3 +49,13 @@
   content: '⁂';
   letter-spacing: 0.3em;
 }
+
+/* Reprise au paragraphe (#29) : le paragraphe ramené apparaît sous l'en-tête fixe. */
+.content [id^='b-'] {
+  scroll-margin-top: calc(var(--header-height) + var(--space-5));
+}
+
+/* Focus posé par la reprise : pas de contour sur un paragraphe (il n'est pas un contrôle). */
+.content [id^='b-']:focus {
+  outline: none;
+}
