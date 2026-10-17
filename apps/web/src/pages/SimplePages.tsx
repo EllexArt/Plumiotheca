@@ -7,15 +7,6 @@ import { Alert, Loading } from '../shared/ui/Feedback';
 import { Page } from '../shared/ui/Page';
 
 /** Mes lectures (bibliothèque, reprise : M2). */
-export function ReadingsPage() {
-  return (
-    <Page title="Mes lectures" lead="Les histoires que vous lisez, là où vous vous êtes arrêté·e.">
-      <Alert tone="info" title="Votre bibliothèque est encore vide.">
-        <p>Les histoires que vous commencerez apparaîtront ici.</p>
-      </Alert>
-    </Page>
-  );
-}
 
 /**
  * Retour de Keycloak : react-oidc-context échange le code, puis onSigninCallback ramène sur

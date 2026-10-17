@@ -461,3 +461,29 @@
   color: var(--color-text);
   border-radius: var(--radius-xl);
 }
+
+/* Mes lectures (#30). */
+.shelf {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.libraryItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.libraryActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.shelfSelect {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
