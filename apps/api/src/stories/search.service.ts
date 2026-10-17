@@ -26,10 +26,29 @@ import { Story } from './story.entity.js';
 
 const SYNC_JOB = 'indexation-histoire';
 
+/** Tris de la recherche (#32) ; la pertinence est l'ordre de Meilisearch. */
+const SEARCH_SORTS: Record<SearchQuery['tri'], string | null> = {
+  pertinence: null,
+  recentes: 'publishedAt:desc',
+  mises_a_jour: 'updatedAt:desc',
+  lecteurs: 'readCount:desc',
+  longueur: 'wordCount:desc',
+};
+
 /** Réglages de l'index : où chercher, sur quoi filtrer ; seul l'identifiant est renvoyé. */
 const SETTINGS = {
   searchableAttributes: ['title', 'tags', 'authorName', 'authorHandle', 'summary'],
-  filterableAttributes: ['language', 'rating', 'majorWarnings', 'contentWarnings', 'tagKeys'],
+  filterableAttributes: [
+    'language',
+    'rating',
+    'majorWarnings',
+    'contentWarnings',
+    'tagKeys',
+    'completion',
+    'wordCount',
+  ],
+  // Tris (#32) : récentes, mises à jour, les plus lues (compteur à jour chaque nuit), longueur.
+  sortableAttributes: ['publishedAt', 'updatedAt', 'readCount', 'wordCount'],
   displayedAttributes: ['id'],
 };
 
@@ -42,6 +61,11 @@ function toDocument(story: StorySummary) {
     tags: story.tags,
     // Forme normalisée des tags : pour masquer ceux de Mes limites (#81).
     tagKeys: story.tags.map(normalizeTag),
+    completion: story.completion,
+    wordCount: story.wordCount,
+    readCount: story.readCount,
+    publishedAt: story.publishedAt ? Date.parse(story.publishedAt) : 0,
+    updatedAt: Date.parse(story.updatedAt),
     authorName: story.author.displayName,
     authorHandle: story.author.handle,
     language: story.language,
@@ -188,6 +212,15 @@ export class SearchService implements OnModuleInit, OnApplicationBootstrap {
     if (query.exclureClassement?.length) {
       filter.push(`rating NOT IN ${JSON.stringify(query.exclureClassement)}`);
     }
+    // Filtres de #32.
+    if (query.langues?.length) filter.push(`language IN ${JSON.stringify(query.langues)}`);
+    if (query.statut) filter.push(`completion = ${JSON.stringify(query.statut)}`);
+    if (query.motsMin !== undefined) filter.push(`wordCount >= ${query.motsMin}`);
+    if (query.motsMax !== undefined) filter.push(`wordCount <= ${query.motsMax}`);
+    for (const tag of new Set((query.tags ?? []).map(normalizeTag))) {
+      filter.push(`tagKeys = ${JSON.stringify(tag)}`);
+    }
+    const sort = SEARCH_SORTS[query.tri];
     // Avertissements exclus : « majeurs » et facultatifs (#152).
     const excluded = [
       query.exclure?.length && `majorWarnings IN ${JSON.stringify(query.exclure)}`,
@@ -203,6 +236,7 @@ export class SearchService implements OnModuleInit, OnApplicationBootstrap {
         await this.call(index, 'POST', {
           q: query.q,
           filter: [...filter, ...excluded.map((f) => `NOT ${f}`)],
+          ...(sort ? { sort: [sort] } : {}),
           offset: (query.page - 1) * SEARCH_PAGE_SIZE,
           // Un de plus : y a-t-il une page suivante ?
           limit: SEARCH_PAGE_SIZE + 1,
