@@ -22,6 +22,7 @@ import {
   warningsText,
 } from './labels';
 import { useLibraryStatus, useSavePosition } from './library';
+import { AddToSelection, PublicShelves } from './SelectionPages';
 import { ShelfSelect } from './ShelfSelect';
 import { useResume, useTrackPosition } from './readingPosition';
 import styles from './Reading.module.css';
@@ -67,7 +68,7 @@ function LoadError({ error, what }: { error: Error; what: keyof typeof missing }
 }
 
 /** Nom de la personne qui a écrit, avec lien vers son profil public. */
-function AuthorLink({ author }: { author: StorySummary['author'] }) {
+export function AuthorLink({ author }: { author: StorySummary['author'] }) {
   return (
     <Link to={`/profils/${encodeURIComponent(author.handle)}`}>
       {author.displayName ?? `@${author.handle}`}
@@ -263,6 +264,7 @@ export function ExplorePage() {
           {stories.isSuccess ? (total ? plural(total, 'résultat') : 'Aucun résultat.') : ''}
         </output>
       )}
+      {!q && !tag && <PublicShelves title="Sélections des membres" />}
       <StoryList
         filters={filters}
         label={
@@ -338,6 +340,7 @@ export function StoryPage() {
           {auth.isAuthenticated && library.isSuccess && (
             <ShelfSelect storyId={s.id} shelf={library.data.entry?.shelf ?? null} />
           )}
+          {auth.isAuthenticated && <AddToSelection storyId={s.id} />}
         </div>
 
         <div className={styles.main}>

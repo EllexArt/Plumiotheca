@@ -18,5 +18,6 @@ export * from './health.js';
 export * from './library.js';
 export * from './media.js';
 export * from './reading.js';
+export * from './selections.js';
 export * from './session.js';
 export * from './stories.js';

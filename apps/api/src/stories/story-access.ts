@@ -21,7 +21,8 @@ export function publicStories(qb: SelectQueryBuilder<Story>, alias = 'story', au
     .andWhere(`${author}.handle IS NOT NULL`);
 }
 
-const isPublic = (story: Story) =>
+/** Histoire visible du public (même règle que publicStories). */
+export const isPublic = (story: Story) =>
   story.status === 'published' &&
   story.author.status === 'active' &&
   (story.author.ageBand === '15-17' || story.author.ageBand === '18+') &&
