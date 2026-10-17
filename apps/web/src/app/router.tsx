@@ -42,6 +42,7 @@ export const routes: RouteObject[] = [
           { path: 'histoires/:storyId/chapitres/:chapterId', element: <ReaderPage /> },
           { path: 'profils/:handle', lazy: lazyPage(account, 'PublicProfilePage') },
           { path: 'charte', lazy: lazyPage(account, 'CharterPage') },
+          { path: 'confidentialite', lazy: lazyPage(account, 'PrivacyPage') },
           {
             path: 'design-system',
             lazy: lazyPage(() => import('../pages/DesignSystemPage'), 'DesignSystemPage'),

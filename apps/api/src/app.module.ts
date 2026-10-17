@@ -1,6 +1,6 @@
 import { type DynamicModule, Module, StandardSchemaValidationPipe } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import type { JWTVerifyGetKey } from 'jose';
 import type { DestinationStream } from 'pino';
@@ -10,6 +10,7 @@ import { AuthGuard } from './auth/auth.guard.js';
 import { AuthModule } from './auth/auth.module.js';
 import { loggerParams } from './common/logger.js';
 import { ProblemFilter, ValidationFailed } from './common/problem.js';
+import { AccountThrottlerGuard, FLOOD, FloodGuard } from './common/throttling.js';
 import { ConfigModule } from './config/config.module.js';
 import type { Config } from './config/env.js';
 import { DatabaseModule } from './database/database.module.js';
@@ -35,7 +36,10 @@ export class AppModule {
         ConfigModule.forRoot(config),
         LoggerModule.forRoot(loggerParams(config, options.logDestination)),
         ThrottlerModule.forRoot({
-          throttlers: [{ ttl: 60_000, limit: config.RATE_LIMIT_PER_MINUTE }],
+          throttlers: [
+            { name: FLOOD, ttl: 60_000, limit: config.RATE_LIMIT_IP_PER_MINUTE },
+            { name: 'default', ttl: 60_000, limit: config.RATE_LIMIT_PER_MINUTE },
+          ],
         }),
         DatabaseModule,
         JobsModule,
@@ -47,9 +51,11 @@ export class AppModule {
         MediaModule,
       ],
       providers: [
-        // Ordre des gardes : limitation de débit, puis authentification et rôles.
-        { provide: APP_GUARD, useClass: ThrottlerGuard },
+        // Ordre des gardes : plafond par adresse IP (inondation), authentification et rôles,
+        // puis limites de chaque route par compte (par IP sans compte, #137).
+        { provide: APP_GUARD, useClass: FloodGuard },
         { provide: APP_GUARD, useClass: AuthGuard },
+        { provide: APP_GUARD, useClass: AccountThrottlerGuard },
         // Puis le compte de l'application : première visite, charte, âge.
         { provide: APP_GUARD, useClass: AccountGuard },
         { provide: APP_FILTER, useClass: ProblemFilter },

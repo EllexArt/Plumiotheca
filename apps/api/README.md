@@ -70,28 +70,29 @@ pnpm --filter @plumiotheca/api typecheck
 
 Validée au démarrage par `src/config/env.ts` : l'API s'arrête avec la liste des variables en cause (sans leur valeur).
 
-| Variable                 | Défaut                                     | Rôle                                                                |
-| ------------------------ | ------------------------------------------ | ------------------------------------------------------------------- |
-| `NODE_ENV`               | `development`                              | `production` désactive la documentation OpenAPI                     |
-| `HOST`                   | `127.0.0.1`                                | `0.0.0.0` dans l'image Docker                                       |
-| `PORT`                   | `3000`                                     |                                                                     |
-| `LOG_LEVEL`              | `info`                                     | niveau pino                                                         |
-| `CORS_ORIGINS`           | origines locales de dev                    | liste séparée par des virgules, obligatoire en production           |
-| `TRUST_PROXY`            | `0`                                        | proxys inverses devant l'API, obligatoire en production             |
-| `RATE_LIMIT_PER_MINUTE`  | `120`                                      | requêtes par minute et par adresse IP                               |
-| `KEYCLOAK_ISSUER`        | realm local (port 8080)                    | émetteur des jetons vu par le navigateur, obligatoire en production |
-| `KEYCLOAK_JWKS_URL`      | `<émetteur>/protocol/openid-connect/certs` | autre chemin vers les clés (ex. réseau interne d'un conteneur)      |
-| `JWT_AUDIENCE`           | `api`                                      | audience exigée                                                     |
-| `JWT_CLIENTS`            | `web`                                      | clients autorisés (`azp`), séparés par des virgules                 |
-| `DB_HOST`, `DB_PORT`     | `localhost`, `5433`                        | base PostgreSQL (infra de développement par défaut)                 |
-| `DB_USERNAME`, `DB_NAME` | `plumiotheca`                              |                                                                     |
-| `DB_PASSWORD`            | —                                          | obligatoire en production                                           |
-| `DB_SSL`                 | `false`                                    | connexion chiffrée à la base                                        |
-| `DB_CONNECT_RETRIES`     | `5`                                        | essais de connexion au démarrage (2 s d'écart)                      |
-| `DB_MIGRATE_ON_START`    | `true` en développement                    | applique les migrations au démarrage                                |
-| `MEILI_URL`              | `http://localhost:7700`                    | Meilisearch                                                         |
-| `MEILI_MASTER_KEY`       | —                                          | clé de Meilisearch, obligatoire en production                       |
-| `SEARCH_INDEX`           | `histoires`                                | index des histoires (les tests utilisent le nom de leur base)       |
+| Variable                   | Défaut                                     | Rôle                                                                                                                   |
+| -------------------------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`                 | `development`                              | `production` désactive la documentation OpenAPI                                                                        |
+| `HOST`                     | `127.0.0.1`                                | `0.0.0.0` dans l'image Docker                                                                                          |
+| `PORT`                     | `3000`                                     |                                                                                                                        |
+| `LOG_LEVEL`                | `info`                                     | niveau pino                                                                                                            |
+| `CORS_ORIGINS`             | origines locales de dev                    | liste séparée par des virgules, obligatoire en production                                                              |
+| `TRUST_PROXY`              | `0`                                        | proxys inverses devant l'API, obligatoire en production                                                                |
+| `RATE_LIMIT_PER_MINUTE`    | `120`                                      | requêtes par minute et par route, **par compte** (par adresse IP sans compte, #137) ; certaines routes ont leur limite |
+| `RATE_LIMIT_IP_PER_MINUTE` | `1200`                                     | plafond par adresse IP, toutes routes confondues, avant l'authentification (inondation, jetons forgés)                 |
+| `KEYCLOAK_ISSUER`          | realm local (port 8080)                    | émetteur des jetons vu par le navigateur, obligatoire en production                                                    |
+| `KEYCLOAK_JWKS_URL`        | `<émetteur>/protocol/openid-connect/certs` | autre chemin vers les clés (ex. réseau interne d'un conteneur)                                                         |
+| `JWT_AUDIENCE`             | `api`                                      | audience exigée                                                                                                        |
+| `JWT_CLIENTS`              | `web`                                      | clients autorisés (`azp`), séparés par des virgules                                                                    |
+| `DB_HOST`, `DB_PORT`       | `localhost`, `5433`                        | base PostgreSQL (infra de développement par défaut)                                                                    |
+| `DB_USERNAME`, `DB_NAME`   | `plumiotheca`                              |                                                                                                                        |
+| `DB_PASSWORD`              | —                                          | obligatoire en production                                                                                              |
+| `DB_SSL`                   | `false`                                    | connexion chiffrée à la base                                                                                           |
+| `DB_CONNECT_RETRIES`       | `5`                                        | essais de connexion au démarrage (2 s d'écart)                                                                         |
+| `DB_MIGRATE_ON_START`      | `true` en développement                    | applique les migrations au démarrage                                                                                   |
+| `MEILI_URL`                | `http://localhost:7700`                    | Meilisearch                                                                                                            |
+| `MEILI_MASTER_KEY`         | —                                          | clé de Meilisearch, obligatoire en production                                                                          |
+| `SEARCH_INDEX`             | `histoires`                                | index des histoires (les tests utilisent le nom de leur base)                                                          |
 
 Les variables S3 et de médias sont décrites dans `infra/README.md` ; celles du SMTP seront lues plus tard. Toutes sont générées par `pnpm infra:setup` dans `apps/api/.env` (jamais commité).
 
