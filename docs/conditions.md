@@ -12,7 +12,7 @@ Plumiotheca est éditée par _à compléter avant l'ouverture (personne ou assoc
 
 **2.1** Plumiotheca permet d'écrire, de publier, de lire et de partager des histoires, sous pseudonyme. Lire les histoires publiées ne demande pas de compte ; écrire et participer en demandent un.
 
-**2.2** L'utilisation de Plumiotheca est gratuite. _À valider._
+**2.2** L'utilisation de Plumiotheca est gratuite.
 
 **2.3** Il n'y a ni publicité, ni revente de données, ni messagerie privée.
 
