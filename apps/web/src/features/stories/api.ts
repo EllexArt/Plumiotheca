@@ -30,6 +30,8 @@ export interface StoryFilters {
   pseudonyme?: string | undefined;
   /** Recherche plein texte (#82) : remplace les autres filtres. */
   q?: string | undefined;
+  /** Afficher pour cette fois ce que Mes limites masquent (#81). */
+  reveal?: boolean | undefined;
 }
 
 /** Une page de la liste, qu'elle vienne de la liste publique ou de la recherche. */
@@ -51,23 +53,33 @@ interface ListPage {
 export function usePublicStories(filters: StoryFilters = {}) {
   const api = useApi();
   const auth = useAuth();
-  // Mes limites (#152) : appliquées à toutes les listes et à la recherche.
-  const limits = useLimits();
-  const hidden = limits.hidden;
+  // Mes limites (#152, #81) : appliquées à toutes les listes et à la recherche.
+  const { limits, pending } = useLimits();
+  const applied = filters.reveal ? null : limits;
+  const exclude = (params: URLSearchParams) => {
+    if (!applied) return;
+    if (applied.hiddenContentWarnings.length) {
+      params.set('exclureAutres', applied.hiddenContentWarnings.join(','));
+    }
+    if (applied.hiddenMajorWarnings.length) {
+      params.set('exclure', applied.hiddenMajorWarnings.join(','));
+    }
+    if (applied.hiddenTags.length) params.set('masquerTags', applied.hiddenTags.join(','));
+  };
   return useInfiniteQuery({
-    queryKey: [...storyKeys.public, filters, hidden, auth.isAuthenticated],
+    queryKey: [...storyKeys.public, filters, applied, auth.isAuthenticated],
     // Compte en chargement : on attend ses limites, pour ne jamais montrer une histoire masquée.
-    enabled: !limits.pending,
+    enabled: !pending,
     initialPageParam: null as string | number | null,
     queryFn: async ({ pageParam, signal }): Promise<ListPage> => {
       if (filters.q) {
         const params = new URLSearchParams({ q: filters.q, page: String(pageParam ?? 1) });
-        if (hidden.length) params.set('exclureAutres', hidden.join(','));
+        exclude(params);
         const page = await api(SearchPage, `/recherche?${params}`, { signal });
         return { items: page.items, next: page.nextPage, total: page.total, hidden: page.hidden };
       }
       const params = new URLSearchParams({ limite: '20' });
-      if (hidden.length) params.set('exclureAutres', hidden.join(','));
+      exclude(params);
       if (filters.tag) params.set('tag', filters.tag);
       if (filters.pseudonyme) params.set('pseudonyme', filters.pseudonyme);
       if (typeof pageParam === 'string') params.set('apres', pageParam);

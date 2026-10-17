@@ -132,11 +132,72 @@ describe('Mes limites sur le compte (#152)', () => {
     const saved = MyAccount.parse(
       (await put({ hiddenContentWarnings: ['suicide', 'grief', 'suicide'] }).expect(200)).body,
     );
-    expect(saved.limits).toEqual({ hiddenContentWarnings: ['grief', 'suicide'] });
+    expect(saved.limits).toEqual({
+      hiddenContentWarnings: ['grief', 'suicide'],
+      hiddenMajorWarnings: [],
+      hiddenTags: [],
+    });
     const cleared = MyAccount.parse((await put({ hiddenContentWarnings: [] }).expect(200)).body);
     expect(cleared.limits).toBeNull();
     await put({ hiddenContentWarnings: ['sepia'] }).expect(400);
     await put({ hiddenContentWarnings: [], tags: ['x'] }).expect(400);
     await ctx.http.put('/api/moi/compte/limites').send({ hiddenContentWarnings: [] }).expect(401);
+  });
+});
+
+describe('Mes limites permanentes : avertissements majeurs et tags (#81)', () => {
+  it('tags masqués (casse et accents ignorés) dans la liste et la recherche, avec leur nombre', async () => {
+    const ctx = await start();
+    const jwt = await readyToken(ctx.app);
+    const key = word();
+    // Tags propres au test : la table des tags est commune aux fichiers qui tournent en parallèle.
+    const shared = `Commun ${key}`;
+    const kept = await story(ctx, jwt, { title: `Gardée ${key}`, tags: [shared] });
+    await story(ctx, jwt, { title: `Masquée ${key}`, tags: [`Feu Lent ${key}`, shared] });
+    const list = StoryPage.parse(
+      (
+        await ctx.http
+          .get(`/api/histoires?pseudonyme=${kept.author.handle}&masquerTags=feu%20lent%20${key}`)
+          .expect(200)
+      ).body,
+    );
+    expect(titles(list.items)).toEqual(['Gardée']);
+    expect(list.hidden).toBe(1);
+    const found = SearchPage.parse(
+      (await ctx.http.get(`/api/recherche?q=${key}&masquerTags=F%C3%8AU-LENT%20${key}`).expect(200))
+        .body,
+    );
+    expect(titles(found.items)).toEqual(['Gardée']);
+    expect(found.hidden).toBe(1);
+  });
+
+  it('limites du compte : avertissements majeurs et tags, normalisés et sans doublon ; ancien format accepté', async () => {
+    const ctx = await start();
+    const jwt = await readyToken(ctx.app);
+    const put = (body: unknown) =>
+      ctx.http
+        .put('/api/moi/compte/limites')
+        .set(...bearer(jwt))
+        .send(body as object);
+    const saved = MyAccount.parse(
+      (
+        await put({
+          hiddenContentWarnings: [],
+          hiddenMajorWarnings: ['unspecified', 'character_death', 'unspecified'],
+          hiddenTags: ['Slow Burn', 'slow  burn', 'Énemies to lovers'],
+        }).expect(200)
+      ).body,
+    );
+    expect(saved.limits).toEqual({
+      hiddenContentWarnings: [],
+      hiddenMajorWarnings: ['character_death', 'unspecified'],
+      hiddenTags: ['slow burn', 'enemies to lovers'],
+    });
+    const old = MyAccount.parse((await put({ hiddenContentWarnings: ['grief'] }).expect(200)).body);
+    expect(old.limits).toEqual({
+      hiddenContentWarnings: ['grief'],
+      hiddenMajorWarnings: [],
+      hiddenTags: [],
+    });
   });
 });

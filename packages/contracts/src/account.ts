@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { ContentWarning, DeclaredAge } from './domain.js';
+import { ContentWarning, DeclaredAge, MajorWarning } from './domain.js';
+import { TagName } from './stories.js';
 import { Appearance, ReadingPreferences } from './reading.js';
 
 // Pseudonyme public (@handle) : 3 à 30 caractères, lettres latines (accents compris),
@@ -111,9 +112,16 @@ export type SetAvatar = z.infer<typeof SetAvatar>;
  * à toutes les listes et à la recherche. Donnée personnelle : elle peut révéler ce qui
  * touche quelqu'un ; jamais visible des autres.
  */
+/** Tags masqués au plus. */
+export const MAX_HIDDEN_TAGS = 50;
+
 export const ReadingLimits = z.strictObject({
   /** Avertissements facultatifs : histoires masquées si elles en portent un. */
   hiddenContentWarnings: z.array(ContentWarning).max(ContentWarning.options.length),
+  /** Avertissements majeurs (#81), « non précisé » compris. */
+  hiddenMajorWarnings: z.array(MajorWarning).max(MajorWarning.options.length).default([]),
+  /** Tags (#81), sous leur forme normalisée (casse et accents ignorés). */
+  hiddenTags: z.array(TagName).max(MAX_HIDDEN_TAGS).default([]),
 });
 export type ReadingLimits = z.infer<typeof ReadingLimits>;
 

@@ -13,6 +13,8 @@ import {
   Appearance,
   ReadingLimits,
   ContentWarning,
+  MajorWarning,
+  normalizeTag,
 } from '@plumiotheca/contracts';
 import { DataSource, type EntityManager, IsNull, MoreThan, QueryFailedError } from 'typeorm';
 import { ApiProblem } from '../common/problem.js';
@@ -237,11 +239,18 @@ export class AccountService {
 
   /** Mes limites (#152) ; aucune limite : rien n'est gardé. */
   async setLimits(user: User, limits: ReadingLimits): Promise<User> {
-    // Sans doublon, dans l'ordre de la liste.
-    const hidden = ContentWarning.options.filter((w) => limits.hiddenContentWarnings.includes(w));
-    await this.users.update(user.id, {
-      limits: hidden.length ? { hiddenContentWarnings: hidden } : null,
-    });
+    // Sans doublon, dans l'ordre des listes ; tags sous leur forme normalisée.
+    const next = {
+      hiddenContentWarnings: ContentWarning.options.filter((w) =>
+        limits.hiddenContentWarnings.includes(w),
+      ),
+      hiddenMajorWarnings: MajorWarning.options.filter((w) =>
+        limits.hiddenMajorWarnings.includes(w),
+      ),
+      hiddenTags: [...new Set(limits.hiddenTags.map(normalizeTag).filter(Boolean))],
+    };
+    const empty = Object.values(next).every((list) => !list.length);
+    await this.users.update(user.id, { limits: empty ? null : next });
     return this.users.findOneByOrFail({ id: user.id });
   }
 
