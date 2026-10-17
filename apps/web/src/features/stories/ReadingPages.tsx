@@ -6,6 +6,7 @@ import { Link, useParams, useSearchParams } from 'react-router';
 import { ApiError } from '../../shared/api/client';
 import { Button, ButtonLink } from '../../shared/ui/Button';
 import { Alert, Loading, Tag } from '../../shared/ui/Feedback';
+import { LoadMoreFooter, useLoadMore } from '../../shared/ui/LoadMore';
 import { TextField } from '../../shared/ui/Field';
 import { Page, usePageTitle } from '../../shared/ui/Page';
 import { useChapter, usePublicStories, useStory, type StoryFilters } from './api';
@@ -111,7 +112,9 @@ function StoryCard({ story }: { story: StorySummary }) {
       </div>
       <div className={styles.cardBody}>
         <h2 className={styles.cardTitle}>
-          <Link to={`/histoires/${story.id}`}>{story.title}</Link>
+          <Link to={`/histoires/${story.id}`} data-focus={story.id}>
+            {story.title}
+          </Link>
         </h2>
         <p className={styles.meta}>
           par <AuthorLink author={story.author} /> · {plural(story.chapterCount, 'chapitre')} ·{' '}
@@ -136,21 +139,12 @@ export function StoryList({
   empty?: ReactNode;
 }) {
   const stories = usePublicStories(filters);
-  // Rang de la première histoire ajoutée par « Voir plus » (focus une fois affichée).
-  const focusFrom = useRef<number | null>(null);
-  const list = useRef<HTMLUListElement>(null);
   const items = stories.data?.pages.flatMap((page) => page.items) ?? [];
-
-  useEffect(() => {
-    const from = focusFrom.current;
-    if (from === null || items.length <= from) return;
-    list.current?.querySelectorAll<HTMLAnchorElement>('h2 a')[from]?.focus();
-    focusFrom.current = null;
-  }, [items.length]);
-  // Autres filtres ou page suivante en échec : plus de focus à déplacer.
-  useEffect(() => {
-    focusFrom.current = null;
-  }, [filters.tag, filters.pseudonyme, filters.q, stories.isFetchNextPageError]);
+  const { list, loadMore } = useLoadMore(
+    items.map((story) => story.id),
+    stories,
+    `${filters.tag}|${filters.pseudonyme}|${filters.q}`,
+  );
 
   if (stories.isPending) return <Loading label="Chargement des histoires…" />;
   // Seule la première page en échec remplace la liste ; « Voir plus » en échec la garde.
@@ -171,25 +165,12 @@ export function StoryList({
           </li>
         ))}
       </ul>
-      {stories.isFetchNextPageError && (
-        <Alert tone="danger" live title="Les histoires suivantes n’ont pas pu être chargées.">
-          <p>{stories.error?.message} Vous pouvez réessayer avec le bouton ci-dessous.</p>
-        </Alert>
-      )}
-      {stories.hasNextPage && (
-        <div>
-          <Button
-            variant="secondary"
-            pending={stories.isFetchingNextPage}
-            onClick={() => {
-              focusFrom.current = items.length;
-              void stories.fetchNextPage();
-            }}
-          >
-            {stories.isFetchingNextPage ? 'Chargement…' : 'Voir plus d’histoires'}
-          </Button>
-        </div>
-      )}
+      <LoadMoreFooter
+        query={stories}
+        onLoadMore={loadMore}
+        label="Voir plus d’histoires"
+        errorTitle="Les histoires suivantes n’ont pas pu être chargées."
+      />
     </>
   );
 }
