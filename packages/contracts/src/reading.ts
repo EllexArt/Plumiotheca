@@ -4,7 +4,8 @@ import { z } from 'zod';
  * Réglages de lecture (#28), gardés sur le compte pour les retrouver d’un appareil à
  * l’autre. Les couleurs ne sont pas ici : elles suivent le thème et les ambiances (#77).
  */
-export const ReadingFont = z.enum(['lecture', 'sans']);
+/** « lisible » : Atkinson Hyperlegible (basse vision) ; « dyslexie » : OpenDyslexic (#36). */
+export const ReadingFont = z.enum(['lecture', 'sans', 'lisible', 'dyslexie']);
 export type ReadingFont = z.infer<typeof ReadingFont>;
 
 export const ReadingLineHeight = z.enum(['serre', 'normal', 'aere']);

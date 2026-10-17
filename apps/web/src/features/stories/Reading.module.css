@@ -358,6 +358,14 @@
   --reader-font: var(--font-ui);
 }
 
+.reader[data-font='lisible'] {
+  --reader-font: 'Atkinson Hyperlegible Next Variable', var(--font-ui);
+}
+
+.reader[data-font='dyslexie'] {
+  --reader-font: 'OpenDyslexic', var(--font-ui);
+}
+
 .reader[data-leading='serre'] {
   --reader-leading: 1.5;
 }

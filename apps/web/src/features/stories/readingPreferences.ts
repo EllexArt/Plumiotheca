@@ -1,9 +1,20 @@
 import { DEFAULT_READING, MyAccount, ReadingPreferences } from '@plumiotheca/contracts';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from 'react-oidc-context';
 import { useApi } from '../../shared/api/useApi';
 import { myAccountKey, useMyAccount } from '../account/api';
+
+/** Polices adaptées (#36) : chargées seulement si on les choisit (servies par le site). */
+const EXTRA_FONTS: Partial<Record<ReadingPreferences['font'], () => Promise<unknown>>> = {
+  lisible: () => import('@fontsource-variable/atkinson-hyperlegible-next/wght.css'),
+  dyslexie: () =>
+    Promise.all([
+      import('@fontsource/opendyslexic/latin-400.css'),
+      import('@fontsource/opendyslexic/latin-700.css'),
+      import('@fontsource/opendyslexic/latin-400-italic.css'),
+    ]),
+};
 
 /** Réglages choisis sans compte : sur cet appareil seulement. */
 const KEY = 'plumiotheca.lecture';
@@ -56,6 +67,11 @@ export function useReadingPreferences() {
   const onAccount = signedIn && account.isSuccess;
   const preferences =
     (onAccount ? account.data.readingPreferences : null) ?? device ?? DEFAULT_READING;
+
+  const font = preferences.font;
+  useEffect(() => {
+    void EXTRA_FONTS[font]?.();
+  }, [font]);
 
   const change = (next: ReadingPreferences | null) => {
     if (onAccount) {
