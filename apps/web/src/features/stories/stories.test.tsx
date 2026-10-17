@@ -138,7 +138,7 @@ describe('recherche (#82)', () => {
       }
     });
     renderApp('/');
-    const field = await screen.findByRole('searchbox', { name: 'Rechercher une histoire' });
+    const field = await screen.findByRole('combobox', { name: 'Rechercher une histoire' });
     await userEvent.type(field, 'bibliothèque engloutie');
     await userEvent.click(screen.getByRole('button', { name: 'Rechercher' }));
     expect(

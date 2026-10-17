@@ -12,6 +12,10 @@ import {
   type SearchPage,
   type SearchQuery,
   type StorySummary,
+  type SuggestQuery,
+  type Suggestions,
+  SUGGESTIONS_PER_GROUP,
+  handleKey,
   normalizeTag,
 } from '@plumiotheca/contracts';
 import { DataSource, In } from 'typeorm';
@@ -20,6 +24,7 @@ import { ApiProblem } from '../common/problem.js';
 import { CONFIG } from '../config/config.module.js';
 import type { Config } from '../config/env.js';
 import { JobsService } from '../jobs/jobs.service.js';
+import { escapeLike, TagsService } from '../tags/tags.service.js';
 import { StoriesService } from './stories.service.js';
 import { publicStories } from './story-access.js';
 import { Story } from './story.entity.js';
@@ -111,6 +116,7 @@ export class SearchService implements OnModuleInit, OnApplicationBootstrap {
     @InjectDataSource() private readonly db: DataSource,
     private readonly stories: StoriesService,
     private readonly jobs: JobsService,
+    private readonly tags: TagsService,
   ) {}
 
   onModuleInit() {
@@ -206,6 +212,11 @@ export class SearchService implements OnModuleInit, OnApplicationBootstrap {
   }
 
   async search(query: SearchQuery): Promise<SearchPage> {
+    // Tags demandés ou masqués, avec leurs synonymes (#31).
+    const [include, masked] = await Promise.all([
+      this.tags.families(this.db.manager, query.tags ?? []),
+      this.tags.families(this.db.manager, query.masquerTags ?? []),
+    ]);
     const filter: string[] = [];
     if (query.langue) filter.push(`language = ${JSON.stringify(query.langue)}`);
     if (query.classement) filter.push(`rating = ${JSON.stringify(query.classement)}`);
@@ -217,17 +228,9 @@ export class SearchService implements OnModuleInit, OnApplicationBootstrap {
     if (query.statut) filter.push(`completion = ${JSON.stringify(query.statut)}`);
     if (query.motsMin !== undefined) filter.push(`wordCount >= ${query.motsMin}`);
     if (query.motsMax !== undefined) filter.push(`wordCount <= ${query.motsMax}`);
-    for (const tag of new Set((query.tags ?? []).map(normalizeTag))) {
-      filter.push(`tagKeys = ${JSON.stringify(tag)}`);
-    }
+    for (const family of include) filter.push(`tagKeys IN ${JSON.stringify(family)}`);
     const sort = SEARCH_SORTS[query.tri];
-    // Avertissements exclus : « majeurs » et facultatifs (#152).
-    const excluded = [
-      query.exclure?.length && `majorWarnings IN ${JSON.stringify(query.exclure)}`,
-      query.exclureAutres?.length && `contentWarnings IN ${JSON.stringify(query.exclureAutres)}`,
-      query.masquerTags?.length &&
-        `tagKeys IN ${JSON.stringify(query.masquerTags.map(normalizeTag))}`,
-    ].filter((f): f is string => Boolean(f));
+    const excluded = exclusionFilters(query, masked.flat());
     const index = `/indexes/${this.config.SEARCH_INDEX}/search`;
     let result: z.infer<typeof Hits>;
     let hidden: number | undefined;
@@ -266,13 +269,9 @@ export class SearchService implements OnModuleInit, OnApplicationBootstrap {
     const ids = result.hits.slice(0, SEARCH_PAGE_SIZE).map((h) => h.id);
     // Relu dans la base : une histoire dépubliée depuis l'indexation n'apparaît pas, ni une
     // histoire dont les avertissements ont changé depuis (index en retard).
-    const maskedTags = new Set((query.masquerTags ?? []).map(normalizeTag));
-    const masked = (story: StorySummary) =>
-      (story.majorWarnings ?? []).some((w) => query.exclure?.includes(w)) ||
-      story.contentWarnings.some((w) => query.exclureAutres?.includes(w)) ||
-      story.tags.some((t) => maskedTags.has(normalizeTag(t)));
+    const hiddenBy = isExcluded(query, masked.flat());
     const found = new Map(
-      (await this.publicSummaries(ids)).filter((s) => !masked(s)).map((s) => [s.id, s]),
+      (await this.publicSummaries(ids)).filter((s) => !hiddenBy(s)).map((s) => [s.id, s]),
     );
     return {
       items: ids.flatMap((id) => found.get(id) ?? []),
@@ -280,6 +279,62 @@ export class SearchService implements OnModuleInit, OnApplicationBootstrap {
       nextPage: result.hits.length > SEARCH_PAGE_SIZE ? query.page + 1 : null,
       ...(hidden === undefined ? {} : { hidden }),
     };
+  }
+
+  /**
+   * Suggestions pendant la saisie (#31) : tags, histoires (Meilisearch : fautes et accents
+   * tolérés), personnes qui écrivent. Mêmes exclusions que la recherche.
+   */
+  async suggest(query: SuggestQuery): Promise<Suggestions> {
+    const tx = this.db.manager;
+    const masked = (await this.tags.families(tx, query.masquerTags ?? [])).flat();
+    const hiddenBy = isExcluded(query, masked);
+    const [tags, ids, authors] = await Promise.all([
+      this.tags.suggest(tx, query.q, SUGGESTIONS_PER_GROUP),
+      this.call(`/indexes/${this.config.SEARCH_INDEX}/search`, 'POST', {
+        q: query.q,
+        filter: exclusionFilters(query, masked).map((f) => `NOT ${f}`),
+        // Quelques-unes de plus : certaines peuvent être devenues invisibles depuis l'index.
+        limit: SUGGESTIONS_PER_GROUP + 3,
+        attributesToRetrieve: ['id'],
+      })
+        .then((result) => Hits.parse(result).hits.map((h) => h.id))
+        .catch((error: unknown) => {
+          // Sans Meilisearch, les autres suggestions restent utiles.
+          this.logger.warn(
+            { failure: { type: (error as Error).name, code: (error as MeiliError).code } },
+            'Suggestions d’histoires impossibles',
+          );
+          return [];
+        }),
+      this.suggestAuthors(query.q),
+    ]);
+    const found = new Map((await this.publicSummaries(ids)).map((s) => [s.id, s]));
+    return {
+      tags,
+      stories: ids
+        .flatMap((id) => found.get(id) ?? [])
+        .filter((s) => !hiddenBy(s))
+        .slice(0, SUGGESTIONS_PER_GROUP)
+        .map((s) => ({ id: s.id, title: s.title, language: s.language, author: s.author })),
+      authors,
+    };
+  }
+
+  /** Personnes qui ont une histoire publique : pseudonyme ou nom affiché, fautes tolérées. */
+  private async suggestAuthors(text: string): Promise<Suggestions['authors']> {
+    const key = handleKey(text);
+    const rows = await this.db.query<{ handle: string; display_name: string | null }[]>(
+      `SELECT u.handle, u.display_name FROM users u
+       WHERE (u.handle_key LIKE $1 || '%' OR u.display_name ILIKE '%' || $2 || '%'
+              OR (length($3) >= 3 AND u.handle_key % $3))
+         AND u.status = 'active' AND u.age_band IN ('15-17', '18+') AND u.handle IS NOT NULL
+         AND EXISTS (SELECT 1 FROM stories s WHERE s.author_id = u.id AND s.status = 'published')
+       ORDER BY (u.handle_key LIKE $1 || '%') DESC, similarity(u.handle_key, $3) DESC, u.handle
+       LIMIT $4`,
+      [escapeLike(key), escapeLike(text.trim()), key, SUGGESTIONS_PER_GROUP],
+    );
+    return rows.map((r) => ({ handle: r.handle, displayName: r.display_name }));
   }
 
   /** Attend qu'une tâche Meilisearch soit traitée (réindexation, tests). */
@@ -342,4 +397,25 @@ export class SearchService implements OnModuleInit, OnApplicationBootstrap {
 
 function ignoreMissing(error: unknown) {
   if ((error as MeiliError).code !== 'index_not_found') throw error;
+}
+
+/** Filtres Meilisearch des exclusions (à inverser) : avertissements (#152) et tags (#81, #31). */
+function exclusionFilters(
+  query: Pick<SearchQuery, 'exclure' | 'exclureAutres'>,
+  maskedTags: string[],
+): string[] {
+  return [
+    query.exclure?.length && `majorWarnings IN ${JSON.stringify(query.exclure)}`,
+    query.exclureAutres?.length && `contentWarnings IN ${JSON.stringify(query.exclureAutres)}`,
+    maskedTags.length && `tagKeys IN ${JSON.stringify(maskedTags)}`,
+  ].filter((f): f is string => Boolean(f));
+}
+
+/** Même règle, relue dans la base : l'index peut être en retard sur une histoire. */
+function isExcluded(query: Pick<SearchQuery, 'exclure' | 'exclureAutres'>, maskedTags: string[]) {
+  const tags = new Set(maskedTags);
+  return (story: StorySummary) =>
+    (story.majorWarnings ?? []).some((w) => query.exclure?.includes(w)) ||
+    story.contentWarnings.some((w) => query.exclureAutres?.includes(w)) ||
+    story.tags.some((t) => tags.has(normalizeTag(t)));
 }

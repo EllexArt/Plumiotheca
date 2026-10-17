@@ -1,20 +1,12 @@
-import type { StorySummary } from '@plumiotheca/contracts';
+import { normalizeTag, type StorySummary } from '@plumiotheca/contracts';
 import { parseDocument } from '@plumiotheca/editor-schema';
-import {
-  useEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-  type FormEvent,
-  type ReactNode,
-} from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useAuth } from 'react-oidc-context';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router';
 import { ApiError } from '../../shared/api/client';
 import { Button, ButtonLink } from '../../shared/ui/Button';
 import { Alert, Loading, Tag } from '../../shared/ui/Feedback';
 import { LoadMoreFooter, useLoadMore } from '../../shared/ui/LoadMore';
-import { TextField } from '../../shared/ui/Field';
 import { Page, usePageTitle } from '../../shared/ui/Page';
 import { useChapter, usePublicStories, useStory, type StoryFilters } from './api';
 import { ChapterContent } from './ChapterContent';
@@ -42,6 +34,7 @@ import {
   type SearchFilters,
 } from './filters';
 import { SearchFiltersPanel } from './SearchFiltersPanel';
+import { SmartSearch, type SearchInput } from './SmartSearch';
 import { limitReasons, useLimits } from './limits';
 import { useReadingPreferences } from './readingPreferences';
 import { ReadingProgress } from './ReadingProgress';
@@ -285,10 +278,23 @@ export function ExplorePage() {
   );
   const active = hasFilters(search);
 
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const value = String(new FormData(event.currentTarget).get('q') ?? '').trim();
-    setParams(writeFilters(new URLSearchParams(value ? { q: value } : {}), search));
+  // Saisie intelligente (#31) : exclusions « -tag » et tag choisi dans les suggestions.
+  const submit = ({ text, sans, tag: chosen }: SearchInput) => {
+    const key = (t: string) => normalizeTag(t);
+    const union = (list: string[], add: string[]) => [
+      ...list,
+      ...add.filter((t) => !list.some((u) => key(u) === key(t))),
+    ];
+    const without = (list: string[], tags: string[]) =>
+      list.filter((t) => !tags.some((u) => key(u) === key(t)));
+    const excluded = [...sans, ...(chosen?.exclude ? [chosen.name] : [])];
+    const included = chosen && !chosen.exclude ? [chosen.name] : [];
+    const next = {
+      ...search,
+      tags: union(without(search.tags, excluded), included),
+      sans: union(without(search.sans, included), excluded),
+    };
+    setParams(writeFilters(new URLSearchParams(text ? { q: text } : {}), next));
   };
   const changeFilters = (next: SearchFilters) =>
     setParams(writeFilters(params, next), { replace: true, preventScrollReset: true });
@@ -302,21 +308,7 @@ export function ExplorePage() {
           : 'Les dernières histoires publiées. Bientôt : des sélections composées par des lectrices et lecteurs, des autrices et auteurs, et l’équipe. Pas de fil choisi par un algorithme.'
       }
     >
-      <form role="search" className={styles.search} onSubmit={submit} key={q ?? ''}>
-        <TextField
-          label="Rechercher une histoire"
-          name="q"
-          type="search"
-          hint="Titre, tag, nom de l’autrice ou de l’auteur, résumé."
-          maxLength={200}
-          defaultValue={q ?? ''}
-        />
-        <div>
-          <Button type="submit" variant="secondary">
-            Rechercher
-          </Button>
-        </div>
-      </form>
+      <SmartSearch key={q ?? ''} initial={q ?? ''} onSearch={submit} />
       <details className={styles.limitsDetails} open={active || undefined}>
         <summary>Filtres{active ? ' (actifs)' : ''}</summary>
         <SearchFiltersPanel

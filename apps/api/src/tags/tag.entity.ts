@@ -7,6 +7,8 @@ import { CreatedAt, IdColumn } from '../database/columns.js';
  * (la recherche porte toujours sur celui-ci) ; un sous-tag hérite de son parent.
  */
 @Entity('tags')
+// Index de trigrammes (#31, suggestions tolérantes aux fautes), créé à la main en migration.
+@Index('tags_normalized_trgm', { synchronize: false })
 @Check('tags_not_own_canonical', `"canonical_id" <> "id"`)
 @Check('tags_not_own_parent', `"parent_id" <> "id"`)
 export class Tag {

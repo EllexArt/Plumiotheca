@@ -218,6 +218,38 @@ export const SearchPage = z.strictObject({
 });
 export type SearchPage = z.infer<typeof SearchPage>;
 
+/** Nombre de suggestions par groupe (#31). */
+export const SUGGESTIONS_PER_GROUP = 5;
+
+/**
+ * Suggestions pendant la saisie (#31) : tags, histoires, autrices et auteurs. Mêmes
+ * exclusions que la recherche (Mes limites) : une histoire masquée n'est pas suggérée.
+ */
+export const SuggestQuery = StoryQuery.pick({
+  exclure: true,
+  exclureAutres: true,
+  masquerTags: true,
+}).extend({
+  q: z.string().trim().min(1).max(100),
+});
+export type SuggestQuery = z.infer<typeof SuggestQuery>;
+
+export const Suggestions = z.strictObject({
+  /** Tags canoniques (un synonyme saisi mène à son tag), les plus utilisés d'abord. */
+  tags: z.array(z.strictObject({ name: z.string(), stories: z.int() })),
+  stories: z.array(
+    z.strictObject({
+      id: z.uuid(),
+      title: z.string(),
+      language: z.string(),
+      author: Author,
+    }),
+  ),
+  /** Personnes qui ont au moins une histoire publique. */
+  authors: z.array(Author),
+});
+export type Suggestions = z.infer<typeof Suggestions>;
+
 /** Pagination de « Mes histoires » (brouillons compris). */
 export const MyStoriesQuery = z.strictObject({
   apres: z.string().max(200).optional(),
