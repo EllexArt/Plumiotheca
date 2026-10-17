@@ -37,8 +37,13 @@ export const Env = z
      * limitation de débit). Obligatoire en production : 0 si l'API est exposée directement.
      */
     TRUST_PROXY: z.coerce.number().int().min(0).max(10).optional(),
-    /** Requêtes autorisées par minute et par adresse IP. */
+    /**
+     * Requêtes autorisées par minute, par compte (par adresse IP sans compte) ; certaines
+     * routes ont leur propre limite.
+     */
     RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).default(120),
+    /** Plafond large par adresse IP, avant l'authentification (adresses partagées). */
+    RATE_LIMIT_IP_PER_MINUTE: z.coerce.number().int().min(1).default(1200),
     /** Émetteur des jetons (claim « iss »), tel que le voit le navigateur. Obligatoire en production. */
     KEYCLOAK_ISSUER: z.url({ protocol: /^https?$/ }).optional(),
     /**
