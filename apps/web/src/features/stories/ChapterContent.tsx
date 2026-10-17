@@ -73,6 +73,11 @@ function block(node: Block, key: number): ReactNode {
  * Texte d'un chapitre (document TipTap validé par l'API) rendu en éléments React : jamais
  * de HTML brut. Les identifiants de blocs servent d'ancres (reprise de lecture, notes).
  */
-export function ChapterContent({ doc }: { doc: ChapterDocument }) {
-  return <div className={styles.content}>{doc.content.map(block)}</div>;
+/** `lang` : langue de l'histoire, pour que les lecteurs d'écran prennent la bonne voix (RGAA 8.7). */
+export function ChapterContent({ doc, lang }: { doc: ChapterDocument; lang?: string | undefined }) {
+  return (
+    <div className={styles.content} lang={lang}>
+      {doc.content.map(block)}
+    </div>
+  );
 }

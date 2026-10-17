@@ -111,7 +111,7 @@ function StoryCard({ story }: { story: StorySummary }) {
         {story.title}
       </div>
       <div className={styles.cardBody}>
-        <h2 className={styles.cardTitle}>
+        <h2 className={styles.cardTitle} lang={story.language}>
           <Link to={`/histoires/${story.id}`} data-focus={story.id}>
             {story.title}
           </Link>
@@ -120,7 +120,11 @@ function StoryCard({ story }: { story: StorySummary }) {
           par <AuthorLink author={story.author} /> · {plural(story.chapterCount, 'chapitre')} ·{' '}
           {completionLabel[story.completion]}
         </p>
-        {story.summary && <p className={styles.summary}>{story.summary}</p>}
+        {story.summary && (
+          <p className={styles.summary} lang={story.language}>
+            {story.summary}
+          </p>
+        )}
         <StoryTags story={story} />
       </div>
     </article>
@@ -301,7 +305,9 @@ export function StoryPage() {
 
         <div className={styles.main}>
           <div>
-            <h1 className={styles.storyTitle}>{s.title}</h1>
+            <h1 className={styles.storyTitle} lang={s.language}>
+              {s.title}
+            </h1>
             <p className={styles.byline}>
               par <AuthorLink author={s.author} /> · {completionLabel[s.completion]}
               {s.publishedAt && <> · publiée le {formatDate(s.publishedAt)}</>}
@@ -330,7 +336,7 @@ export function StoryPage() {
               <h2 id="resume" className={styles.sectionTitle}>
                 Résumé
               </h2>
-              <p>{s.summary}</p>
+              <p lang={s.language}>{s.summary}</p>
             </section>
           )}
         </div>
@@ -405,12 +411,14 @@ export function ReaderPage() {
       </div>
       <div>
         <p className={styles.eyebrow}>Chapitre {c.number}</p>
-        <h1 className={styles.chapterTitle}>{c.title || `Chapitre ${c.number}`}</h1>
+        <h1 className={styles.chapterTitle} lang={c.title ? story.data?.language : undefined}>
+          {c.title || `Chapitre ${c.number}`}
+        </h1>
       </div>
       {(() => {
         const doc = parseDocument(c.content);
         return doc.success ? (
-          <ChapterContent doc={doc.data} />
+          <ChapterContent doc={doc.data} lang={story.data?.language} />
         ) : (
           <Alert tone="danger" title="Ce chapitre ne peut pas s’afficher.">
             <p>Son contenu est illisible. Signalez-le à l’équipe.</p>

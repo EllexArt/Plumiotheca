@@ -26,6 +26,16 @@ const FONTS = [
     hint: 'Literata, pensée pour la lecture longue.',
   },
   { value: 'sans', label: 'Sans empattements', hint: 'Figtree, aux formes simples.' },
+  {
+    value: 'lisible',
+    label: 'Très lisible',
+    hint: 'Atkinson Hyperlegible, pensée pour les personnes malvoyantes : lettres faciles à distinguer.',
+  },
+  {
+    value: 'dyslexie',
+    label: 'Adaptée à la dyslexie',
+    hint: 'OpenDyslexic, aux lettres alourdies vers le bas.',
+  },
 ] satisfies Choice<ReadingFont>[];
 
 const LINE_HEIGHTS = [

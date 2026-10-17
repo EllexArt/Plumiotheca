@@ -259,3 +259,37 @@ describe('réglages de lecture (#28)', () => {
     expect(localStorage.getItem('plumiotheca.lecture')).toBeNull();
   });
 });
+
+describe('accessibilité du lecteur (#36)', () => {
+  it('histoire en anglais : titre, résumé et texte annoncés en anglais (RGAA 8.7)', async () => {
+    api((url) =>
+      url === `/api/histoires/${STORY}`
+        ? {
+            body: {
+              ...summary,
+              language: 'en',
+              chapters: [chapter(CH1, 1), chapter(CH2, 2)],
+            },
+          }
+        : undefined,
+    );
+    renderApp(`/histoires/${STORY}/chapitres/${CH1}`);
+    const text = await screen.findByText('La ville basse.');
+    await waitFor(() => expect(text.closest('[lang]')).toHaveAttribute('lang', 'en'));
+    expect(screen.getByRole('heading', { level: 1 })).toHaveAttribute('lang', 'en');
+    // L'interface autour garde la langue de la page (lang="fr" sur <html>, index.html).
+    expect(screen.getByRole('navigation', { name: 'Chapitres' }).closest('[lang]')).toBeNull();
+  });
+
+  it('polices adaptées : très lisible ou adaptée à la dyslexie', async () => {
+    api();
+    renderApp(`/histoires/${STORY}/chapitres/${CH1}`);
+    await userEvent.click(await screen.findByRole('button', { name: 'Réglages de lecture' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('radio', { name: /Adaptée à la dyslexie/ }));
+    expect(document.querySelector('article[data-font]')).toHaveAttribute('data-font', 'dyslexie');
+    await userEvent.click(within(dialog).getByRole('radio', { name: /Très lisible/ }));
+    expect(document.querySelector('article[data-font]')).toHaveAttribute('data-font', 'lisible');
+    await expectAccessible();
+  });
+});
