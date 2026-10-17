@@ -47,7 +47,7 @@ Ces informations ne quittent pas votre navigateur. Ce ne sont pas des traceurs e
 
 - Votre session de connexion, dans l'onglet : effacée quand vous fermez l'onglet ou vous déconnectez.
 - Une copie de secours du chapitre que vous écrivez, dans l'onglet : pour ne rien perdre en cas de coupure ; effacée à l'enregistrement ou à la déconnexion.
-- Le dernier chapitre ouvert pour 50 histoires au plus (« Reprendre au chapitre »), seulement quand vous utilisez votre compte : effacé à la déconnexion.
+- Le dernier chapitre ouvert, et le paragraphe où vous en étiez, pour 50 histoires au plus (« Reprendre au chapitre »), seulement quand vous utilisez votre compte : effacé à la déconnexion.
 - Votre choix de thème clair ou sombre, si vous en avez choisi un.
 - Vos réglages de lecture, si vous les choisissez sans utiliser votre compte.
 
