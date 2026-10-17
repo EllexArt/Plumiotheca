@@ -12,6 +12,7 @@ import {
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from 'react-oidc-context';
 import { useApi } from '../../shared/api/useApi';
+import { useLimits } from './limits';
 
 export const storyKeys = {
   public: ['histoires', 'publiques'] as const,
@@ -38,6 +39,8 @@ interface ListPage {
   next: string | number | null;
   /** Nombre approximatif de résultats (recherche seulement). */
   total?: number;
+  /** Histoires masquées par Mes limites (première page seulement). */
+  hidden?: number;
 }
 
 /**
@@ -48,21 +51,28 @@ interface ListPage {
 export function usePublicStories(filters: StoryFilters = {}) {
   const api = useApi();
   const auth = useAuth();
+  // Mes limites (#152) : appliquées à toutes les listes et à la recherche.
+  const limits = useLimits();
+  const hidden = limits.hidden;
   return useInfiniteQuery({
-    queryKey: [...storyKeys.public, filters, auth.isAuthenticated],
+    queryKey: [...storyKeys.public, filters, hidden, auth.isAuthenticated],
+    // Compte en chargement : on attend ses limites, pour ne jamais montrer une histoire masquée.
+    enabled: !limits.pending,
     initialPageParam: null as string | number | null,
     queryFn: async ({ pageParam, signal }): Promise<ListPage> => {
       if (filters.q) {
         const params = new URLSearchParams({ q: filters.q, page: String(pageParam ?? 1) });
+        if (hidden.length) params.set('exclureAutres', hidden.join(','));
         const page = await api(SearchPage, `/recherche?${params}`, { signal });
-        return { items: page.items, next: page.nextPage, total: page.total };
+        return { items: page.items, next: page.nextPage, total: page.total, hidden: page.hidden };
       }
       const params = new URLSearchParams({ limite: '20' });
+      if (hidden.length) params.set('exclureAutres', hidden.join(','));
       if (filters.tag) params.set('tag', filters.tag);
       if (filters.pseudonyme) params.set('pseudonyme', filters.pseudonyme);
       if (typeof pageParam === 'string') params.set('apres', pageParam);
       const page = await api(StoryPage, `/histoires?${params}`, { signal });
-      return { items: page.items, next: page.nextCursor };
+      return { items: page.items, next: page.nextCursor, hidden: page.hidden };
     },
     getNextPageParam: (last) => last.next,
   });

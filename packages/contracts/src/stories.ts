@@ -107,6 +107,11 @@ export const StoryPage = z.strictObject({
   items: z.array(StorySummary),
   /** À repasser en `apres` pour la page suivante ; null : dernière page. */
   nextCursor: z.string().nullable(),
+  /**
+   * Histoires masquées par les avertissements exclus (`exclure`, `exclureAutres`), pour le
+   * dire à la personne ; sur la première page seulement, et seulement s'il y a des exclusions.
+   */
+  hidden: z.int().optional(),
 });
 export type StoryPage = z.infer<typeof StoryPage>;
 
@@ -130,6 +135,13 @@ export const StoryQuery = z.strictObject({
     .transform((s) => s.split(',').filter(Boolean))
     .pipe(z.array(MajorWarning))
     .optional(),
+  /** Avertissements facultatifs à exclure, séparés par des virgules (#152). */
+  exclureAutres: z
+    .string()
+    .max(300)
+    .transform((s) => s.split(',').filter(Boolean))
+    .pipe(z.array(ContentWarning))
+    .optional(),
   /** Histoires d'une autrice ou d'un auteur (pseudonyme). */
   pseudonyme: z.string().max(30).optional(),
   /** Histoires portant ce tag (même normalisation que les tags : casse, accents, tirets). */
@@ -149,6 +161,7 @@ export const SearchQuery = StoryQuery.pick({
   classement: true,
   exclureClassement: true,
   exclure: true,
+  exclureAutres: true,
 }).extend({
   q: z.string().trim().min(1).max(200),
   page: z.coerce.number().int().min(1).max(50).default(1),
@@ -157,6 +170,8 @@ export type SearchQuery = z.infer<typeof SearchQuery>;
 
 export const SearchPage = z.strictObject({
   items: z.array(StorySummary),
+  /** Histoires masquées par les avertissements exclus (approximatif ; première page). */
+  hidden: z.int().optional(),
   /** Nombre approximatif de résultats. */
   total: z.int(),
   /** Page suivante ; null : dernière page. */

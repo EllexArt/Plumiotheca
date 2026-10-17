@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DeclaredAge } from './domain.js';
+import { ContentWarning, DeclaredAge } from './domain.js';
 import { Appearance, ReadingPreferences } from './reading.js';
 
 // Pseudonyme public (@handle) : 3 à 30 caractères, lettres latines (accents compris),
@@ -106,6 +106,17 @@ export type UpdateProfile = z.infer<typeof UpdateProfile>;
 export const SetAvatar = z.strictObject({ mediaId: z.uuid() });
 export type SetAvatar = z.infer<typeof SetAvatar>;
 
+/**
+ * Mes limites (#152, à compléter par #81) : ce que la personne ne veut pas voir, appliqué
+ * à toutes les listes et à la recherche. Donnée personnelle : elle peut révéler ce qui
+ * touche quelqu'un ; jamais visible des autres.
+ */
+export const ReadingLimits = z.strictObject({
+  /** Avertissements facultatifs : histoires masquées si elles en portent un. */
+  hiddenContentWarnings: z.array(ContentWarning).max(ContentWarning.options.length),
+});
+export type ReadingLimits = z.infer<typeof ReadingLimits>;
+
 /** Ce qu'il reste à faire avant d'utiliser Plumiotheca. */
 export const AccountStep = z.enum(['first-visit', 'charter', 'age-locked', 'ready']);
 export type AccountStep = z.infer<typeof AccountStep>;
@@ -123,6 +134,8 @@ export const MyAccount = z.strictObject({
   charterVersion: z.string().nullable(),
   /** Apparence du site (#77) ; null : celle de l'appareil. */
   appearance: Appearance.nullable(),
+  /** Mes limites ; null : aucune. */
+  limits: ReadingLimits.nullable(),
   /** Réglages de lecture (#28) ; null : ceux de l'appareil, ou ceux par défaut. */
   readingPreferences: ReadingPreferences.nullable(),
   /** Date à partir de laquelle le pseudonyme peut de nouveau changer (null : maintenant). */

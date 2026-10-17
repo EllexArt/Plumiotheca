@@ -185,21 +185,35 @@ export class SearchService implements OnModuleInit, OnApplicationBootstrap {
     if (query.exclureClassement?.length) {
       filter.push(`rating NOT IN ${JSON.stringify(query.exclureClassement)}`);
     }
-    if (query.exclure?.length) {
-      filter.push(`NOT majorWarnings IN ${JSON.stringify(query.exclure)}`);
-    }
+    // Avertissements exclus : « majeurs » et facultatifs (#152).
+    const excluded = [
+      query.exclure?.length && `majorWarnings IN ${JSON.stringify(query.exclure)}`,
+      query.exclureAutres?.length && `contentWarnings IN ${JSON.stringify(query.exclureAutres)}`,
+    ].filter((f): f is string => Boolean(f));
+    const index = `/indexes/${this.config.SEARCH_INDEX}/search`;
     let result: z.infer<typeof Hits>;
+    let hidden: number | undefined;
     try {
       result = Hits.parse(
-        await this.call(`/indexes/${this.config.SEARCH_INDEX}/search`, 'POST', {
+        await this.call(index, 'POST', {
           q: query.q,
-          filter,
+          filter: [...filter, ...excluded.map((f) => `NOT ${f}`)],
           offset: (query.page - 1) * SEARCH_PAGE_SIZE,
           // Un de plus : y a-t-il une page suivante ?
           limit: SEARCH_PAGE_SIZE + 1,
           attributesToRetrieve: ['id'],
         }),
       );
+      // Ce qui a été masqué, pour le dire : mêmes filtres, avertissements exclus inversés.
+      if (excluded.length && query.page === 1) {
+        hidden = Hits.parse(
+          await this.call(index, 'POST', {
+            q: query.q,
+            filter: [...filter, excluded.join(' OR ')],
+            limit: 0,
+          }),
+        ).estimatedTotalHits;
+      }
     } catch (error) {
       this.logger.warn(
         { failure: { type: (error as Error).name, code: (error as MeiliError).code } },
@@ -211,12 +225,19 @@ export class SearchService implements OnModuleInit, OnApplicationBootstrap {
       );
     }
     const ids = result.hits.slice(0, SEARCH_PAGE_SIZE).map((h) => h.id);
-    // Relu dans la base : une histoire dépubliée depuis l'indexation n'apparaît pas.
-    const found = new Map((await this.publicSummaries(ids)).map((s) => [s.id, s]));
+    // Relu dans la base : une histoire dépubliée depuis l'indexation n'apparaît pas, ni une
+    // histoire dont les avertissements ont changé depuis (index en retard).
+    const masked = (story: StorySummary) =>
+      (story.majorWarnings ?? []).some((w) => query.exclure?.includes(w)) ||
+      story.contentWarnings.some((w) => query.exclureAutres?.includes(w));
+    const found = new Map(
+      (await this.publicSummaries(ids)).filter((s) => !masked(s)).map((s) => [s.id, s]),
+    );
     return {
       items: ids.flatMap((id) => found.get(id) ?? []),
       total: result.estimatedTotalHits ?? ids.length,
       nextPage: result.hits.length > SEARCH_PAGE_SIZE ? query.page + 1 : null,
+      ...(hidden === undefined ? {} : { hidden }),
     };
   }
 
