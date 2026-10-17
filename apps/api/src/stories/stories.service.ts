@@ -11,7 +11,12 @@ import type {
 } from '@plumiotheca/contracts';
 import { handleKey } from '@plumiotheca/contracts';
 import { DataSource, type EntityManager, type SelectQueryBuilder } from 'typeorm';
-import { decodeCursor, encodeCursor } from '../common/cursor.js';
+import {
+  decodeCursor,
+  decodeNumberCursor,
+  encodeCursor,
+  encodeNumberCursor,
+} from '../common/cursor.js';
 import { ApiProblem } from '../common/problem.js';
 import { normalizeTag } from '../tags/tag-normalize.js';
 import { TagsService } from '../tags/tags.service.js';
@@ -21,6 +26,30 @@ import { lockStory, ownedStory, publicStories, visibleStory } from './story-acce
 import { Story } from './story.entity.js';
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
+
+/** Tris de la liste publique (#32), chacun avec son curseur (valeur de tri, identifiant). */
+const SORTS = {
+  recentes: {
+    column: 'story.published_at',
+    kind: 'date',
+    cursor: (s: Story) => encodeCursor(s.publishedAt!, s.id),
+  },
+  mises_a_jour: {
+    column: 'story.updated_at',
+    kind: 'date',
+    cursor: (s: Story) => encodeCursor(s.updatedAt, s.id),
+  },
+  lecteurs: {
+    column: 'story.read_count',
+    kind: 'number',
+    cursor: (s: Story) => encodeNumberCursor(s.readCount, s.id),
+  },
+  longueur: {
+    column: 'story.word_count',
+    kind: 'number',
+    cursor: (s: Story) => encodeNumberCursor(s.wordCount, s.id),
+  },
+} as const;
 
 @Injectable()
 export class StoriesService {
@@ -152,12 +181,16 @@ export class StoriesService {
       qb.andWhere('NOT (story.content_warnings && CAST(:autres AS content_warning[]))', exclude);
     }
     if (exclude.tags) qb.andWhere(`NOT ${tagged}`, exclude);
+    // Nombre de résultats (#32), avant le curseur : sur la première page seulement.
+    const total = query.apres ? undefined : await qb.clone().getCount();
+    const sort = SORTS[query.tri];
     if (query.apres) {
-      const [date, id] = decodeCursor(query.apres);
-      qb.andWhere('(story.published_at, story.id) < (:date, :id)', { date, id });
+      const [value, id] =
+        sort.kind === 'date' ? decodeCursor(query.apres) : decodeNumberCursor(query.apres);
+      qb.andWhere(`(${sort.column}, story.id) < (:value, :id)`, { value, id });
     }
     const rows = await qb
-      .orderBy('story.published_at', 'DESC')
+      .orderBy(sort.column, 'DESC')
       .addOrderBy('story.id', 'DESC')
       // limit (et non take) : la jointure vers l'autrice ou l'auteur ne duplique pas de ligne.
       .limit(query.limite + 1)
@@ -182,16 +215,27 @@ export class StoriesService {
         : undefined;
     return {
       items: await this.summaries(this.db.manager, page, false),
-      nextCursor:
-        rows.length > query.limite
-          ? encodeCursor(page.at(-1)!.publishedAt!, page.at(-1)!.id)
-          : null,
+      nextCursor: rows.length > query.limite ? sort.cursor(page.at(-1)!) : null,
+      ...(total === undefined ? {} : { total }),
       ...(hidden === undefined ? {} : { hidden }),
     };
   }
 
   /** Filtres de la liste publique, hors avertissements exclus et curseur. */
   private filtered(qb: SelectQueryBuilder<Story>, query: StoryQuery) {
+    if (query.langues?.length) qb.andWhere('story.language IN (:...langues)', query);
+    if (query.statut) qb.andWhere('story.completion = :statut', query);
+    if (query.motsMin !== undefined) qb.andWhere('story.word_count >= :motsMin', query);
+    if (query.motsMax !== undefined) qb.andWhere('story.word_count <= :motsMax', query);
+    if (query.tags?.length) {
+      // Tous les tags demandés (forme normalisée), et pas seulement l'un d'eux.
+      const inclure = [...new Set(query.tags.map(normalizeTag))];
+      qb.andWhere(
+        `(SELECT count(DISTINCT t.normalized) FROM story_tags st JOIN tags t ON t.id = st.tag_id
+          WHERE st.story_id = story.id AND t.normalized = ANY(:inclure)) = :nInclure`,
+        { inclure, nInclure: inclure.length },
+      );
+    }
     if (query.langue) qb.andWhere('story.language = :langue', { langue: query.langue });
     if (query.classement) {
       qb.andWhere('story.rating = :classement', { classement: query.classement });

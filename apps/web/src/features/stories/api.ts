@@ -12,6 +12,7 @@ import {
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from 'react-oidc-context';
 import { useApi } from '../../shared/api/useApi';
+import { exclusionsOf, LENGTHS, ratingsAbove, type SearchFilters } from './filters';
 import { useLimits } from './limits';
 
 export const storyKeys = {
@@ -30,8 +31,10 @@ export interface StoryFilters {
   pseudonyme?: string | undefined;
   /** Recherche plein texte (#82) : remplace les autres filtres. */
   q?: string | undefined;
-  /** Afficher pour cette fois ce que Mes limites masquent (#81). */
+  /** Afficher pour cette fois ce que Mes limites (et les exclusions des filtres) masquent (#81). */
   reveal?: boolean | undefined;
+  /** Filtres d'Explorer et de la recherche (#32). */
+  search?: SearchFilters | undefined;
 }
 
 /** Une page de la liste, qu'elle vienne de la liste publique ou de la recherche. */
@@ -55,7 +58,24 @@ export function usePublicStories(filters: StoryFilters = {}) {
   const auth = useAuth();
   // Mes limites (#152, #81) : appliquées à toutes les listes et à la recherche.
   const { limits, pending } = useLimits();
-  const applied = filters.reveal ? null : limits;
+  const applied = filters.reveal ? null : exclusionsOf(limits, filters.search);
+  const f = filters.search;
+  // Filtres de #32 (hors exclusions, ajoutées avec Mes limites).
+  const filter = (params: URLSearchParams, search: boolean) => {
+    if (!f) return;
+    if (f.tags.length) params.set('tags', f.tags.join(','));
+    if (f.statut) params.set('statut', f.statut);
+    if (f.langues.length) params.set('langues', f.langues.join(','));
+    const above = ratingsAbove(f.classementMax);
+    if (above.length) params.set('exclureClassement', above.join(','));
+    if (f.longueur) {
+      const { min, max } = LENGTHS[f.longueur];
+      params.set('motsMin', String(min));
+      if (max !== undefined) params.set('motsMax', String(max));
+    }
+    // « Pertinence » n'a de sens que pour une recherche.
+    if (f.tri && (search || f.tri !== 'pertinence')) params.set('tri', f.tri);
+  };
   const exclude = (params: URLSearchParams) => {
     if (!applied) return;
     if (applied.hiddenContentWarnings.length) {
@@ -75,16 +95,18 @@ export function usePublicStories(filters: StoryFilters = {}) {
       if (filters.q) {
         const params = new URLSearchParams({ q: filters.q, page: String(pageParam ?? 1) });
         exclude(params);
+        filter(params, true);
         const page = await api(SearchPage, `/recherche?${params}`, { signal });
         return { items: page.items, next: page.nextPage, total: page.total, hidden: page.hidden };
       }
       const params = new URLSearchParams({ limite: '20' });
       exclude(params);
+      filter(params, false);
       if (filters.tag) params.set('tag', filters.tag);
       if (filters.pseudonyme) params.set('pseudonyme', filters.pseudonyme);
       if (typeof pageParam === 'string') params.set('apres', pageParam);
       const page = await api(StoryPage, `/histoires?${params}`, { signal });
-      return { items: page.items, next: page.nextCursor, hidden: page.hidden };
+      return { items: page.items, next: page.nextCursor, total: page.total, hidden: page.hidden };
     },
     getNextPageParam: (last) => last.next,
   });

@@ -107,6 +107,8 @@ export const StoryPage = z.strictObject({
   items: z.array(StorySummary),
   /** À repasser en `apres` pour la page suivante ; null : dernière page. */
   nextCursor: z.string().nullable(),
+  /** Nombre total de résultats (première page seulement), mis à jour à chaque filtre (#32). */
+  total: z.int().optional(),
   /**
    * Histoires masquées par les avertissements exclus (`exclure`, `exclureAutres`), pour le
    * dire à la personne ; sur la première page seulement, et seulement s'il y a des exclusions.
@@ -114,6 +116,18 @@ export const StoryPage = z.strictObject({
   hidden: z.int().optional(),
 });
 export type StoryPage = z.infer<typeof StoryPage>;
+
+/** Liste de valeurs séparées par des virgules (paramètre d'adresse), validée une à une. */
+const csv = <T extends z.ZodType<unknown, string>>(item: T, max: number) =>
+  z
+    .string()
+    .max(max * 110)
+    .transform((s) => s.split(',').filter(Boolean))
+    .pipe(z.array(item).max(max));
+
+/** Tri de la liste (#32) : récentes (publication), mises à jour, les plus lues, longueur. */
+export const StorySort = z.enum(['recentes', 'mises_a_jour', 'lecteurs', 'longueur']);
+export type StorySort = z.infer<typeof StorySort>;
 
 /** Filtres de la liste publique. */
 export const StoryQuery = z.strictObject({
@@ -151,6 +165,16 @@ export const StoryQuery = z.strictObject({
     .optional(),
   /** Histoires d'une autrice ou d'un auteur (pseudonyme). */
   pseudonyme: z.string().max(30).optional(),
+  /** Langues (#32), plusieurs possibles. */
+  langues: csv(Language, 10).optional(),
+  /** En cours ou terminées (#32). */
+  statut: Completion.optional(),
+  /** Longueur en mots (#32), bornes comprises. */
+  motsMin: z.coerce.number().int().min(0).max(10_000_000).optional(),
+  motsMax: z.coerce.number().int().min(0).max(10_000_000).optional(),
+  /** Tags à inclure (#32) : l'histoire les porte tous. */
+  tags: csv(TagName, 10).optional(),
+  tri: StorySort.default('recentes'),
   /** Histoires portant ce tag (même normalisation que les tags : casse, accents, tirets). */
   tag: TagName.optional(),
 });
@@ -170,7 +194,14 @@ export const SearchQuery = StoryQuery.pick({
   exclure: true,
   exclureAutres: true,
   masquerTags: true,
+  langues: true,
+  statut: true,
+  motsMin: true,
+  motsMax: true,
+  tags: true,
 }).extend({
+  /** Pertinence par défaut, ou les tris de la liste (#32). */
+  tri: z.enum(['pertinence', ...StorySort.options]).default('pertinence'),
   q: z.string().trim().min(1).max(200),
   page: z.coerce.number().int().min(1).max(50).default(1),
 });

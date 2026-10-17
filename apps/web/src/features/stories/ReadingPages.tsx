@@ -34,6 +34,14 @@ import { ShelfSelect } from './ShelfSelect';
 import { useResume, useTrackPosition } from './readingPosition';
 import styles from './Reading.module.css';
 import { LimitsPanel } from './LimitsPanel';
+import {
+  filterExclusions,
+  hasFilters,
+  readFilters,
+  writeFilters,
+  type SearchFilters,
+} from './filters';
+import { SearchFiltersPanel } from './SearchFiltersPanel';
 import { limitReasons, useLimits } from './limits';
 import { useReadingPreferences } from './readingPreferences';
 import { ReadingProgress } from './ReadingProgress';
@@ -118,14 +126,17 @@ function StoryTags({ story }: { story: StorySummary }) {
 
 /**
  * Carte d'une histoire. `hiddenBecause` : histoire affichée exceptionnellement alors que
- * Mes limites la masquent d'habitude ; la raison est dite (#81).
+ * Mes limites la masquent d'habitude ; la raison est dite (#81). `filteredBecause` : de
+ * même pour les exclusions des filtres de la recherche (#32).
  */
 export function StoryCard({
   story,
   hiddenBecause = [],
+  filteredBecause = [],
 }: {
   story: StorySummary;
   hiddenBecause?: string[];
+  filteredBecause?: string[];
 }) {
   return (
     <article className={styles.card}>
@@ -154,6 +165,11 @@ export function StoryCard({
             {hiddenBecause.join(', ')}.
           </p>
         )}
+        {filteredBecause.length > 0 && (
+          <p className={styles.meta}>
+            <Tag kind="neutral">Exclue par vos filtres</Tag> : {filteredBecause.join(', ')}.
+          </p>
+        )}
       </div>
     </article>
   );
@@ -173,12 +189,14 @@ export function StoryList({
   // « Les afficher pour cette fois » (#81) : ce qui est masqué reste toujours consultable.
   const [revealed, setRevealed] = useState(false);
   const { limits } = useLimits();
+  // Exclusions des filtres (#32), dites à part de Mes limites.
+  const excluded = filterExclusions(filters.search);
   const stories = usePublicStories({ ...filters, reveal: revealed });
   const items = stories.data?.pages.flatMap((page) => page.items) ?? [];
   const { list, loadMore } = useLoadMore(
     items.map((story) => story.id),
     stories,
-    `${filters.tag}|${filters.pseudonyme}|${filters.q}|${revealed}`,
+    `${filters.tag}|${filters.pseudonyme}|${filters.q}|${revealed}|${JSON.stringify(filters.search)}`,
   );
 
   const hidden = stories.data?.pages[0]?.hidden ?? 0;
@@ -187,9 +205,9 @@ export function StoryList({
     <div className={styles.hiddenNote}>
       <output className={styles.meta}>
         {revealed
-          ? 'Les histoires masquées par vos limites sont affichées pour cette fois.'
+          ? 'Les histoires masquées sont affichées pour cette fois, avec la raison.'
           : hidden > 0 &&
-            `${plural(hidden, 'histoire masquée', 'histoires masquées')} par vos limites.`}
+            `${plural(hidden, 'histoire masquée', 'histoires masquées')} par vos limites${excluded ? ' ou vos filtres' : ''}.`}
       </output>
       {(revealed || hidden > 0) && (
         <Button variant="ghost" size="small" onClick={() => setRevealed(!revealed)}>
@@ -229,7 +247,11 @@ export function StoryList({
       <ul className={styles.grid} aria-label={label} ref={list}>
         {items.map((story) => (
           <li key={story.id}>
-            <StoryCard story={story} hiddenBecause={revealed ? limitReasons(story, limits) : []} />
+            <StoryCard
+              story={story}
+              hiddenBecause={revealed ? limitReasons(story, limits) : []}
+              filteredBecause={revealed && excluded ? limitReasons(story, excluded) : []}
+            />
           </li>
         ))}
       </ul>
@@ -251,16 +273,25 @@ export function ExplorePage() {
   const [params, setParams] = useSearchParams();
   const q = params.get('q')?.trim() || undefined;
   const tag = q ? undefined : params.get('tag')?.trim() || undefined;
-  const filters = { tag, q };
-  const stories = usePublicStories(filters);
+  // Filtres (#32) : dans l'adresse, partageables ; gardés d'une recherche à l'autre.
+  const search = readFilters(params);
+  const filters = { tag, q, search };
+  // Même requête que la liste (reveal: false), pour ne pas la charger deux fois.
+  const stories = usePublicStories({ ...filters, reveal: false });
   const empty = stories.isSuccess && !stories.data.pages[0]?.items.length;
   const total = stories.data?.pages[0]?.total;
+  const shownTags = (stories.data?.pages ?? []).flatMap((page) =>
+    page.items.flatMap((s) => s.tags),
+  );
+  const active = hasFilters(search);
 
-  const search = (event: FormEvent<HTMLFormElement>) => {
+  const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const value = String(new FormData(event.currentTarget).get('q') ?? '').trim();
-    setParams(value ? { q: value } : {});
+    setParams(writeFilters(new URLSearchParams(value ? { q: value } : {}), search));
   };
+  const changeFilters = (next: SearchFilters) =>
+    setParams(writeFilters(params, next), { replace: true, preventScrollReset: true });
 
   return (
     <Page
@@ -271,7 +302,7 @@ export function ExplorePage() {
           : 'Les dernières histoires publiées. Bientôt : des sélections composées par des lectrices et lecteurs, des autrices et auteurs, et l’équipe. Pas de fil choisi par un algorithme.'
       }
     >
-      <form role="search" className={styles.search} onSubmit={search} key={q ?? ''}>
+      <form role="search" className={styles.search} onSubmit={submit} key={q ?? ''}>
         <TextField
           label="Rechercher une histoire"
           name="q"
@@ -286,6 +317,15 @@ export function ExplorePage() {
           </Button>
         </div>
       </form>
+      <details className={styles.limitsDetails} open={active || undefined}>
+        <summary>Filtres{active ? ' (actifs)' : ''}</summary>
+        <SearchFiltersPanel
+          filters={search}
+          onChange={changeFilters}
+          suggestedTags={shownTags}
+          searching={!!q}
+        />
+      </details>
       <details className={styles.limitsDetails}>
         <summary>Masquer certains sujets</summary>
         <LimitsPanel />
@@ -295,13 +335,17 @@ export function ExplorePage() {
           <Link to="/">Voir toutes les histoires</Link>
         </p>
       )}
-      {q && (
-        // Annoncé à chaque nouvelle recherche : le focus reste dans le champ.
-        <output className={styles.meta}>
-          {stories.isSuccess ? (total ? plural(total, 'résultat') : 'Aucun résultat.') : ''}
-        </output>
-      )}
-      {!q && !tag && <PublicShelves title="Sélections des membres" />}
+      {/* Nombre de résultats, annoncé en direct (recherche et filtres) : le focus reste en place. */}
+      <output className={styles.meta}>
+        {stories.isSuccess && total !== undefined
+          ? total
+            ? plural(total, q ? 'résultat' : 'histoire')
+            : q
+              ? 'Aucun résultat.'
+              : 'Aucune histoire.'
+          : ''}
+      </output>
+      {!q && !tag && !active && <PublicShelves title="Sélections des membres" />}
       <StoryList
         filters={filters}
         label={
@@ -314,7 +358,9 @@ export function ExplorePage() {
       />
       {empty && (
         <div className={styles.empty}>
-          {q ? (
+          {active ? (
+            <p>Aucune histoire ne correspond à ces filtres. Essayez d’en retirer un.</p>
+          ) : q ? (
             <p>Aucune histoire ne correspond à « {q} ». Essayez un autre mot, ou moins de mots.</p>
           ) : tag ? (
             <p>Aucune histoire publiée avec ce tag pour l’instant.</p>

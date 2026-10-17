@@ -22,3 +22,17 @@ export function decodeCursor(cursor: string): [string, string] {
   }
   return parsed.data;
 }
+
+/** Curseur d’un tri numérique (lectures, longueur) : valeur de tri et identifiant. */
+export const encodeNumberCursor = (value: number, id: string) =>
+  Buffer.from(`n${value}|${id}`).toString('base64url');
+
+const NumberCursor = z.tuple([z.string().regex(/^n\d{1,12}$/), z.uuid()]);
+
+export function decodeNumberCursor(cursor: string): [number, string] {
+  const parsed = NumberCursor.safeParse(Buffer.from(cursor, 'base64url').toString().split('|'));
+  if (!parsed.success) {
+    throw new ApiProblem(HttpStatus.BAD_REQUEST, 'Curseur de pagination invalide.');
+  }
+  return [Number(parsed.data[0].slice(1)), parsed.data[1]];
+}
