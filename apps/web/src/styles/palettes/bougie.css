@@ -1,0 +1,70 @@
+/*
+ * Bougie : brun prune et cuivre, rosé pâle et vin (#77). Couleurs de la maquette « Apparence » ; les jetons qu'elle
+ * ne fixe pas en sont dérivés, ajustés aux contrastes AA (contrast.test.ts).
+ */
+
+:root[data-palette='bougie'],
+[data-ambiance='bougie'] {
+  --color-page: #faf4f1;
+  --color-surface: #fcfaf8;
+  --color-raised: #ffffff;
+  --color-sunken: #f0eae7;
+  --color-border: #e6d6cf;
+  --color-border-strong: #cfbfba;
+  --color-control-border: #9a8889;
+  --color-text: #2a1a1f;
+  --color-text-soft: #453439;
+  --color-text-muted: #6e5a60;
+  --color-reading: #3a2a2f;
+  --color-accent: #8e3b46;
+  --color-accent-hover: #743039;
+  --color-amber: #8e3b46;
+  --color-on-amber: #ffffff;
+  --color-primary: #8e3b46;
+  --color-on-primary: #ffffff;
+  --color-primary-hover: #7f3640;
+  --color-highlight: #e2cbcb;
+  --color-success: #2f5446;
+  --color-success-bg: #e3eae0;
+  --color-warning: #6b4210;
+  --color-warning-bg: #fbf3e6;
+  --color-danger: #9b2c22;
+  --color-danger-bg: #f8e4e1;
+  --color-focus: #8e3b46;
+  --shadow-raised: 0 8px 24px rgb(0 0 0 / 0.1);
+
+  color-scheme: light;
+}
+
+:root[data-palette='bougie'][data-theme='dark'],
+:root[data-theme='dark'] [data-ambiance='bougie'] {
+  --color-page: #1c1417;
+  --color-surface: #23191c;
+  --color-raised: #2a1e22;
+  --color-sunken: #150f11;
+  --color-border: #4a353c;
+  --color-border-strong: #5e4b50;
+  --color-control-border: #7a676d;
+  --color-text: #f2e9e4;
+  --color-text-soft: #d8cbcb;
+  --color-text-muted: #b09fa5;
+  --color-reading: #e5d9d3;
+  --color-accent: #e39a6b;
+  --color-accent-hover: #e8ac86;
+  --color-amber: #e39a6b;
+  --color-on-amber: #1c1417;
+  --color-primary: #e39a6b;
+  --color-on-primary: #1c1417;
+  --color-primary-hover: #e5a67d;
+  --color-highlight: #402c26;
+  --color-success: #9ed0c2;
+  --color-success-bg: #1d3a33;
+  --color-warning: #f2c98b;
+  --color-warning-bg: #3a2e1a;
+  --color-danger: #f0a39a;
+  --color-danger-bg: #3d2224;
+  --color-focus: #e39a6b;
+  --shadow-raised: 0 8px 24px rgb(0 0 0 / 0.35);
+
+  color-scheme: dark;
+}

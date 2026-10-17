@@ -61,3 +61,42 @@ describe('réglages de lecture (#28)', () => {
     await ctx.http.put('/api/moi/compte/lecture').send(DEFAULT_READING).expect(401);
   });
 });
+
+describe('apparence du site (#77)', () => {
+  it('ambiance et mode gardés sur le compte ; valeurs impossibles refusées', async () => {
+    const ctx = await start();
+    const jwt = await readyToken(ctx.app);
+    const put = (body: unknown) =>
+      ctx.http
+        .put('/api/moi/compte/apparence')
+        .set(...bearer(jwt))
+        .send(body as object);
+    const saved = MyAccount.parse(
+      (await put({ palette: 'bougie', mode: 'dark' }).expect(200)).body,
+    );
+    expect(saved.appearance).toEqual({ palette: 'bougie', mode: 'dark' });
+    await put({ palette: 'Bougie !', mode: 'dark' }).expect(400);
+    await put({ palette: 'bougie', mode: 'sepia' }).expect(400);
+    await put({ palette: 'bougie' }).expect(400);
+    await ctx.http
+      .put('/api/moi/compte/apparence')
+      .send({ palette: 'lueur', mode: 'light' })
+      .expect(401);
+  });
+
+  it('le lecteur peut imposer une ambiance', async () => {
+    const ctx = await start();
+    const jwt = await readyToken(ctx.app);
+    const prefs = { ...DEFAULT_READING, ambiance: 'indigo' };
+    const saved = MyAccount.parse(
+      (
+        await ctx.http
+          .put('/api/moi/compte/lecture')
+          .set(...bearer(jwt))
+          .send(prefs)
+          .expect(200)
+      ).body,
+    );
+    expect(saved.readingPreferences).toEqual(prefs);
+  });
+});

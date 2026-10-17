@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { ContentWarning, DeclaredAge } from './domain.js';
-import { ReadingPreferences } from './reading.js';
+import { Appearance, ReadingPreferences } from './reading.js';
 
 // Pseudonyme public (@handle) : 3 à 30 caractères, lettres latines (accents compris),
 // chiffres, point, tiret, tiret bas. L'unicité ignore la casse et les accents
@@ -132,6 +132,8 @@ export const MyAccount = z.strictObject({
   avatarUrl: z.url().nullable(),
   ageBand: z.enum(['15-17', '18+']).nullable(),
   charterVersion: z.string().nullable(),
+  /** Apparence du site (#77) ; null : celle de l'appareil. */
+  appearance: Appearance.nullable(),
   /** Mes limites ; null : aucune. */
   limits: ReadingLimits.nullable(),
   /** Réglages de lecture (#28) ; null : ceux de l'appareil, ou ceux par défaut. */

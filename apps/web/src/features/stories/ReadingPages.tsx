@@ -420,6 +420,8 @@ export function ReaderPage() {
       data-font={reading.preferences.font}
       data-leading={reading.preferences.lineHeight}
       data-width={reading.preferences.width}
+      // Ambiance imposée au lecteur (#77) : ses jetons s'appliquent à l'article seulement.
+      data-ambiance={reading.preferences.ambiance}
       // Variable CSS posée par le DOM (pas d'attribut style dans le HTML) : permise par la CSP.
       style={{ '--reader-scale': reading.preferences.size / 100 } as CSSProperties}
     >

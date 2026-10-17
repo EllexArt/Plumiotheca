@@ -212,6 +212,16 @@ jobs:
 
       # Les traces contiennent l'identifiant et le mot de passe du compte jetable (supprimé
       # à la fin, Keycloak éphémère du runner) : sans risque, mais gardées peu de temps.
+      # Captures de référence des 8 ambiances (#77), pour la revue visuelle.
+      - name: Captures des ambiances
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: captures-ambiances
+          path: e2e/test-results/ambiances
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Rapport et traces en cas d'échec
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

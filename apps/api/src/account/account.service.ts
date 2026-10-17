@@ -10,6 +10,7 @@ import {
   type PublicProfile,
   type UpdateProfile,
   ReadingPreferences,
+  Appearance,
   ReadingLimits,
   ContentWarning,
 } from '@plumiotheca/contracts';
@@ -103,6 +104,7 @@ export class AccountService {
       avatarUrl: user.avatarMediaId ? this.media.urlOf(user.avatarMediaId) : null,
       // Valeur illisible (ancienne forme) : réglages par défaut plutôt qu'une erreur.
       readingPreferences: ReadingPreferences.safeParse(user.readingPreferences).data ?? null,
+      appearance: Appearance.safeParse(user.appearance).data ?? null,
       limits: ReadingLimits.safeParse(user.limits).data ?? null,
       ageBand: user.ageBand === '15-17' || user.ageBand === '18+' ? user.ageBand : null,
       charterVersion: user.charterVersion,
@@ -225,6 +227,12 @@ export class AccountService {
       bio: user.bio,
       avatarUrl: user.avatarMediaId ? this.media.urlOf(user.avatarMediaId) : null,
     };
+  }
+
+  /** Apparence du site (#77). */
+  async setAppearance(user: User, appearance: Appearance): Promise<User> {
+    await this.users.update(user.id, { appearance });
+    return this.users.findOneByOrFail({ id: user.id });
   }
 
   /** Mes limites (#152) ; aucune limite : rien n'est gardé. */

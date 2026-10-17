@@ -5,6 +5,7 @@ import { PremiereVisite1791018239120 } from './1791018239120-PremiereVisite.js';
 import { HistoiresEtChapitres1791029268234 } from './1791029268234-HistoiresEtChapitres.js';
 import { AvertissementsFacultatifs1791201913977 } from './1791201913977-AvertissementsFacultatifs.js';
 import { HorodatagesMilliseconde1791477431997 } from './1791477431997-HorodatagesMilliseconde.js';
+import { Apparence1792251152107 } from './1792251152107-Apparence.js';
 import { Limites1792250556806 } from './1792250556806-Limites.js';
 import { ReglagesLecture1792232124385 } from './1792232124385-ReglagesLecture.js';
 import { Avatar1792101373024 } from './1792101373024-Avatar.js';
@@ -24,4 +25,5 @@ export const migrations = [
   Avatar1792101373024,
   ReglagesLecture1792232124385,
   Limites1792250556806,
+  Apparence1792251152107,
 ];
