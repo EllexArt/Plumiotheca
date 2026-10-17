@@ -21,6 +21,7 @@ import {
   UpdateProfile,
   SetAvatar,
   ReadingPreferences,
+  ReadingLimits,
 } from '@plumiotheca/contracts';
 import { Public } from '../auth/decorators.js';
 import type { User } from '../users/user.entity.js';
@@ -79,6 +80,16 @@ export class AccountController {
     @Body({ schema: UpdateProfile }) input: UpdateProfile,
   ): Promise<MyAccount> {
     return this.accounts.view(await this.accounts.updateProfile(account, input));
+  }
+
+  /** Mes limites (#152) : avertissements facultatifs masqués partout. */
+  @Put('limites')
+  @ApiOkResponse({ standardSchema: MyAccount })
+  async setLimits(
+    @CurrentAccount() account: User,
+    @Body({ schema: ReadingLimits }) input: ReadingLimits,
+  ): Promise<MyAccount> {
+    return this.accounts.view(await this.accounts.setLimits(account, input));
   }
 
   /** Réglages de lecture (#28) : police, taille, interligne, largeur. */
