@@ -2,7 +2,7 @@ import pg from 'pg';
 import { DataSource } from 'typeorm';
 import { loadConfig } from '../src/config/env.js';
 import { dataSourceOptions } from '../src/database/options.js';
-import { TEST_DB_NAME, testDbEnv } from './db-env.js';
+import { REINDEX_TEST_INDEX, TEST_DB_NAME, testDbEnv } from './db-env.js';
 
 /** Recrée la base de test et y applique les migrations, comme sur une base vide. */
 export default async function setup() {
@@ -28,12 +28,16 @@ export default async function setup() {
   await admin.query(`CREATE DATABASE "${TEST_DB_NAME}"`);
   await admin.end();
 
-  // Index de recherche des tests : repart vide (recréé au démarrage de l'API de test).
-  await fetch(new URL(`/indexes/${config.SEARCH_INDEX}`, config.MEILI_URL), {
-    method: 'DELETE',
-    headers: config.MEILI_MASTER_KEY ? { Authorization: `Bearer ${config.MEILI_MASTER_KEY}` } : {},
-    signal: AbortSignal.timeout(5_000),
-  }).catch(() => undefined);
+  // Index de recherche des tests : repartent vides (recréés au démarrage de l'API de test).
+  for (const index of [config.SEARCH_INDEX, REINDEX_TEST_INDEX]) {
+    await fetch(new URL(`/indexes/${index}`, config.MEILI_URL), {
+      method: 'DELETE',
+      headers: config.MEILI_MASTER_KEY
+        ? { Authorization: `Bearer ${config.MEILI_MASTER_KEY}` }
+        : {},
+      signal: AbortSignal.timeout(5_000),
+    }).catch(() => undefined);
+  }
 
   const dataSource = new DataSource(dataSourceOptions(config));
   await dataSource.initialize();

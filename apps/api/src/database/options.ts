@@ -5,6 +5,7 @@ import { Chapter } from '../stories/chapter.entity.js';
 import { LibraryEntry } from '../stories/library-entry.entity.js';
 import { Selection, SelectionItem } from '../stories/selection.entity.js';
 import { ReadMark, ReadSalt } from '../stories/read-mark.entity.js';
+import { SearchSync } from '../stories/search-sync.entity.js';
 import { StoryTag } from '../stories/story-tag.entity.js';
 import { Story } from '../stories/story.entity.js';
 import { Tag } from '../tags/tag.entity.js';
@@ -30,6 +31,7 @@ export const entities = [
   LibraryEntry,
   Selection,
   SelectionItem,
+  SearchSync,
 ];
 
 /** Connexion PostgreSQL commune à l'API, à la ligne de commande et aux tests. */
