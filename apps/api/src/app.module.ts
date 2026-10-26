@@ -18,6 +18,7 @@ import { HealthModule } from './health/health.module.js';
 import { JobsModule } from './jobs/jobs.module.js';
 import { MediaModule } from './media/media.module.js';
 import { MeModule } from './me/me.module.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
 import { StoriesModule } from './stories/stories.module.js';
 
 export interface AppOptions {
@@ -49,6 +50,7 @@ export class AppModule {
         AccountModule,
         StoriesModule,
         MediaModule,
+        NotificationsModule,
       ],
       providers: [
         // Ordre des gardes : plafond par adresse IP (inondation), authentification et rôles,

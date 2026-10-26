@@ -371,6 +371,8 @@ describe('compte connecté', () => {
     signedIn();
     auth.signinSilent.mockResolvedValueOnce({ access_token: 'nouveau' });
     const calls = mockApi((url, init) => {
+      // Nombre de notifications de l'en-tête (#33) : hors du sujet de ce test.
+      if (url === '/api/moi/notifications/non-lues') return { body: { unread: 0 } };
       const header = (init.headers as Record<string, string>).Authorization;
       if (header !== 'Bearer nouveau') return problem(401, 'non-authentifie');
       if (url === '/api/moi/compte') return { body: account() };
@@ -381,7 +383,10 @@ describe('compte connecté', () => {
       await screen.findByRole('heading', { level: 1, name: 'Paramètres du compte' }),
     ).toBeInTheDocument();
     expect(auth.signinRedirect).not.toHaveBeenCalled();
-    expect(calls.map((c) => c.auth)).toEqual(['Bearer jeton-de-test', 'Bearer nouveau']);
+    expect(calls.filter((c) => c.url === '/api/moi/compte').map((c) => c.auth)).toEqual([
+      'Bearer jeton-de-test',
+      'Bearer nouveau',
+    ]);
   });
 
   it('jeton refusé et renouvellement impossible : connexion, retour sur la page', async () => {

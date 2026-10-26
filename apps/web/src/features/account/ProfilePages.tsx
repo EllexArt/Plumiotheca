@@ -31,6 +31,7 @@ import {
   type UploadPhase,
 } from './api';
 import styles from './ProfilePages.module.css';
+import { EmailDigestPanel } from '../notifications/NotificationsPage';
 
 /** Texte libre en paragraphes (lignes vides) et retours à la ligne, sans HTML. */
 function Paragraphs({ text }: { text: string }) {
@@ -163,6 +164,13 @@ export function AccountSettingsPage() {
       <section aria-labelledby="limites" className={styles.section}>
         <h2 id="limites">Mes limites</h2>
         <LimitsPanel />
+      </section>
+      <section aria-labelledby="notifications" className={styles.section}>
+        <h2 id="notifications">Notifications</h2>
+        <p>
+          <Link to="/notifications">Voir mes notifications</Link>
+        </p>
+        <EmailDigestPanel />
       </section>
       <section aria-labelledby="donnees" className={styles.section}>
         <h2 id="donnees">Vos données</h2>

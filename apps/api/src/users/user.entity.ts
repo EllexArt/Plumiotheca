@@ -2,6 +2,7 @@ import {
   AccountStatus,
   DeclaredAge,
   DeletionMode,
+  EmailDigest,
   type Appearance,
   type ReadingLimits,
   type ReadingPreferences,
@@ -80,6 +81,13 @@ export class User {
   /** Apparence du site (#77) : ambiance et mode. */
   @Column({ type: 'jsonb', nullable: true })
   appearance!: Appearance | null;
+
+  /**
+   * E-mail récapitulatif des notifications (#33) : jamais par défaut. Un réglage, pas une
+   * donnée sur la personne : il reste « never » sur un compte supprimé (aucun e-mail).
+   */
+  @Column({ type: 'enum', enum: EmailDigest.options, enumName: 'email_digest', default: 'never' })
+  emailDigest!: EmailDigest;
 
   /** Réglages de lecture (#28), validés à l'écriture comme à la lecture. */
   @Column({ type: 'jsonb', nullable: true })
@@ -171,6 +179,7 @@ export const NON_PERSONAL_FIELDS = [
   'status',
   'deletionRequestedAt',
   'deletionMode',
+  'emailDigest',
   'createdAt',
   'updatedAt',
 ] as const satisfies readonly (keyof User)[];
