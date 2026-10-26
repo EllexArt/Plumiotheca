@@ -12,6 +12,7 @@ import {
   ReadingPreferences,
   Appearance,
   ReadingLimits,
+  type EmailDigest,
   ContentWarning,
   MajorWarning,
   normalizeTag,
@@ -108,6 +109,7 @@ export class AccountService {
       readingPreferences: ReadingPreferences.safeParse(user.readingPreferences).data ?? null,
       appearance: Appearance.safeParse(user.appearance).data ?? null,
       limits: ReadingLimits.safeParse(user.limits).data ?? null,
+      emailDigest: user.emailDigest,
       ageBand: user.ageBand === '15-17' || user.ageBand === '18+' ? user.ageBand : null,
       charterVersion: user.charterVersion,
       handleChangeableFrom: changeable && changeable > new Date() ? changeable.toISOString() : null,
@@ -251,6 +253,12 @@ export class AccountService {
     };
     const empty = Object.values(next).every((list) => !list.length);
     await this.users.update(user.id, { limits: empty ? null : next });
+    return this.users.findOneByOrFail({ id: user.id });
+  }
+
+  /** E-mail récapitulatif des notifications (#33). */
+  async setEmailDigest(user: User, emailDigest: EmailDigest): Promise<User> {
+    await this.users.update(user.id, { emailDigest });
     return this.users.findOneByOrFail({ id: user.id });
   }
 

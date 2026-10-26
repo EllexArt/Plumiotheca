@@ -12,6 +12,7 @@ import {
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import {
   AcceptCharter,
+  SetEmailDigest,
   ChangeHandle,
   FirstVisit,
   Handle,
@@ -101,6 +102,16 @@ export class AccountController {
     @Body({ schema: ReadingLimits }) input: ReadingLimits,
   ): Promise<MyAccount> {
     return this.accounts.view(await this.accounts.setLimits(account, input));
+  }
+
+  /** E-mail récapitulatif des notifications (#33) : jamais, chaque jour, chaque semaine. */
+  @Put('notifications')
+  @ApiOkResponse({ standardSchema: MyAccount })
+  async setEmailDigest(
+    @CurrentAccount() account: User,
+    @Body({ schema: SetEmailDigest }) input: SetEmailDigest,
+  ): Promise<MyAccount> {
+    return this.accounts.view(await this.accounts.setEmailDigest(account, input.emailDigest));
   }
 
   /** Réglages de lecture (#28) : police, taille, interligne, largeur. */

@@ -13,6 +13,7 @@ import { HandleHistory } from '../users/handle-history.entity.js';
 import { HandleRelease } from '../users/handle-release.entity.js';
 import { User } from '../users/user.entity.js';
 import { Media } from '../media/media.entity.js';
+import { Notification } from '../notifications/notification.entity.js';
 import { migrations } from './migrations/index.js';
 import { SnakeNamingStrategy } from './naming.strategy.js';
 
@@ -31,6 +32,7 @@ export const entities = [
   LibraryEntry,
   Selection,
   SelectionItem,
+  Notification,
   SearchSync,
 ];
 

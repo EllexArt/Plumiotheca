@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ContentWarning, DeclaredAge, MajorWarning } from './domain.js';
 import { TagName } from './stories.js';
+import { EmailDigest } from './notifications.js';
 import { Appearance, ReadingPreferences } from './reading.js';
 
 // Pseudonyme public (@handle) : 3 à 30 caractères, lettres latines (accents compris),
@@ -146,6 +147,8 @@ export const MyAccount = z.strictObject({
   limits: ReadingLimits.nullable(),
   /** Réglages de lecture (#28) ; null : ceux de l'appareil, ou ceux par défaut. */
   readingPreferences: ReadingPreferences.nullable(),
+  /** E-mail récapitulatif des notifications (#33) ; « never » par défaut. */
+  emailDigest: EmailDigest,
   /** Date à partir de laquelle le pseudonyme peut de nouveau changer (null : maintenant). */
   handleChangeableFrom: z.iso.datetime().nullable(),
 });
