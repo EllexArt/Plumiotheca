@@ -14,6 +14,7 @@ import type { SigninState } from './auth';
 import styles from './Layout.module.css';
 import { AppearanceSync, useAppearance } from './appearance';
 import type { ThemeChoice } from './theme';
+import { useUnreadNotifications } from '../features/notifications/api';
 
 // Le logo garde l'identité Lueur, quelle que soit l'ambiance choisie (#77).
 const Plume = () => (
@@ -149,6 +150,29 @@ function AccountMenu() {
   );
 }
 
+/** Notifications (#33), avec le nombre de non lues (dit en toutes lettres au lecteur d’écran). */
+function NotificationsLink() {
+  const unread = useUnreadNotifications().data ?? 0;
+  return (
+    <li>
+      <NavLink to="/notifications" className={navLinkClass}>
+        Notifications
+        {unread > 0 && (
+          <>
+            {' '}
+            <span className={styles.badge} aria-hidden="true">
+              {unread > 99 ? '99+' : unread}
+            </span>
+            <span className="visually-hidden">
+              ({unread > 1 ? `${unread} non lues` : '1 non lue'})
+            </span>
+          </>
+        )}
+      </NavLink>
+    </li>
+  );
+}
+
 function Header() {
   const auth = useAuth();
   const { signin, register } = useSignin();
@@ -171,6 +195,7 @@ function Header() {
                 Mes lectures
               </NavLink>
             </li>
+            {auth.isAuthenticated && <NotificationsLink />}
           </ul>
         </nav>
         <div className={styles.actions}>

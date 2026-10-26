@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 import { TagsService } from '../tags/tags.service.js';
 import { ChaptersService } from './chapters.service.js';
 import { LibraryController } from './library.controller.js';
@@ -11,6 +12,7 @@ import { SearchService } from './search.service.js';
 import { StoriesService } from './stories.service.js';
 
 @Module({
+  imports: [NotificationsModule],
   controllers: [
     StoriesController,
     MyStoriesController,

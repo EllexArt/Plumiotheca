@@ -17,6 +17,7 @@ import {
 } from '@plumiotheca/editor-schema';
 import { DataSource, type EntityManager } from 'typeorm';
 import { ApiProblem, ValidationFailed } from '../common/problem.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import type { User } from '../users/user.entity.js';
 import { loadDraft, saveDraft } from './chapter-drafts.js';
 import { ReadsService } from './reads.service.js';
@@ -71,6 +72,7 @@ export class ChaptersService {
     @InjectDataSource() private readonly db: DataSource,
     private readonly stories: StoriesService,
     private readonly reads: ReadsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /** Nouveau chapitre en fin d'histoire ; la position est toujours choisie par le serveur. */
@@ -184,6 +186,8 @@ export class ChaptersService {
         wordCount: words,
       });
       await recountStory(tx, storyId);
+      // Première publication seulement : une correction ne renotifie personne (#33).
+      if (!chapter.publishedAt) await this.notifications.newChapter(tx, storyId, chapterId);
     });
     return this.stories.detail(storyId, account);
   }

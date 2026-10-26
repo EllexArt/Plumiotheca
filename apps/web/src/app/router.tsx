@@ -54,6 +54,13 @@ export const routes: RouteObject[] = [
               { path: 'compte-verrouille', lazy: lazyPage(account, 'AgeLockedPage') },
               { path: 'compte', lazy: lazyPage(account, 'AccountSettingsPage') },
               {
+                path: 'notifications',
+                lazy: lazyPage(
+                  () => import('../features/notifications/NotificationsPage'),
+                  'NotificationsPage',
+                ),
+              },
+              {
                 path: 'mes-lectures',
                 lazy: lazyPage(() => import('../features/stories/LibraryPage'), 'LibraryPage'),
               },
