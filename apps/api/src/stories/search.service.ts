@@ -159,6 +159,12 @@ export class SearchService implements OnModuleInit, OnApplicationBootstrap {
 
   /** Met l'histoire dans l'index si elle est publique, l'en retire sinon. Numéro de tâche. */
   async sync(storyId: string): Promise<number> {
+    // Noté avant la lecture : une réindexation complète en cours la rejouera (reindexAll).
+    await this.db.query(
+      `INSERT INTO search_syncs (story_id, synced_at) VALUES ($1, now())
+       ON CONFLICT (story_id) DO UPDATE SET synced_at = excluded.synced_at`,
+      [storyId],
+    );
     const [story] = await this.publicSummaries([storyId]);
     const index = this.config.SEARCH_INDEX;
     const task = story
@@ -169,7 +175,8 @@ export class SearchService implements OnModuleInit, OnApplicationBootstrap {
 
   /**
    * Reconstruit l'index entier dans un index temporaire, puis l'échange avec l'index en
-   * service : la recherche reste disponible pendant la reconstruction.
+   * service : la recherche reste disponible pendant la reconstruction. Les réindexations
+   * d'histoires faites pendant ce temps sont rejouées après l'échange.
    */
   async reindexAll(): Promise<{ indexed: number }> {
     const index = this.config.SEARCH_INDEX;
@@ -179,6 +186,11 @@ export class SearchService implements OnModuleInit, OnApplicationBootstrap {
       Task.parse(await this.call(`/indexes/${fresh}`, 'DELETE')).taskUid,
     ).catch(ignoreMissing);
     await this.prepare(fresh);
+    // Réindexations demandées à partir d'ici (marge d'une seconde) : écrites dans l'index
+    // en service, que l'échange va remplacer ; rejouées après l'échange.
+    const [{ since }] = await this.db.query<[{ since: Date }]>(
+      `SELECT now() - interval '1 second' AS since`,
+    );
     let indexed = 0;
     let last: number | null = null;
     for (let offset = 0; ; offset += 500) {
@@ -206,9 +218,44 @@ export class SearchService implements OnModuleInit, OnApplicationBootstrap {
     await this.waitForTask(
       Task.parse(await this.call('/swap-indexes', 'POST', [{ indexes: [index, fresh] }])).taskUid,
     );
+    const replayed = await this.replay(index, since);
     await this.call(`/indexes/${fresh}`, 'DELETE');
-    this.logger.log({ indexed }, 'Index de recherche reconstruit');
+    await this.db.query(`DELETE FROM search_syncs WHERE synced_at < $1`, [since]);
+    this.logger.log({ indexed, replayed }, 'Index de recherche reconstruit');
     return { indexed };
+  }
+
+  /**
+   * Rejoue dans l'index en service les réindexations demandées depuis `since` : relues dans
+   * la base, mises dans l'index si publiques, retirées sinon. Nombre d'histoires rejouées.
+   */
+  private async replay(index: string, since: Date): Promise<number> {
+    const ids = (
+      await this.db.query<{ story_id: string }[]>(
+        `SELECT story_id FROM search_syncs WHERE synced_at >= $1 ORDER BY story_id`,
+        [since],
+      )
+    ).map((r) => r.story_id);
+    let last: number | null = null;
+    for (let offset = 0; offset < ids.length; offset += 500) {
+      const batch = ids.slice(offset, offset + 500);
+      const summaries = await this.publicSummaries(batch);
+      const kept = new Set(summaries.map((s) => s.id));
+      const gone = batch.filter((id) => !kept.has(id));
+      if (summaries.length) {
+        last = Task.parse(
+          await this.call(`/indexes/${index}/documents`, 'POST', summaries.map(toDocument)),
+        ).taskUid;
+      }
+      if (gone.length) {
+        last = Task.parse(
+          await this.call(`/indexes/${index}/documents/delete-batch`, 'POST', gone),
+        ).taskUid;
+      }
+    }
+    // Tâches d'un même index traitées dans l'ordre : la dernière suffit.
+    if (last !== null) await this.waitForTask(last);
+    return ids.length;
   }
 
   async search(query: SearchQuery): Promise<SearchPage> {
