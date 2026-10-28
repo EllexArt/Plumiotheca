@@ -24,6 +24,8 @@ import { useLibraryStatus, useSavePosition } from './library';
 import { AddToSelection, PublicShelves } from './SelectionPages';
 import { ShelfSelect } from './ShelfSelect';
 import { useResume, useTrackPosition } from './readingPosition';
+import { useReadingTimer } from './readingStats';
+import { useMyAccount } from '../account/api';
 import styles from './Reading.module.css';
 import { LimitsPanel } from './LimitsPanel';
 import {
@@ -498,6 +500,9 @@ export function ReaderPage() {
     if (tracking && known !== chapterId) savePosition({ chapterId, blockId: null });
   }, [tracking, known, chapterId, savePosition]);
   useTrackPosition(article, tracking, (blockId) => savePosition({ chapterId, blockId }));
+  // Bilan de lecture (#34) : temps de lecture, s'il est activé.
+  const account = useMyAccount();
+  useReadingTimer(tracking && (account.data?.readingStats ?? false));
   const resume = (useLocation().state as { reprise?: string | null } | null)?.reprise;
   useResume(resume, opened);
   const title = chapter.data

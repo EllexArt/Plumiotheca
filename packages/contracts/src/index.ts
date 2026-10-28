@@ -21,4 +21,5 @@ export * from './notifications.js';
 export * from './reading.js';
 export * from './selections.js';
 export * from './session.js';
+export * from './stats.js';
 export * from './stories.js';

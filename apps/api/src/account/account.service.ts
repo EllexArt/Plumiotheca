@@ -110,6 +110,7 @@ export class AccountService {
       appearance: Appearance.safeParse(user.appearance).data ?? null,
       limits: ReadingLimits.safeParse(user.limits).data ?? null,
       emailDigest: user.emailDigest,
+      readingStats: user.readingStats,
       ageBand: user.ageBand === '15-17' || user.ageBand === '18+' ? user.ageBand : null,
       charterVersion: user.charterVersion,
       handleChangeableFrom: changeable && changeable > new Date() ? changeable.toISOString() : null,
@@ -253,6 +254,15 @@ export class AccountService {
     };
     const empty = Object.values(next).every((list) => !list.length);
     await this.users.update(user.id, { limits: empty ? null : next });
+    return this.users.findOneByOrFail({ id: user.id });
+  }
+
+  /** Bilan de lecture (#34) ; le désactiver efface le temps de lecture déjà mesuré. */
+  async setReadingStats(user: User, readingStats: boolean): Promise<User> {
+    await this.db.transaction(async (tx) => {
+      await tx.getRepository(User).update(user.id, { readingStats });
+      if (!readingStats) await tx.query('DELETE FROM reading_times WHERE user_id = $1', [user.id]);
+    });
     return this.users.findOneByOrFail({ id: user.id });
   }
 

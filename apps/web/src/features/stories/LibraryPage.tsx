@@ -7,6 +7,7 @@ import { Page } from '../../shared/ui/Page';
 import { shelfLabel, useShelf } from './library';
 import styles from './Reading.module.css';
 import { StoryCard } from './ReadingPages';
+import { ReadingStatsSection } from './ReadingStatsPanel';
 import { MySelections } from './SelectionPages';
 import { ShelfSelect } from './ShelfSelect';
 
@@ -23,6 +24,7 @@ export function LibraryPage() {
       title="Mes lectures"
       lead="Les histoires que vous lisez, celles à lire et celles terminées, sur tous vos appareils. Personne d’autre ne les voit."
     >
+      <ReadingStatsSection />
       {Shelf.options.map((shelf) => (
         <ShelfSection key={shelf} shelf={shelf} />
       ))}

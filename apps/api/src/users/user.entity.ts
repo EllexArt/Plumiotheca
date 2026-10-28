@@ -89,6 +89,13 @@ export class User {
   @Column({ type: 'enum', enum: EmailDigest.options, enumName: 'email_digest', default: 'never' })
   emailDigest!: EmailDigest;
 
+  /**
+   * Bilan de lecture (#34), activé par défaut. Le désactiver efface le temps de lecture
+   * mesuré (reading_times) ; un réglage, pas une donnée sur la personne.
+   */
+  @Column({ type: 'boolean', default: true })
+  readingStats!: boolean;
+
   /** Réglages de lecture (#28), validés à l'écriture comme à la lecture. */
   @Column({ type: 'jsonb', nullable: true })
   readingPreferences!: ReadingPreferences | null;
@@ -180,6 +187,7 @@ export const NON_PERSONAL_FIELDS = [
   'deletionRequestedAt',
   'deletionMode',
   'emailDigest',
+  'readingStats',
   'createdAt',
   'updatedAt',
 ] as const satisfies readonly (keyof User)[];
