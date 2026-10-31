@@ -304,7 +304,7 @@ importers:
         version: 6.0.3
       unplugin-swc:
         specifier: ^2.0.0
-        version: 2.0.0(@swc/core@1.16.13)(esbuild@0.27.7)(rolldown@1.2.11)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.27.7)(yaml@2.9.1))
+        version: 2.0.0(@swc/core@1.16.13)(esbuild@0.27.7)(rolldown@1.2.11)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.27.7)(terser@5.51.2)(yaml@2.9.1))
       vitest:
         specifier: ^5.0.3
         version: 5.0.3(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(happy-dom@20.14.5)(jsdom@30.1.2(@noble/hashes@1.8.0))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.27.7)(yaml@2.9.1))
@@ -385,8 +385,8 @@ importers:
         version: 4.6.5
     devDependencies:
       '@testing-library/jest-dom':
-        specifier: ^6.8.0
-        version: 6.9.1
+        specifier: ^7.0.1
+        version: 7.0.1(@testing-library/dom@10.4.2)(vitest@5.0.3(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(happy-dom@20.14.5)(jsdom@30.1.2(@noble/hashes@1.8.0))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.27.7)(terser@5.51.2)(yaml@2.9.1)))
       '@testing-library/react':
         specifier: ^16.3.0
         version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -3244,9 +3244,15 @@ packages:
     resolution: {integrity: sha512-yzr2S9HyAIdhz2/6qHgbs665Q7PKVcDF05vsOlHPxG1mo36gKVesdYVeDLnXgfjJ03CrKRk08knc6+E/9m8v2Q==}
     engines: {node: '>=18'}
 
-  '@testing-library/jest-dom@6.9.1':
-    resolution: {integrity: sha512-zIcONa+hVtVSSep9UT3jZ5rizo2BsxgyDYU7WFD5eICBE7no3881HGeb/QkGfsJs6JTkY1aQhT7rIPC7e+0nnA==}
-    engines: {node: '>=14', npm: '>=6', yarn: '>=1'}
+  '@testing-library/jest-dom@7.0.1':
+    resolution: {integrity: sha512-oMDTC3oA+6CXSO2JZnvOI7CA6oVub6kij5ggk9ohwye5slmkwxYDXcPOVxgMw/RQlticjtO0C1RZkR97HgrWMw==}
+    engines: {node: '>=22', npm: '>=6', yarn: '>=1'}
+    peerDependencies:
+      '@testing-library/dom': '>=10 <11'
+      vitest: '>= 0.32'
+    peerDependenciesMeta:
+      vitest:
+        optional: true
 
   '@testing-library/react@16.3.3':
     resolution: {integrity: sha512-Uo193NgQbPMz6lrrhtRQQFcMC6Re/ELLFbbuVL30WDlZxlpZf9/lMHTAVxPRLw1q1iu9OJmR1c2BLiENRstdBg==}
@@ -6644,7 +6650,7 @@ snapshots:
 
   '@babel/helper-module-imports@7.29.7(supports-color@8.1.1)':
     dependencies:
-      '@babel/traverse': 7.29.8(supports-color@8.1.1)
+      '@babel/traverse': 7.29.10(supports-color@8.1.1)
       '@babel/types': 7.29.8
     transitivePeerDependencies:
       - supports-color
@@ -8930,14 +8936,17 @@ snapshots:
       picocolors: 1.1.1
       pretty-format: 27.5.1
 
-  '@testing-library/jest-dom@6.9.1':
+  '@testing-library/jest-dom@7.0.1(@testing-library/dom@10.4.2)(vitest@5.0.3(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(happy-dom@20.14.5)(jsdom@30.1.2(@noble/hashes@1.8.0))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.27.7)(terser@5.51.2)(yaml@2.9.1)))':
     dependencies:
       '@adobe/css-tools': 4.5.0
+      '@testing-library/dom': 10.4.2
       aria-query: 5.3.2
       css.escape: 1.5.1
       dom-accessibility-api: 0.6.3
       picocolors: 1.1.1
       redent: 3.0.0
+    optionalDependencies:
+      vitest: 5.0.3(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(happy-dom@20.14.5)(jsdom@30.1.2(@noble/hashes@1.8.0))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.27.7)(yaml@2.9.1))
 
   '@testing-library/react@16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
@@ -11931,12 +11940,12 @@ snapshots:
 
   unpipe@1.0.0: {}
 
-  unplugin-swc@2.0.0(@swc/core@1.16.13)(esbuild@0.27.7)(rolldown@1.2.11)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.27.7)(yaml@2.9.1)):
+  unplugin-swc@2.0.0(@swc/core@1.16.13)(esbuild@0.27.7)(rolldown@1.2.11)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.27.7)(terser@5.51.2)(yaml@2.9.1)):
     dependencies:
       '@rollup/pluginutils': 5.4.0(rollup@4.63.5)
       '@swc/core': 1.16.13
       load-tsconfig: 0.2.5
-      unplugin: 3.4.0(esbuild@0.27.7)(rolldown@1.2.11)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.27.7)(yaml@2.9.1))
+      unplugin: 3.4.0(esbuild@0.27.7)(rolldown@1.2.11)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.27.7)(terser@5.51.2)(yaml@2.9.1))
     transitivePeerDependencies:
       - '@farmfe/core'
       - '@rsbuild/core'
@@ -11949,7 +11958,7 @@ snapshots:
       - vite
       - webpack
 
-  unplugin@3.4.0(esbuild@0.27.7)(rolldown@1.2.11)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.27.7)(yaml@2.9.1)):
+  unplugin@3.4.0(esbuild@0.27.7)(rolldown@1.2.11)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.27.7)(terser@5.51.2)(yaml@2.9.1)):
     dependencies:
       '@jridgewell/remapping': 2.3.5
       picomatch: 4.0.7
@@ -11958,7 +11967,7 @@ snapshots:
       esbuild: 0.27.7
       rolldown: 1.2.11
       rollup: 4.63.5
-      vite: 8.3.4(@types/node@24.19.2)(esbuild@0.27.7)(yaml@2.9.1)
+      vite: 8.3.4(@types/node@24.19.2)(esbuild@0.27.7)(terser@5.51.2)(yaml@2.9.1)
 
   upath@1.2.0: {}
 
@@ -12023,20 +12032,6 @@ snapshots:
       fsevents: 2.3.3
       terser: 5.51.2
       yaml: 2.9.1
-
-  vite@8.3.4(@types/node@24.19.2)(esbuild@0.27.7)(yaml@2.9.1):
-    dependencies:
-      lightningcss: 1.33.0
-      picomatch: 4.0.7
-      postcss: 8.5.29
-      rolldown: 1.2.13
-      tinyglobby: 0.2.17
-    optionalDependencies:
-      '@types/node': 24.19.2
-      esbuild: 0.27.7
-      fsevents: 2.3.3
-      yaml: 2.9.1
-    optional: true
 
   vitest@5.0.3(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(happy-dom@20.14.5)(jsdom@30.1.2(@noble/hashes@1.8.0))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.27.7)(yaml@2.9.1)):
     dependencies:
