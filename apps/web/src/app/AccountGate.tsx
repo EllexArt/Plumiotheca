@@ -8,7 +8,7 @@ import { Page } from '../shared/ui/Page';
 import styles from './AccountGate.module.css';
 
 /** Pages lisibles sans compte : elles restent ouvertes si le compte ne se charge pas. */
-const PUBLIC_PATHS = ['/', '/charte', '/design-system', '/connexion'];
+const PUBLIC_PATHS = ['/', '/charte', '/design-system', '/connexion', '/sur-cet-appareil'];
 const PUBLIC_PREFIXES = ['/histoires/', '/profils/'];
 const isPublic = (path: string) =>
   PUBLIC_PATHS.includes(path) || PUBLIC_PREFIXES.some((prefix) => path.startsWith(prefix));
@@ -26,6 +26,11 @@ export function AccountGate({ children }: { children: ReactNode }) {
   const account = useMyAccount();
 
   if (!auth.isAuthenticated) return children;
+  // Hors ligne (#35) : le compte attend le réseau ; les pages publiques (histoires
+  // téléchargées comprises) restent lisibles.
+  if (account.isPending && account.fetchStatus === 'paused' && isPublic(pathname)) {
+    return children;
+  }
   if (account.isPending) return <Loading label="Ouverture de votre compte…" />;
 
   if (account.isError) {

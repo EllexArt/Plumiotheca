@@ -104,16 +104,22 @@ export class LibraryService {
       .findOneBy({ id: position.chapterId, story: { id: storyId } });
     const own = story.author.id === user.id;
     if (!chapter || (!own && chapter.status !== 'published')) throw new NotFoundException();
+    // Envoi différé (#35) : daté de la lecture (jamais dans le futur), et sans effet si le
+    // compte a une position plus récente.
+    const readAt = position.readAt
+      ? new Date(Math.min(Date.parse(position.readAt), Date.now()))
+      : new Date();
     await this.db.query(
-      `INSERT INTO library_entries (user_id, story_id, shelf, chapter_id, block_id)
-       VALUES ($1, $2, 'reading', $3, $4)
+      `INSERT INTO library_entries (user_id, story_id, shelf, chapter_id, block_id, updated_at)
+       VALUES ($1, $2, 'reading', $3, $4, $5)
        ON CONFLICT (user_id, story_id) DO UPDATE SET
          chapter_id = EXCLUDED.chapter_id,
          block_id = EXCLUDED.block_id,
-         updated_at = now(),
+         updated_at = EXCLUDED.updated_at,
          shelf = CASE WHEN library_entries.shelf = 'to_read' THEN 'reading'::shelf
-                      ELSE library_entries.shelf END`,
-      [user.id, storyId, position.chapterId, position.blockId],
+                      ELSE library_entries.shelf END
+       WHERE library_entries.updated_at <= EXCLUDED.updated_at`,
+      [user.id, storyId, position.chapterId, position.blockId, readAt],
     );
     return this.status(user, storyId);
   }
