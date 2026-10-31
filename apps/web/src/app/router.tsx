@@ -40,6 +40,11 @@ export const routes: RouteObject[] = [
           { path: 'histoires/:storyId/chapitres/:chapterId', element: <ReaderPage /> },
           { path: 'profils/:handle', lazy: lazyPage(account, 'PublicProfilePage') },
           { path: 'charte', lazy: lazyPage(account, 'CharterPage') },
+          // Public : doit s'ouvrir en mode avion, connecté ou non (#35).
+          {
+            path: 'sur-cet-appareil',
+            lazy: lazyPage(() => import('../features/offline/OfflinePages'), 'OnThisDevicePage'),
+          },
           { path: 'confidentialite', lazy: lazyPage(account, 'PrivacyPage') },
           { path: 'conditions', lazy: lazyPage(account, 'ConditionsPage') },
           {

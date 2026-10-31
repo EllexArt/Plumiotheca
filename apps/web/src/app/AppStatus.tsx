@@ -1,4 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
+import { Link } from 'react-router';
 import { Button } from '../shared/ui/Button';
 import { Alert } from '../shared/ui/Feedback';
 import styles from './Layout.module.css';
@@ -54,7 +55,11 @@ export function AppStatus() {
     <output className={styles.banner}>
       {!online && (
         <Alert tone="warning" title="Vous êtes hors ligne.">
-          <p>Les pages déjà ouvertes restent affichées ; le reste revient avec le réseau.</p>
+          <p>
+            Les pages déjà ouvertes restent affichées, et les{' '}
+            <Link to="/sur-cet-appareil">histoires téléchargées</Link> se lisent ; le reste revient
+            avec le réseau.
+          </p>
         </Alert>
       )}
       {update && (

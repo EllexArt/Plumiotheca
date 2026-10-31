@@ -40,6 +40,7 @@ import { SmartSearch, type SearchInput } from './SmartSearch';
 import { limitReasons, useLimits } from './limits';
 import { useReadingPreferences } from './readingPreferences';
 import { ReadingProgress } from './ReadingProgress';
+import { DownloadPanel } from '../offline/OfflinePages';
 import { ReadingSettings } from './ReadingSettings';
 
 const missing = {
@@ -418,6 +419,7 @@ export function StoryPage() {
             <ShelfSelect storyId={s.id} shelf={library.data.entry?.shelf ?? null} />
           )}
           {auth.isAuthenticated && <AddToSelection storyId={s.id} />}
+          <DownloadPanel story={s} />
         </div>
 
         <div className={styles.main}>

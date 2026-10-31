@@ -30,7 +30,8 @@ export function LibraryPage() {
       ))}
       <MySelections />
       <p>
-        <Link to="/">Trouver une histoire dans Explorer</Link>
+        <Link to="/">Trouver une histoire dans Explorer</Link> ·{' '}
+        <Link to="/sur-cet-appareil">Histoires téléchargées sur cet appareil</Link>
       </p>
     </Page>
   );
