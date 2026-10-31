@@ -220,6 +220,8 @@ test('écrire → publier → lire', async ({ page, browser, account }) => {
       expect(cspViolations).toEqual([]);
     });
   } finally {
+    // Réseau rétabli (étape hors ligne interrompue) avant de nettoyer.
+    await page.context().setOffline(false);
     if (storyId) await deleteStory(page, storyId);
   }
 });
