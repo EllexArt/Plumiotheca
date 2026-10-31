@@ -124,7 +124,7 @@ describe('bilan de lecture (#34)', () => {
     expect(s.months.at(-3)!.minutes).toBe(10);
     expect(s.months.at(-2)!.minutes).toBe(0);
     await addTime(ctx, jwt, 0).expect(400);
-    await addTime(ctx, jwt, 121).expect(400);
+    await addTime(ctx, jwt, 3601).expect(400);
   });
 
   it('désactivé : plus rien n’est compté, le temps mesuré est effacé ; activé par défaut', async () => {

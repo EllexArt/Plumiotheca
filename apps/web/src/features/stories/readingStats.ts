@@ -1,7 +1,10 @@
 import { MAX_READING_SECONDS, MyAccount, ReadingStats } from '@plumiotheca/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
+import { useAuth } from 'react-oidc-context';
 import { useApi } from '../../shared/api/useApi';
+import { isUnreachable } from '../offline/downloads';
+import { queueSeconds } from '../offline/outbox';
 import { myAccountKey } from '../account/api';
 
 const statsKey = ['moi', 'bilan'] as const;
@@ -42,13 +45,18 @@ const SEND_EVERY_SECONDS = 60;
  */
 export function useReadingTimer(enabled: boolean) {
   const api = useApi();
+  const account = useAuth().user?.profile.sub;
   // Toujours le dernier client d'API (jeton renouvelé), sans relancer le minuteur.
   const send = useRef<(seconds: number) => void>(() => {});
   useEffect(() => {
     send.current = (seconds) => {
-      void api(null, '/moi/bilan/temps', { method: 'POST', body: { seconds } }).catch(() => {
-        // Temps perdu : jamais d'erreur affichée pour un bilan.
-      });
+      void api(null, '/moi/bilan/temps', { method: 'POST', body: { seconds } }).catch(
+        (error: unknown) => {
+          // Hors ligne (#35) : gardé sur l'appareil, envoyé au retour du réseau. Sinon,
+          // temps perdu : jamais d'erreur affichée pour un bilan.
+          if (account && isUnreachable(error)) queueSeconds(account, seconds);
+        },
+      );
     };
   });
 

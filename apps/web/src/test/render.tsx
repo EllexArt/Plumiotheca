@@ -12,7 +12,7 @@ export const auth = {
   isLoading: false,
   activeNavigator: undefined as string | undefined,
   error: undefined as (Error & { source?: string }) | undefined,
-  user: null as { access_token: string } | null,
+  user: null as { access_token: string; profile: { sub: string } } | null,
   signinRedirect: vi.fn(() => Promise.resolve()),
   signinSilent: vi.fn((): Promise<{ access_token: string } | null> => Promise.resolve(null)),
   signoutRedirect: vi.fn(() => Promise.resolve()),
@@ -20,7 +20,7 @@ export const auth = {
 
 export function signedIn() {
   auth.isAuthenticated = true;
-  auth.user = { access_token: 'jeton-de-test' };
+  auth.user = { access_token: 'jeton-de-test', profile: { sub: 'compte-de-test' } };
 }
 
 /** Retour à l'état initial (appelé après chaque test). */

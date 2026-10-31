@@ -185,6 +185,24 @@ test('écrire → publier → lire', async ({ page, browser, account }) => {
         // Mode avion, nouvel onglet : la session (onglet) est perdue, comme une application
         // rouverte ; les histoires téléchargées restent lisibles.
         await page.context().setOffline(true);
+        // Même onglet, toujours connecté : le chapitre se lit, la position est gardée sur
+        // l'appareil puis envoyée au retour du réseau.
+        const chapterLink = page.getByRole('link', { name: /Commencer la lecture|Reprendre/ });
+        await chapterLink.click();
+        await expect(page.getByText(text)).toBeVisible();
+        await expect(page.getByText('Vous êtes hors ligne.')).toBeVisible();
+        await expect
+          .poll(() => page.evaluate(() => localStorage.getItem('plumiotheca.envois')))
+          .not.toBeNull();
+        await page.context().setOffline(false);
+        await expect
+          .poll(() => page.evaluate(() => localStorage.getItem('plumiotheca.envois')), {
+            timeout: 15_000,
+          })
+          .toBeNull();
+        await page.goto(`/histoires/${storyId}`);
+        await page.context().setOffline(true);
+
         const offline = await page.context().newPage();
         watchCsp(offline);
         await offline.goto('/sur-cet-appareil');
@@ -202,6 +220,8 @@ test('écrire → publier → lire', async ({ page, browser, account }) => {
       expect(cspViolations).toEqual([]);
     });
   } finally {
+    // Réseau rétabli (étape hors ligne interrompue) avant de nettoyer.
+    await page.context().setOffline(false);
     if (storyId) await deleteStory(page, storyId);
   }
 });

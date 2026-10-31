@@ -135,6 +135,8 @@ export function useStory(id: string) {
   const auth = useAuth();
   return useQuery({
     queryKey: [...storyKeys.detail(id), auth.isAuthenticated],
+    // Même hors ligne : la copie téléchargée prend le relais (#35).
+    networkMode: 'always',
     queryFn: ({ signal }) =>
       offline(
         api(StoryDetail, `/histoires/${id}`, { signal }),
@@ -148,6 +150,7 @@ export function useChapter(storyId: string, chapterId: string) {
   const api = useApi();
   return useQuery({
     queryKey: storyKeys.chapter(storyId, chapterId),
+    networkMode: 'always',
     queryFn: ({ signal }) =>
       offline(api(ChapterRead, `/histoires/${storyId}/chapitres/${chapterId}`, { signal }), () =>
         downloadedChapter(chapterId),
