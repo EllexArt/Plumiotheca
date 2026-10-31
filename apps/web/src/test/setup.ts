@@ -1,6 +1,10 @@
 import '@testing-library/jest-dom/vitest';
+// IndexedDB (histoires téléchargées, #35) : absent de jsdom.
+import 'fake-indexeddb/auto';
+import { IDBFactory } from 'fake-indexeddb';
 import { cleanup, configure } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
+import { forgetOfflineStore } from '../features/offline/store';
 import { auth, signedOut } from './render';
 
 // Pages chargées à la demande : le premier chargement peut dépasser une seconde.
@@ -19,6 +23,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
   signedOut();
+  // Appareil neuf à chaque test.
+  globalThis.indexedDB = new IDBFactory();
+  forgetOfflineStore();
 });
 
 // jsdom n'implémente pas scrollTo (retour en haut à chaque page).

@@ -166,6 +166,38 @@ test('écrire → publier → lire', async ({ page, browser, account }) => {
       await night.close();
     });
 
+    // Hors ligne (#35) : le service worker n'existe que dans le site compilé (image Docker).
+    if (process.env.E2E_WEB_EXTERNAL === '1') {
+      await test.step('télécharger, puis lire en mode avion après avoir rouvert', async () => {
+        await page.goto(`/histoires/${storyId}`);
+        await page.getByRole('button', { name: 'Télécharger pour lire hors ligne' }).click();
+        await expect(page.getByText(/lisible hors ligne/)).toBeVisible();
+        await expectAccessible(page);
+        // Service worker maître de la page : l'interface sera gardée.
+        await page.evaluate(async () => {
+          await navigator.serviceWorker.ready;
+        });
+        await page.reload();
+        await expect
+          .poll(() => page.evaluate(() => !!navigator.serviceWorker.controller))
+          .toBe(true);
+
+        // Mode avion, nouvel onglet : la session (onglet) est perdue, comme une application
+        // rouverte ; les histoires téléchargées restent lisibles.
+        await page.context().setOffline(true);
+        const offline = await page.context().newPage();
+        watchCsp(offline);
+        await offline.goto('/sur-cet-appareil');
+        await expect(offline.getByText('Vous êtes hors ligne.')).toBeVisible();
+        await offline.getByRole('link', { name: `Lire « ${title} »` }).click();
+        await expect(offline.getByRole('heading', { level: 1, name: 'La lanterne' })).toBeVisible();
+        await expect(offline.getByText(text)).toBeVisible();
+        await expectAccessible(offline);
+        await offline.close();
+        await page.context().setOffline(false);
+      });
+    }
+
     await test.step('aucune violation de la CSP du site', () => {
       expect(cspViolations).toEqual([]);
     });

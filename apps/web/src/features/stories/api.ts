@@ -12,6 +12,8 @@ import {
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from 'react-oidc-context';
 import { useApi } from '../../shared/api/useApi';
+import { isUnreachable } from '../offline/downloads';
+import { downloadedChapter, downloadedStory } from '../offline/store';
 import { exclusionsOf, LENGTHS, ratingsAbove, type SearchFilters } from './filters';
 import { useLimits } from './limits';
 
@@ -112,13 +114,32 @@ export function usePublicStories(filters: StoryFilters = {}) {
   });
 }
 
+/**
+ * Hors ligne (#35) : la copie téléchargée sur l'appareil, s'il y en a une, quand le réseau
+ * ne répond pas. Sinon, l'erreur du réseau, telle quelle.
+ */
+async function offline<T>(online: Promise<T>, local: () => Promise<T | undefined>): Promise<T> {
+  try {
+    return await online;
+  } catch (error) {
+    if (!isUnreachable(error)) throw error;
+    const copy = await local().catch(() => undefined);
+    if (copy === undefined) throw error;
+    return copy;
+  }
+}
+
 /** Fiche d'une histoire et son sommaire (brouillons compris pour son autrice ou son auteur). */
 export function useStory(id: string) {
   const api = useApi();
   const auth = useAuth();
   return useQuery({
     queryKey: [...storyKeys.detail(id), auth.isAuthenticated],
-    queryFn: ({ signal }) => api(StoryDetail, `/histoires/${id}`, { signal }),
+    queryFn: ({ signal }) =>
+      offline(
+        api(StoryDetail, `/histoires/${id}`, { signal }),
+        async () => (await downloadedStory(id))?.story,
+      ),
   });
 }
 
@@ -128,7 +149,9 @@ export function useChapter(storyId: string, chapterId: string) {
   return useQuery({
     queryKey: storyKeys.chapter(storyId, chapterId),
     queryFn: ({ signal }) =>
-      api(ChapterRead, `/histoires/${storyId}/chapitres/${chapterId}`, { signal }),
+      offline(api(ChapterRead, `/histoires/${storyId}/chapitres/${chapterId}`, { signal }), () =>
+        downloadedChapter(chapterId),
+      ),
   });
 }
 
