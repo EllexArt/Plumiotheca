@@ -31,6 +31,9 @@ export function useLibraryStatus(storyId: string) {
     queryKey: libraryKeys.story(storyId),
     queryFn: ({ signal }) => api(LibraryStatus, `/moi/lectures/${storyId}`, { signal }),
     enabled: signedIn && !!storyId,
+    // Hors ligne (#35) : échoue vite au lieu d'attendre le réseau ; le lecteur suit alors
+    // la position pour l'envoyer plus tard.
+    networkMode: 'always',
   });
 }
 
@@ -73,6 +76,8 @@ export function useSavePosition(storyId: string) {
   const queryClient = useQueryClient();
   const account = useAuth().user?.profile.sub;
   return useMutation({
+    // Même hors ligne (#35) : la position est alors gardée pour plus tard, pas mise en pause.
+    networkMode: 'always',
     mutationFn: async (position: ReadingPosition) => {
       try {
         return await api(LibraryStatus, `/moi/lectures/${storyId}/position`, {

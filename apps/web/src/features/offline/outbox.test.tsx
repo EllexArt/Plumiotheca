@@ -1,5 +1,6 @@
 import { act, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { onlineManager } from '@tanstack/react-query';
+import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { account, mockApi, renderApp, signedIn } from '../../test/render';
 import { chunks, pendingFor } from './outbox';
 import { saveStory } from './store';
@@ -78,6 +79,9 @@ describe('lectures faites hors ligne (#35)', () => {
     await saveStory(detail as never, [chapter] as never);
     signedIn();
     vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')));
+    // Comme le navigateur : React Query se sait hors ligne (requêtes en pause par défaut).
+    onlineManager.setOnline(false);
+    onTestFinished(() => onlineManager.setOnline(true));
     renderApp(`/histoires/${STORY}/chapitres/${CH1}`);
     expect(await screen.findByText('Il était une fois.')).toBeInTheDocument();
     await waitFor(
