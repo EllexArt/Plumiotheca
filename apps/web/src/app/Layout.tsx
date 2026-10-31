@@ -15,6 +15,7 @@ import styles from './Layout.module.css';
 import { AppearanceSync, useAppearance } from './appearance';
 import type { ThemeChoice } from './theme';
 import { useUnreadNotifications } from '../features/notifications/api';
+import { AppStatus } from './AppStatus';
 
 // Le logo garde l'identité Lueur, quelle que soit l'ambiance choisie (#77).
 const Plume = () => (
@@ -282,6 +283,7 @@ export function Layout() {
       <Header />
       <main id="contenu" ref={main} tabIndex={-1} className={styles.main}>
         <SigninError />
+        <AppStatus />
         <AccountGate>
           <Outlet />
         </AccountGate>
