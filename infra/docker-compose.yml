@@ -23,7 +23,7 @@ services:
       retries: 20
 
   keycloak:
-    image: quay.io/keycloak/keycloak:26.8.0
+    image: quay.io/keycloak/keycloak:26.8.1-2
     command: ['start-dev', '--import-realm']
     environment:
       KC_DB: postgres
@@ -58,7 +58,7 @@ services:
       start_period: 20s
 
   meilisearch:
-    image: getmeili/meilisearch:v1.54.3
+    image: getmeili/meilisearch:v1.55.0
     environment:
       MEILI_ENV: development
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?à définir dans infra/.env}
@@ -75,7 +75,7 @@ services:
 
   garage:
     # Stockage objet compatible S3 (couvertures, avatars, galerie). Remplace MinIO, archivé.
-    image: dxflrs/garage:v2.4.1
+    image: dxflrs/garage:v2.5.0
     environment:
       GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:?à définir dans infra/.env}
       GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:?à définir dans infra/.env}
@@ -95,7 +95,7 @@ services:
 
   mailpit:
     # Capture tous les e-mails envoyés en développement : http://localhost:8025
-    image: axllent/mailpit:v1.31.3
+    image: axllent/mailpit:v1.32.0
     ports:
       - '127.0.0.1:1025:1025'
       - '127.0.0.1:8025:8025'
