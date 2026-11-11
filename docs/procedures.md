@@ -69,3 +69,19 @@ Il désactive puis supprime les comptes verrouillés (moins de 15 ans, décision
 1. Console d'administration de Keycloak, realm `plumiotheca`, « Clients », `api-administration`, « Credentials », « Regenerate ».
 2. Mettre la nouvelle valeur dans `KEYCLOAK_ADMIN_CLIENT_SECRET` et redémarrer l'API (l'ancien jeton en cache est remplacé au premier refus).
 3. Vérifier dans le journal de démarrage qu'aucune erreur « Compte de service Keycloak inutilisable » n'apparaît.
+
+## Jardiniers et jardinières des tags (`jardinage-tags`)
+
+Rôle bénévole (#78), **sans** double authentification : il ne donne accès qu'aux tags (synonymes, parents, noms), jamais aux comptes ni aux contenus, et chaque opération est journalisée et annulable depuis la page « Jardinage des tags ».
+
+- **Attribuer** : console d'administration de Keycloak, realm `plumiotheca`, « Users », le compte, « Role mapping », « Assign role », `jardinage-tags`. La personne se reconnecte pour que le rôle soit pris en compte ; « Jardinage des tags » apparaît alors dans le menu de son compte.
+- **Retirer** : même chemin, « Unassign ». Ses opérations restent au journal, avec son pseudonyme (oublié si son compte est supprimé).
+- **Une opération malvenue** : l'annuler depuis le journal. Si les tags ont changé depuis, annuler d'abord les opérations plus récentes.
+
+## Après un changement de la forme normalisée des tags
+
+Les tags sont normalisés sans espaces depuis #78 (« slow burn » = « slowburn »). Après le déploiement de ce changement, reconstruire l'index de recherche, sans attendre la reconstruction de la nuit (sinon, jusqu'au lendemain, les filtres par tag de la recherche plein texte ne trouvent pas les tags en plusieurs mots) :
+
+```bash
+pnpm --filter @plumiotheca/api search:reindex
+```

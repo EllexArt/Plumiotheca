@@ -337,9 +337,9 @@ export const ReorderChapters = z.strictObject({
 export type ReorderChapters = z.infer<typeof ReorderChapters>;
 
 /**
- * Forme normalisée d'un tag (casse, accents, tirets, espaces) : « Slow-Burn », « slow burn »
- * et « slowburn » ne donnent pas encore le même tag (synonymes : jardiniers, #78), mais
- * « Slow Burn » et « slow  burn » oui.
+ * Forme normalisée d'un tag (#78) : sans casse, accents, tirets ni espaces. « Slow-Burn »,
+ * « slow burn » et « slowburn » donnent le même tag. Les autres équivalences (traductions,
+ * variantes) sont des synonymes déclarés par les jardiniers des tags.
  */
 export function normalizeTag(name: string): string {
   return (
@@ -349,7 +349,6 @@ export function normalizeTag(name: string): string {
       .toLowerCase()
       // Liaisons invisibles (ZWNJ, ZWJ) : « roma‌nce » est le même tag que « romance ».
       .replace(/[\u200C\u200D]/gu, '')
-      .replace(/[\s_-]+/g, ' ')
-      .trim()
+      .replace(/[\s_-]+/g, '')
   );
 }
