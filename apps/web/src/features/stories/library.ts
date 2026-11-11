@@ -7,6 +7,8 @@ import {
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from 'react-oidc-context';
 import { useApi } from '../../shared/api/useApi';
+import { isUnreachable } from '../offline/downloads';
+import { queuePosition } from '../offline/outbox';
 
 /** « Mes lectures » (#30), sur le compte : étagères et position de lecture. */
 export const libraryKeys = {
@@ -29,6 +31,9 @@ export function useLibraryStatus(storyId: string) {
     queryKey: libraryKeys.story(storyId),
     queryFn: ({ signal }) => api(LibraryStatus, `/moi/lectures/${storyId}`, { signal }),
     enabled: signedIn && !!storyId,
+    // Hors ligne (#35) : échoue vite au lieu d'attendre le réseau ; le lecteur suit alors
+    // la position pour l'envoyer plus tard.
+    networkMode: 'always',
   });
 }
 
@@ -69,9 +74,25 @@ export function useSetShelf(storyId: string) {
 export function useSavePosition(storyId: string) {
   const api = useApi();
   const queryClient = useQueryClient();
+  const account = useAuth().user?.profile.sub;
   return useMutation({
-    mutationFn: (position: ReadingPosition) =>
-      api(LibraryStatus, `/moi/lectures/${storyId}/position`, { method: 'PUT', body: position }),
-    onSuccess: (status) => queryClient.setQueryData(libraryKeys.story(storyId), status),
+    // Même hors ligne (#35) : la position est alors gardée pour plus tard, pas mise en pause.
+    networkMode: 'always',
+    mutationFn: async (position: ReadingPosition) => {
+      try {
+        return await api(LibraryStatus, `/moi/lectures/${storyId}/position`, {
+          method: 'PUT',
+          body: position,
+        });
+      } catch (error) {
+        // Hors ligne (#35) : gardée sur l'appareil, envoyée au retour du réseau.
+        if (!account || !isUnreachable(error)) throw error;
+        queuePosition(account, storyId, position);
+        return null;
+      }
+    },
+    onSuccess: (status) => {
+      if (status) queryClient.setQueryData(libraryKeys.story(storyId), status);
+    },
   });
 }

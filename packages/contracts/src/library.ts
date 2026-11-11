@@ -16,6 +16,11 @@ const BlockId = z.string().regex(/^[A-Za-z0-9_-]{8,32}$/);
 export const ReadingPosition = z.strictObject({
   chapterId: z.uuid(),
   blockId: BlockId.nullable(),
+  /**
+   * Moment de la lecture, pour un envoi différé (lu hors ligne, #35) : la position n'est
+   * gardée que si elle est plus récente que celle du compte (lue entre-temps ailleurs).
+   */
+  readAt: z.iso.datetime().optional(),
 });
 export type ReadingPosition = z.infer<typeof ReadingPosition>;
 

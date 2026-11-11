@@ -201,4 +201,40 @@ describe('Mes lectures (#30)', () => {
     expect(page.items).toEqual([]);
     await ctx.http.get('/api/moi/lectures').expect(401);
   });
+
+  it('envoi différé (lu hors ligne, #35) : gardé seulement s’il est plus récent que la position du compte', async () => {
+    const ctx = await start();
+    const { story, chapters } = await published(ctx, await readyToken(ctx.app));
+    const reader = await readyToken(ctx.app);
+    const put = (body: object) =>
+      ctx.http
+        .put(`/api/moi/lectures/${story}/position`)
+        .set(...bearer(reader))
+        .send(body);
+    const entry = async () =>
+      LibraryStatus.parse(
+        (
+          await ctx.http
+            .get(`/api/moi/lectures/${story}`)
+            .set(...bearer(reader))
+            .expect(200)
+        ).body,
+      ).entry;
+
+    // Lu ailleurs, en ligne : chapitre 2.
+    await put({ chapterId: chapters[1], blockId: BLOCK }).expect(200);
+    // Lu plus tôt hors ligne (chapitre 1), envoyé après : ignoré.
+    const earlier = new Date(Date.now() - 60 * 60_000).toISOString();
+    await put({ chapterId: chapters[0], blockId: null, readAt: earlier }).expect(200);
+    expect(await entry()).toMatchObject({ chapterId: chapters[1], blockId: BLOCK });
+
+    // Lu hors ligne plus tard (date dans le futur ramenée à maintenant) : gardé.
+    const later = new Date(Date.now() + 24 * 60 * 60_000).toISOString();
+    await put({ chapterId: chapters[0], blockId: null, readAt: later }).expect(200);
+    const kept = await entry();
+    expect(kept).toMatchObject({ chapterId: chapters[0], blockId: null });
+    expect(Date.parse(kept!.updatedAt)).toBeLessThanOrEqual(Date.now() + 1000);
+
+    await put({ chapterId: chapters[0], blockId: null, readAt: 'hier' }).expect(400);
+  });
 });

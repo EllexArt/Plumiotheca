@@ -41,6 +41,7 @@ import { limitReasons, useLimits } from './limits';
 import { useReadingPreferences } from './readingPreferences';
 import { ReadingProgress } from './ReadingProgress';
 import { DownloadPanel } from '../offline/OfflinePages';
+import { isUnreachable } from '../offline/downloads';
 import { ReadingSettings } from './ReadingSettings';
 
 const missing = {
@@ -497,7 +498,9 @@ export function ReaderPage() {
   const library = useLibraryStatus(storyId);
   const { mutate: savePosition } = useSavePosition(storyId);
   const known = library.data?.entry?.chapterId;
-  const tracking = opened && signedIn && library.isSuccess;
+  // Hors ligne (#35) : Mes lectures ne répond pas, mais la position est gardée pour plus tard.
+  const tracking =
+    opened && signedIn && (library.isSuccess || (library.isError && isUnreachable(library.error)));
   useEffect(() => {
     if (tracking && known !== chapterId) savePosition({ chapterId, blockId: null });
   }, [tracking, known, chapterId, savePosition]);

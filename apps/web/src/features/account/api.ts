@@ -28,6 +28,11 @@ export function useMyAccount() {
     queryFn: ({ signal }) => api(MyAccount, '/moi/compte', { signal }),
     enabled: auth.isAuthenticated,
     staleTime: 5 * 60_000,
+    // En erreur (API ou réseau indisponible) : pas de nouvel essai à chaque composant qui se
+    // monte. Sinon la page publique affichée relance le compte, qui la remplace par
+    // « Ouverture… », et ainsi de suite, en boucle. « Réessayer » et le retour du réseau
+    // relancent la requête.
+    retryOnMount: false,
   });
 }
 

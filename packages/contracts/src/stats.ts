@@ -8,8 +8,11 @@ import { z } from 'zod';
 export const SetReadingStats = z.strictObject({ readingStats: z.boolean() });
 export type SetReadingStats = z.infer<typeof SetReadingStats>;
 
-/** Plus long temps envoyé d'un coup (le lecteur l'envoie toutes les minutes). */
-export const MAX_READING_SECONDS = 120;
+/**
+ * Plus long temps envoyé d'un coup : le lecteur l'envoie toutes les minutes, et le temps lu
+ * hors ligne par tranches d'une heure au retour du réseau (#35).
+ */
+export const MAX_READING_SECONDS = 3600;
 
 /** Temps de lecture à ajouter au mois en cours. */
 export const ReadingTime = z.strictObject({

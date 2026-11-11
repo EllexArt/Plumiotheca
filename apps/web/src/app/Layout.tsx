@@ -16,6 +16,8 @@ import { AppearanceSync, useAppearance } from './appearance';
 import type { ThemeChoice } from './theme';
 import { useUnreadNotifications } from '../features/notifications/api';
 import { AppStatus } from './AppStatus';
+import { forgetOutbox } from '../features/offline/outbox';
+import { OutboxSync } from '../features/offline/OutboxSync';
 
 // Le logo garde l'identité Lueur, quelle que soit l'ambiance choisie (#77).
 const Plume = () => (
@@ -74,6 +76,8 @@ function AccountMenu() {
     queryClient.clear();
     clearBackups();
     forgetReadings();
+    // Lectures hors ligne pas encore envoyées (#35) : rien ne reste au nom du compte.
+    forgetOutbox();
     void auth.signoutRedirect();
   };
 
@@ -284,6 +288,7 @@ export function Layout() {
       <main id="contenu" ref={main} tabIndex={-1} className={styles.main}>
         <SigninError />
         <AppStatus />
+        <OutboxSync />
         <AccountGate>
           <Outlet />
         </AccountGate>
