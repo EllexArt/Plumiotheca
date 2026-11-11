@@ -65,7 +65,7 @@ describe('filtres de recherche (#32)', () => {
         motsMin: '5000',
         motsMax: '19999',
         exclure: 'unspecified',
-        masquerTags: 'slow burn',
+        masquerTags: 'slowburn',
         tri: 'lecteurs',
       }),
     );

@@ -47,13 +47,18 @@ export class TagsService {
     await tx.getRepository(StoryTag).insert([...ids].map((tagId) => ({ storyId, tagId })));
   }
 
-  /** Libellés des tags de plusieurs histoires, par histoire. */
+  /**
+   * Libellés des tags de plusieurs histoires, par histoire : le tag canonique pour un
+   * synonyme (#78), pour que toutes les histoires affichent le même libellé.
+   */
   async labels(tx: EntityManager, storyIds: string[]): Promise<Map<string, string[]>> {
     const result = new Map<string, string[]>(storyIds.map((id) => [id, []]));
     if (!storyIds.length) return result;
     const rows = await tx.query<{ story_id: string; name: string }[]>(
-      `SELECT st.story_id, t.name FROM story_tags st JOIN tags t ON t.id = st.tag_id
-       WHERE st.story_id = ANY($1) ORDER BY t.name`,
+      `SELECT DISTINCT st.story_id, coalesce(c.name, t.name) AS name
+       FROM story_tags st JOIN tags t ON t.id = st.tag_id
+       LEFT JOIN tags c ON c.id = t.canonical_id
+       WHERE st.story_id = ANY($1) ORDER BY name`,
       [storyIds],
     );
     for (const row of rows) result.get(row.story_id)?.push(row.name);
@@ -61,21 +66,25 @@ export class TagsService {
   }
 
   /**
-   * Familles de tags (#31) : pour chaque tag demandé, sa forme normalisée, celle de son tag
-   * canonique et celles de tous ses synonymes. Exclure « angst » exclut aussi ses synonymes,
-   * même sur une histoire taguée avant que le synonyme soit déclaré.
+   * Familles de tags (#31, #78) : pour chaque tag demandé, sa forme normalisée, celle de son
+   * tag canonique, de ses synonymes, et de tous ses sous-tags (avec leurs synonymes), qui
+   * héritent de lui. Exclure « angst » exclut aussi ses synonymes, même sur une histoire
+   * taguée avant leur déclaration ; chercher « fantasy » trouve aussi « dark fantasy ».
    */
   async families(tx: EntityManager, names: string[]): Promise<string[][]> {
     const keys = [...new Set(names.map(normalizeTag).filter(Boolean))];
     if (!keys.length) return [];
+    // UNION (et non UNION ALL) : une hiérarchie en boucle s'arrête d'elle-même.
     const rows = await tx.query<{ key: string; family: string[] }[]>(
-      `SELECT k.key, coalesce(array_agg(DISTINCT f.normalized) FILTER (WHERE f.id IS NOT NULL),
-                              '{}') AS family
-       FROM unnest($1::text[]) AS k(key)
-       LEFT JOIN tags t ON t.normalized = k.key
-       LEFT JOIN tags f ON f.id = coalesce(t.canonical_id, t.id)
-                        OR f.canonical_id = coalesce(t.canonical_id, t.id)
-       GROUP BY k.key`,
+      `WITH RECURSIVE tree(key, id) AS (
+         SELECT k.key, coalesce(t.canonical_id, t.id)
+         FROM unnest($1::text[]) AS k(key) JOIN tags t ON t.normalized = k.key
+         UNION
+         SELECT tree.key, child.id FROM tree JOIN tags child ON child.parent_id = tree.id
+       )
+       SELECT tree.key, array_agg(DISTINCT f.normalized) AS family
+       FROM tree JOIN tags f ON f.id = tree.id OR f.canonical_id = tree.id
+       GROUP BY tree.key`,
       [keys],
     );
     const found = new Map(rows.map((r) => [r.key, r.family]));

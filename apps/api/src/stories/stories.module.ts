@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { NotificationsModule } from '../notifications/notifications.module.js';
+import { TagGardenController } from '../tags/tag-garden.controller.js';
+import { TagGardenService } from '../tags/tag-garden.service.js';
 import { TagsService } from '../tags/tags.service.js';
 import { ChaptersService } from './chapters.service.js';
 import { LibraryController } from './library.controller.js';
@@ -20,6 +22,7 @@ import { StoriesService } from './stories.service.js';
     MyStoriesController,
     SearchController,
     LibraryController,
+    TagGardenController,
     ReadingStatsController,
     MySelectionsController,
     SelectionsController,
@@ -33,6 +36,7 @@ import { StoriesService } from './stories.service.js';
     SearchService,
     SelectionsService,
     TagsService,
+    TagGardenService,
   ],
 })
 export class StoriesModule {}
