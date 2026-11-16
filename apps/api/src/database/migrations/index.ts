@@ -9,6 +9,7 @@ import { Selections1792253380573 } from './1792253380573-Selections.js';
 import { SaisieIntelligente1792254000000 } from './1792254000000-SaisieIntelligente.js';
 import { Notifications1793021640920 } from './1793021640920-Notifications.js';
 import { BilanLecture1793174828634 } from './1793174828634-BilanLecture.js';
+import { PersonnagesRelations1794846473500 } from './1794846473500-PersonnagesRelations.js';
 import { MesLectures1792252868090 } from './1792252868090-MesLectures.js';
 import { Apparence1792251152107 } from './1792251152107-Apparence.js';
 import { Limites1792250556806 } from './1792250556806-Limites.js';
@@ -36,4 +37,5 @@ export const migrations = [
   SaisieIntelligente1792254000000,
   Notifications1793021640920,
   BilanLecture1793174828634,
+  PersonnagesRelations1794846473500,
 ];

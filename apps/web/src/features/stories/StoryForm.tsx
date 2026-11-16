@@ -12,7 +12,24 @@ import { Checkbox, RadioGroup, TextArea, TextField } from '../../shared/ui/Field
 import { contentWarningLabel, ratingHint, ratingLabel, warningLabel } from './labels';
 import styles from './Writing.module.css';
 
-type Field = 'title' | 'summary' | 'rating' | 'majorWarnings' | 'contentWarnings' | 'tags';
+type Field =
+  | 'title'
+  | 'summary'
+  | 'rating'
+  | 'majorWarnings'
+  | 'contentWarnings'
+  | 'tags'
+  | 'relationships'
+  | 'characters';
+
+/** Liste séparée par des virgules ; absente du formulaire : non modifiée. */
+const list = (form: FormData, name: string) =>
+  form.has(name)
+    ? String(form.get(name) ?? '')
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean)
+    : undefined;
 export type Errors = Partial<Record<Field, string>>;
 
 const SPECIFIC = MajorWarning.options.filter((w) => w !== 'unspecified');
@@ -54,10 +71,10 @@ export function readStoryForm(
     rating: form.get('rating') || null,
     majorWarnings: majorWarnings.value,
     contentWarnings: form.getAll('contentWarnings'),
-    tags: String(form.get('tags') ?? '')
-      .split(',')
-      .map((t) => t.trim())
-      .filter(Boolean),
+    tags: list(form, 'tags') ?? [],
+    // Personnages et relations (#79).
+    relationships: list(form, 'relationships'),
+    characters: list(form, 'characters'),
   });
   const errors: Errors = {};
   if (majorWarnings.error) errors.majorWarnings = majorWarnings.error;
@@ -150,6 +167,22 @@ export function StoryFields({
         hint="Séparés par des virgules : fantasy, slow burn, found family…"
         defaultValue={story?.tags.join(', ')}
         error={errors.tags}
+      />
+      <TextField
+        label="Relations"
+        name="relationships"
+        hint="Séparées par des virgules : « Ilse/Tomas » pour une relation amoureuse, « Ilse & sa mère » pour une amitié ou un lien familial. Les personnages s’ajoutent d’eux-mêmes."
+        maxLength={2000}
+        defaultValue={story?.relationships.join(', ')}
+        error={errors.relationships}
+      />
+      <TextField
+        label="Personnages"
+        name="characters"
+        hint="Séparés par des virgules : ceux qui comptent dans l’histoire, même sans relation."
+        maxLength={2000}
+        defaultValue={story?.characters.join(', ')}
+        error={errors.characters}
       />
     </>
   );

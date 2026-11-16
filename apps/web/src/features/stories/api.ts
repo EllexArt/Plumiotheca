@@ -6,6 +6,7 @@ import {
   StoryDetail,
   StoryPage,
   type NewStory,
+  type StoryFacets,
   type StorySummary,
   type UpdateStory,
 } from '@plumiotheca/contracts';
@@ -48,6 +49,8 @@ interface ListPage {
   total?: number;
   /** Histoires masquées par Mes limites (première page seulement). */
   hidden?: number;
+  /** Relations et personnages des résultats (#79, première page seulement). */
+  facets?: StoryFacets | undefined;
 }
 
 /**
@@ -66,6 +69,8 @@ export function usePublicStories(filters: StoryFilters = {}) {
   const filter = (params: URLSearchParams, search: boolean) => {
     if (!f) return;
     if (f.tags.length) params.set('tags', f.tags.join(','));
+    if (f.relations.length) params.set('relations', f.relations.join(','));
+    if (f.personnages.length) params.set('personnages', f.personnages.join(','));
     if (f.statut) params.set('statut', f.statut);
     if (f.langues.length) params.set('langues', f.langues.join(','));
     const above = ratingsAbove(f.classementMax);
@@ -99,7 +104,13 @@ export function usePublicStories(filters: StoryFilters = {}) {
         exclude(params);
         filter(params, true);
         const page = await api(SearchPage, `/recherche?${params}`, { signal });
-        return { items: page.items, next: page.nextPage, total: page.total, hidden: page.hidden };
+        return {
+          items: page.items,
+          next: page.nextPage,
+          total: page.total,
+          hidden: page.hidden,
+          facets: page.facets,
+        };
       }
       const params = new URLSearchParams({ limite: '20' });
       exclude(params);
@@ -108,7 +119,13 @@ export function usePublicStories(filters: StoryFilters = {}) {
       if (filters.pseudonyme) params.set('pseudonyme', filters.pseudonyme);
       if (typeof pageParam === 'string') params.set('apres', pageParam);
       const page = await api(StoryPage, `/histoires?${params}`, { signal });
-      return { items: page.items, next: page.nextCursor, total: page.total, hidden: page.hidden };
+      return {
+        items: page.items,
+        next: page.nextCursor,
+        total: page.total,
+        hidden: page.hidden,
+        facets: page.facets,
+      };
     },
     getNextPageParam: (last) => last.next,
   });
@@ -140,7 +157,8 @@ export function useStory(id: string) {
     queryFn: ({ signal }) =>
       offline(
         api(StoryDetail, `/histoires/${id}`, { signal }),
-        async () => (await downloadedStory(id))?.story,
+        // Copie d'une version précédente du site : complétée par le contrat (valeurs par défaut).
+        async () => StoryDetail.safeParse((await downloadedStory(id))?.story).data,
       ),
   });
 }
@@ -153,7 +171,7 @@ export function useChapter(storyId: string, chapterId: string) {
     networkMode: 'always',
     queryFn: ({ signal }) =>
       offline(api(ChapterRead, `/histoires/${storyId}/chapitres/${chapterId}`, { signal }), () =>
-        downloadedChapter(chapterId),
+        downloadedChapter(chapterId).then((copy) => ChapterRead.safeParse(copy).data),
       ),
   });
 }

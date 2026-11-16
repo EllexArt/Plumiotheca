@@ -1,8 +1,10 @@
 import {
+  CharacterName,
   Completion,
   Language,
   MajorWarning,
   Rating,
+  RelationshipText,
   StorySort,
   TagName,
   normalizeTag,
@@ -39,9 +41,19 @@ export interface SearchFilters {
   /** Avertissements majeurs à exclure (« non précisés » compris). */
   exclure: MajorWarning[];
   tri?: StorySort | 'pertinence' | undefined;
+  /** Relations et personnages (#79) : l'histoire les porte tous. */
+  relations: string[];
+  personnages: string[];
 }
 
-export const NO_FILTERS: SearchFilters = { tags: [], sans: [], langues: [], exclure: [] };
+export const NO_FILTERS: SearchFilters = {
+  tags: [],
+  sans: [],
+  langues: [],
+  exclure: [],
+  relations: [],
+  personnages: [],
+};
 
 const list = (value: string | null) => (value ?? '').split(',').filter(Boolean);
 const valid = <T>(values: string[], check: (v: string) => v is T & string) => values.filter(check);
@@ -67,6 +79,8 @@ export function readFilters(params: URLSearchParams): SearchFilters {
       tri === 'pertinence' || StorySort.safeParse(tri).success
         ? (tri as SearchFilters['tri'])
         : undefined,
+    relations: list(params.get('relations')).filter((r) => RelationshipText.safeParse(r).success),
+    personnages: list(params.get('personnages')).filter((c) => CharacterName.safeParse(c).success),
   };
 }
 
@@ -88,6 +102,8 @@ export function writeFilters(params: URLSearchParams, filters: SearchFilters): U
   set('longueur', filters.longueur);
   set('exclure', filters.exclure.join(','));
   set('tri', filters.tri);
+  set('relations', filters.relations.join(','));
+  set('personnages', filters.personnages.join(','));
   return next;
 }
 
@@ -96,6 +112,8 @@ export const hasFilters = (f: SearchFilters) =>
   f.sans.length > 0 ||
   f.langues.length > 0 ||
   f.exclure.length > 0 ||
+  f.relations.length > 0 ||
+  f.personnages.length > 0 ||
   !!(f.statut || f.classementMax || f.longueur || f.tri);
 
 /** Classements au-dessus du maximum choisi : exclus. */
