@@ -9,6 +9,7 @@ import { ReadingTimeEntry } from '../stories/reading-time.entity.js';
 import { StoryTag } from '../stories/story-tag.entity.js';
 import { Story } from '../stories/story.entity.js';
 import { Tag } from '../tags/tag.entity.js';
+import { TagOperationEntry } from '../tags/tag-operation.entity.js';
 import { HandleHistory } from '../users/handle-history.entity.js';
 import { HandleRelease } from '../users/handle-release.entity.js';
 import { User } from '../users/user.entity.js';
@@ -34,6 +35,7 @@ export const entities = [
   SelectionItem,
   Notification,
   ReadingTimeEntry,
+  TagOperationEntry,
 ];
 
 /** Connexion PostgreSQL commune à l'API, à la ligne de commande et aux tests. */

@@ -144,12 +144,12 @@ describe('Mes limites permanentes (#81)', () => {
       const last = params(calls.at(-1)!.url);
       expect([last.get('exclure'), last.get('masquerTags')]).toEqual([
         'character_death',
-        'slow burn',
+        'slowburn',
       ]);
     });
     const tags = screen.getByRole('list', { name: 'Tags masqués' });
     await userEvent.click(
-      within(tags).getByRole('button', { name: 'Retirer le tag « slow burn »' }),
+      within(tags).getByRole('button', { name: 'Retirer le tag « slowburn »' }),
     );
     expect(screen.getByText('Aucun tag masqué.')).toBeInTheDocument();
     await expectAccessible();
