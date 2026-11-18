@@ -92,7 +92,7 @@ export function AuthorLink({ author }: { author: StorySummary['author'] }) {
 function StoryTags({ story }: { story: StorySummary }) {
   const warnings = warningsText(story.majorWarnings);
   return (
-    <ul className={styles.tags} aria-label="Classement, avertissements et tags">
+    <ul className={styles.tags} aria-label="Classement, avertissements, relations et tags">
       {story.rating && (
         <li>
           <Tag kind="rating">{ratingLabel[story.rating]}</Tag>
@@ -110,6 +110,18 @@ function StoryTags({ story }: { story: StorySummary }) {
           </Tag>
         </li>
       ) : null}
+      {/* Relations (#79) avant les tags : c'est souvent ce qu'on cherche en premier. */}
+      {story.relationships.map((relation) => (
+        <li key={`relation-${relation}`}>
+          <Link
+            to={`/?relations=${encodeURIComponent(relation)}`}
+            className={styles.tagLink}
+            lang={story.language}
+          >
+            <span className="visually-hidden">Histoires avec la relation</span> {relation}
+          </Link>
+        </li>
+      ))}
       {story.tags.map((tag) => (
         <li key={tag}>
           <Link to={`/?tag=${encodeURIComponent(tag)}`} className={styles.tagLink}>
@@ -320,6 +332,7 @@ export function ExplorePage() {
           onChange={changeFilters}
           suggestedTags={shownTags}
           searching={!!q}
+          facets={stories.data?.pages[0]?.facets}
         />
       </details>
       <details className={styles.limitsDetails}>
@@ -448,6 +461,20 @@ export function StoryPage() {
             </div>
           </dl>
           <StoryTags story={s} />
+          {s.characters.length > 0 && (
+            <p className={styles.meta}>
+              Personnages :{' '}
+              {s.characters.map((character, i) => (
+                <span key={character}>
+                  {i > 0 && ', '}
+                  <Link to={`/?personnages=${encodeURIComponent(character)}`} lang={s.language}>
+                    {character}
+                  </Link>
+                </span>
+              ))}
+              .
+            </p>
+          )}
           {s.majorWarnings && !s.majorWarnings.length && (
             <p className={styles.meta}>Aucun avertissement majeur.</p>
           )}

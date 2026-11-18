@@ -40,6 +40,66 @@ export const TagName = line(1, 100);
 const MAX_TAGS = 30;
 const Tags = z.array(TagName).max(MAX_TAGS, { message: `${MAX_TAGS} tags au maximum.` });
 
+/**
+ * Personnage (#79), par son nom : libre pour l'instant, partagé entre histoires et
+ * normalisé comme un tag. Les fiches d'univers viendront s'y relier (#58).
+ */
+export const CharacterName = line(1, 100).refine((name) => !/[,/&]/.test(name), {
+  message: 'Un nom de personnage ne contient ni virgule, ni « / », ni « & ».',
+});
+
+/** Forme normalisée d'un nom de personnage : sans casse, accents, tirets ni espaces. */
+export function normalizeCharacter(name: string): string {
+  return (
+    name
+      .normalize('NFKD')
+      .replace(/\p{M}/gu, '')
+      .toLowerCase()
+      // Liaisons invisibles (ZWNJ, ZWJ), comme pour les tags.
+      .replace(/[\u200C\u200D]/gu, '')
+      .replace(/[\s_.-]+/g, '')
+  );
+}
+
+/** Relation : romantique (« Ilse/Tomas ») ou platonique, amicale, familiale (« Ilse & sa mère »). */
+export const RelationshipKind = z.enum(['romantic', 'platonic']);
+export type RelationshipKind = z.infer<typeof RelationshipKind>;
+
+const MAX_IN_RELATIONSHIP = 5;
+
+/**
+ * Lit une relation écrite comme sur les sites de fanfiction : « / » pour une relation
+ * romantique, « & » pour une relation platonique ; de 2 à 5 personnages, tous différents.
+ * Null si l'écriture n'est pas celle d'une relation.
+ */
+export function parseRelationship(
+  text: string,
+): { kind: RelationshipKind; names: string[] } | null {
+  const romantic = text.includes('/');
+  if (romantic === text.includes('&')) return null;
+  const names = text.split(romantic ? '/' : '&').map((n) => n.trim());
+  if (names.length < 2 || names.length > MAX_IN_RELATIONSHIP) return null;
+  if (!names.every((n) => CharacterName.safeParse(n).success)) return null;
+  if (new Set(names.map(normalizeCharacter)).size !== names.length) return null;
+  return { kind: romantic ? 'romantic' : 'platonic', names };
+}
+
+/** Clé d'une relation : son type et ses personnages, dans n'importe quel ordre. */
+export const relationshipKey = (kind: RelationshipKind, names: string[]) =>
+  `${kind}:${names.map(normalizeCharacter).sort().join('|')}`;
+
+/** « Ilse/Tomas », « Ilse & sa mère ». */
+export const formatRelationship = (kind: RelationshipKind, names: string[]) =>
+  names.join(kind === 'romantic' ? '/' : ' & ');
+
+export const RelationshipText = line(3, 300).refine((text) => parseRelationship(text) !== null, {
+  message:
+    'Relation attendue : de 2 à 5 personnages différents, séparés par « / » (romantique) ou « & » (amitié, famille).',
+});
+
+const MAX_CHARACTERS = 30;
+const MAX_RELATIONSHIPS = 20;
+
 const Warnings = z
   .array(MajorWarning)
   .max(4)
@@ -65,6 +125,15 @@ export const NewStory = z.strictObject({
   majorWarnings: Warnings.nullable().optional(),
   contentWarnings: ContentWarnings.optional(),
   tags: Tags.optional(),
+  /** Personnages (#79) ; ceux des relations s'y ajoutent d'eux-mêmes. */
+  characters: z
+    .array(CharacterName)
+    .max(MAX_CHARACTERS, { message: `${MAX_CHARACTERS} personnages au maximum.` })
+    .optional(),
+  relationships: z
+    .array(RelationshipText)
+    .max(MAX_RELATIONSHIPS, { message: `${MAX_RELATIONSHIPS} relations au maximum.` })
+    .optional(),
 });
 export type NewStory = z.infer<typeof NewStory>;
 
@@ -93,6 +162,9 @@ export const StorySummary = z.strictObject({
   /** Avertissements facultatifs ; liste vide si aucun. */
   contentWarnings: z.array(ContentWarning),
   tags: z.array(z.string()),
+  /** Relations (« Ilse/Tomas ») et personnages (#79), dans l'ordre choisi. */
+  relationships: z.array(z.string()).default([]),
+  characters: z.array(z.string()).default([]),
   wordCount: z.int(),
   /** Chapitres publiés. */
   chapterCount: z.int(),
@@ -102,6 +174,13 @@ export const StorySummary = z.strictObject({
   updatedAt: z.iso.datetime(),
 });
 export type StorySummary = z.infer<typeof StorySummary>;
+
+/** Facettes (#79) : relations et personnages des résultats, les plus fréquents d'abord. */
+export const StoryFacets = z.strictObject({
+  relationships: z.array(z.strictObject({ name: z.string(), stories: z.int() })),
+  characters: z.array(z.strictObject({ name: z.string(), stories: z.int() })),
+});
+export type StoryFacets = z.infer<typeof StoryFacets>;
 
 export const StoryPage = z.strictObject({
   items: z.array(StorySummary),
@@ -114,6 +193,8 @@ export const StoryPage = z.strictObject({
    * dire à la personne ; sur la première page seulement, et seulement s'il y a des exclusions.
    */
   hidden: z.int().optional(),
+  /** Facettes (#79), sur la première page seulement. */
+  facets: StoryFacets.optional(),
 });
 export type StoryPage = z.infer<typeof StoryPage>;
 
@@ -174,6 +255,10 @@ export const StoryQuery = z.strictObject({
   motsMax: z.coerce.number().int().min(0).max(10_000_000).optional(),
   /** Tags à inclure (#32) : l'histoire les porte tous. */
   tags: csv(TagName, 10).optional(),
+  /** Relations (#79) : l'histoire les porte toutes (« Ilse/Tomas »). */
+  relations: csv(RelationshipText, 5).optional(),
+  /** Personnages (#79) : l'histoire les compte tous. */
+  personnages: csv(CharacterName, 5).optional(),
   tri: StorySort.default('recentes'),
   /** Histoires portant ce tag (même normalisation que les tags : casse, accents, tirets). */
   tag: TagName.optional(),
@@ -199,6 +284,8 @@ export const SearchQuery = StoryQuery.pick({
   motsMin: true,
   motsMax: true,
   tags: true,
+  relations: true,
+  personnages: true,
 }).extend({
   /** Pertinence par défaut, ou les tris de la liste (#32). */
   tri: z.enum(['pertinence', ...StorySort.options]).default('pertinence'),
@@ -215,6 +302,7 @@ export const SearchPage = z.strictObject({
   total: z.int(),
   /** Page suivante ; null : dernière page. */
   nextPage: z.int().nullable(),
+  facets: StoryFacets.optional(),
 });
 export type SearchPage = z.infer<typeof SearchPage>;
 

@@ -8,6 +8,7 @@ import type {
   StoryQuery,
   StorySummary,
   UpdateStory,
+  StoryFacets,
 } from '@plumiotheca/contracts';
 import { handleKey } from '@plumiotheca/contracts';
 import { DataSource, type EntityManager, type SelectQueryBuilder } from 'typeorm';
@@ -18,6 +19,7 @@ import {
   encodeNumberCursor,
 } from '../common/cursor.js';
 import { ApiProblem } from '../common/problem.js';
+import { CharactersService } from '../characters/characters.service.js';
 import { TagsService } from '../tags/tags.service.js';
 import type { User } from '../users/user.entity.js';
 import { Chapter } from './chapter.entity.js';
@@ -55,6 +57,7 @@ export class StoriesService {
   constructor(
     @InjectDataSource() private readonly db: DataSource,
     private readonly tags: TagsService,
+    private readonly characters: CharactersService,
   ) {}
 
   async create(author: User, input: NewStory): Promise<StoryDetail> {
@@ -71,6 +74,7 @@ export class StoriesService {
       });
       const storyId = (identifiers[0] as { id: string }).id;
       if (input.tags) await this.tags.setStoryTags(tx, storyId, input.tags);
+      await this.characters.setStoryCast(tx, storyId, input.characters, input.relationships);
       return storyId;
     });
     return this.detail(id, author);
@@ -84,7 +88,7 @@ export class StoriesService {
       // relu après le verrou (une publication a pu passer entre-temps).
       await lockStory(tx, id);
       const story = await ownedStory(tx, id, account);
-      const { tags, ...fields } = input;
+      const { tags, characters, relationships, ...fields } = input;
       const changes = Object.fromEntries(
         Object.entries(fields).filter(([, value]) => value !== undefined),
       );
@@ -100,6 +104,7 @@ export class StoriesService {
       }
       if (Object.keys(changes).length) await tx.getRepository(Story).update(id, changes);
       if (tags) await this.tags.setStoryTags(tx, id, tags);
+      await this.characters.setStoryCast(tx, id, characters, relationships);
     });
     return this.detail(id, account);
   }
@@ -191,6 +196,7 @@ export class StoriesService {
     if (exclude.tags) qb.andWhere(`NOT ${tagged}`, exclude);
     // Nombre de résultats (#32), avant le curseur : sur la première page seulement.
     const total = query.apres ? undefined : await qb.clone().getCount();
+    const facets = query.apres ? undefined : await this.facets(qb);
     const sort = SORTS[query.tri];
     if (query.apres) {
       const [value, id] =
@@ -226,7 +232,29 @@ export class StoriesService {
       nextCursor: rows.length > query.limite ? sort.cursor(page.at(-1)!) : null,
       ...(total === undefined ? {} : { total }),
       ...(hidden === undefined ? {} : { hidden }),
+      ...(facets === undefined ? {} : { facets }),
     };
+  }
+
+  /**
+   * Facettes (#79) : les relations et personnages les plus fréquents parmi les histoires
+   * de la liste (mêmes filtres et exclusions, sans curseur).
+   */
+  private async facets(qb: SelectQueryBuilder<Story>): Promise<StoryFacets> {
+    const [stories, params] = qb.clone().select('story.id').getQueryAndParameters();
+    const top = (table: string, column: string, entity: string) =>
+      this.db.query<{ name: string; stories: number }[]>(
+        `SELECT e.name, count(*)::int AS stories FROM ${table} x
+         JOIN ${entity} e ON e.id = x.${column}
+         WHERE x.story_id IN (${stories})
+         GROUP BY e.id, e.name ORDER BY stories DESC, e.name LIMIT 10`,
+        params,
+      );
+    const [relationships, characters] = await Promise.all([
+      top('story_relationships', 'relationship_id', 'relationships'),
+      top('story_characters', 'character_id', 'characters'),
+    ]);
+    return { relationships, characters };
   }
 
   /** Filtres de la liste publique, hors avertissements exclus et curseur. */
@@ -259,6 +287,21 @@ export class StoriesService {
       qb.andWhere('author.handle_key = :key', { key: handleKey(query.pseudonyme) });
     }
     if (families.tag) qb.andWhere(tagged('pageTag'), { pageTag: families.tag });
+    // Relations et personnages (#79) : l'histoire les porte tous.
+    this.characters.relationKeys(query.relations ?? []).forEach((key, i) =>
+      qb.andWhere(
+        `EXISTS (SELECT 1 FROM story_relationships sr JOIN relationships r ON r.id = sr.relationship_id
+                 WHERE sr.story_id = story.id AND r.key = :relation${i})`,
+        { [`relation${i}`]: key },
+      ),
+    );
+    this.characters.characterKeys(query.personnages ?? []).forEach((key, i) =>
+      qb.andWhere(
+        `EXISTS (SELECT 1 FROM story_characters sc JOIN characters c ON c.id = sc.character_id
+                 WHERE sc.story_id = story.id AND c.normalized = :character${i})`,
+        { [`character${i}`]: key },
+      ),
+    );
     return qb;
   }
 
@@ -314,7 +357,10 @@ export class StoriesService {
   /** Fiches de ces histoires (tags, nombre de chapitres publiés), dans le même ordre. */
   async summaries(tx: EntityManager, stories: Story[], own: boolean): Promise<StorySummary[]> {
     const ids = stories.map((s) => s.id);
-    const labels = await this.tags.labels(tx, ids);
+    const [labels, casts] = await Promise.all([
+      this.tags.labels(tx, ids),
+      this.characters.cast(tx, ids),
+    ]);
     const counts = new Map<string, number>();
     if (ids.length) {
       const rows = await tx.query<{ story_id: string; n: number }[]>(
@@ -336,6 +382,8 @@ export class StoriesService {
       majorWarnings: s.majorWarnings,
       contentWarnings: s.contentWarnings,
       tags: labels.get(s.id) ?? [],
+      relationships: casts.get(s.id)?.relationships ?? [],
+      characters: casts.get(s.id)?.characters ?? [],
       wordCount: s.wordCount,
       chapterCount: counts.get(s.id) ?? 0,
       readCount: s.readCount,

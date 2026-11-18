@@ -11,6 +11,7 @@ import { Notifications1793021640920 } from './1793021640920-Notifications.js';
 import { BilanLecture1793174828634 } from './1793174828634-BilanLecture.js';
 import { TagsSansEspaces1793900000000 } from './1793900000000-TagsSansEspaces.js';
 import { JournalJardinage1794399731014 } from './1794399731014-JournalJardinage.js';
+import { PersonnagesRelations1794846473500 } from './1794846473500-PersonnagesRelations.js';
 import { MesLectures1792252868090 } from './1792252868090-MesLectures.js';
 import { Apparence1792251152107 } from './1792251152107-Apparence.js';
 import { Limites1792250556806 } from './1792250556806-Limites.js';
@@ -40,4 +41,5 @@ export const migrations = [
   BilanLecture1793174828634,
   TagsSansEspaces1793900000000,
   JournalJardinage1794399731014,
+  PersonnagesRelations1794846473500,
 ];

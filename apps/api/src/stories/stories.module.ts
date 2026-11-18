@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { CharactersService } from '../characters/characters.service.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { TagGardenController } from '../tags/tag-garden.controller.js';
 import { TagGardenService } from '../tags/tag-garden.service.js';
@@ -37,6 +38,7 @@ import { StoriesService } from './stories.service.js';
     SelectionsService,
     TagsService,
     TagGardenService,
+    CharactersService,
   ],
 })
 export class StoriesModule {}
