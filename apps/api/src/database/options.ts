@@ -9,6 +9,7 @@ import { ReadingTimeEntry } from '../stories/reading-time.entity.js';
 import { StoryTag } from '../stories/story-tag.entity.js';
 import { Story } from '../stories/story.entity.js';
 import { Tag } from '../tags/tag.entity.js';
+import { TagOperationEntry } from '../tags/tag-operation.entity.js';
 import {
   Character,
   Relationship,
@@ -40,6 +41,7 @@ export const entities = [
   SelectionItem,
   Notification,
   ReadingTimeEntry,
+  TagOperationEntry,
   Character,
   Relationship,
   StoryCharacter,

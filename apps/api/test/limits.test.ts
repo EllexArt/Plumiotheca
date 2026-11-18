@@ -191,7 +191,7 @@ describe('Mes limites permanentes : avertissements majeurs et tags (#81)', () =>
     expect(saved.limits).toEqual({
       hiddenContentWarnings: [],
       hiddenMajorWarnings: ['character_death', 'unspecified'],
-      hiddenTags: ['slow burn', 'enemies to lovers'],
+      hiddenTags: ['slowburn', 'enemiestolovers'],
     });
     const old = MyAccount.parse((await put({ hiddenContentWarnings: ['grief'] }).expect(200)).body);
     expect(old.limits).toEqual({

@@ -5,6 +5,7 @@ import {
   StoryDetail,
   StoryPage,
   Suggestions,
+  normalizeTag,
 } from '@plumiotheca/contracts';
 import { DataSource } from 'typeorm';
 import { describe, expect, it } from 'vitest';
@@ -67,7 +68,7 @@ async function synonym(ctx: Ctx, synonym: string, canonical: string) {
   await ctx.app.get(DataSource).query(
     `UPDATE tags SET canonical_id = (SELECT id FROM tags WHERE normalized = $2)
        WHERE normalized = $1`,
-    [synonym, canonical],
+    [normalizeTag(synonym), normalizeTag(canonical)],
   );
 }
 
