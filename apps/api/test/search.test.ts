@@ -4,10 +4,15 @@ import { DataSource } from 'typeorm';
 import { describe, expect, it, vi } from 'vitest';
 import { JobsService } from '../src/jobs/jobs.service.js';
 import { SearchService } from '../src/stories/search.service.js';
+import { REINDEX_TEST_INDEX } from './db-env.js';
 import { expectProblem, readyToken, start } from './support.js';
 
 const bearer = (jwt: string) => ['Authorization', `Bearer ${jwt}`] as const;
 type Ctx = Awaited<ReturnType<typeof start>>;
+
+// Réindexations complètes sur un index à part : l'échange d'index ne touche pas celui des
+// autres fichiers de test, qui indexent en parallèle.
+const reindexEnv = { SEARCH_INDEX: REINDEX_TEST_INDEX };
 
 // Mot introuvable ailleurs, pour que chaque test ne trouve que ses propres histoires.
 // Douze lettres au hasard : assez éloignées de tout autre mot pour que la tolérance aux
@@ -155,7 +160,7 @@ describe('recherche (#82)', () => {
   });
 
   it('réindexation complète : ajoute ce qui manque, retire ce qui ne doit plus y être', async () => {
-    const ctx = await start();
+    const ctx = await start(reindexEnv);
     const jwt = await readyToken(ctx.app);
     const search = ctx.app.get(SearchService);
     const key = word();
@@ -175,6 +180,46 @@ describe('recherche (#82)', () => {
     const { indexed: count } = await search.reindexAll();
     expect(count).toBeGreaterThanOrEqual(1);
     expect(titles(await find(ctx, `q=${key}`))).toEqual([`Oubliée ${key}`]);
+  });
+
+  it('réindexation complète : une histoire réindexée pendant la reconstruction n’est pas perdue', async () => {
+    const ctx = await start(reindexEnv);
+    const jwt = await readyToken(ctx.app);
+    const search = ctx.app.get(SearchService);
+    const [before, after, key] = [word(), word(), word()];
+    const renamed = await story(ctx, jwt, { title: `Avant ${before}` });
+    const published = await story(ctx, jwt, { title: `Nouvelle ${key}` }, false);
+
+    // Juste avant l'échange, index reconstruit déjà rempli : l'une renommée, l'autre publiée,
+    // réindexées dans l'index en service, celui que l'échange remplace.
+    type Call = (path: string, method: string, body?: unknown) => Promise<unknown>;
+    const target = search as unknown as { call: Call };
+    const call = target.call.bind(search);
+    let changed = false;
+    vi.spyOn(target, 'call').mockImplementation(async (path, method, body) => {
+      if (path === '/swap-indexes' && !changed) {
+        changed = true;
+        await ctx.http
+          .patch(`/api/histoires/${renamed.id}`)
+          .set(...bearer(jwt))
+          .send({ title: `Après ${after}` })
+          .expect(200);
+        await ctx.app
+          .get(DataSource)
+          .query(`UPDATE stories SET status = 'published', published_at = now() WHERE id = $1`, [
+            published.id,
+          ]);
+        await indexed(ctx, renamed.id);
+        await indexed(ctx, published.id);
+      }
+      return call(path, method, body);
+    });
+
+    await search.reindexAll();
+    expect(changed).toBe(true);
+    expect(titles(await find(ctx, `q=${after}`))).toEqual([`Après ${after}`]);
+    expect((await find(ctx, `q=${before}`)).items).toEqual([]);
+    expect(titles(await find(ctx, `q=${key}`))).toEqual([`Nouvelle ${key}`]);
   });
 
   it('requête vide refusée ; Meilisearch injoignable : 503 sans détail technique', async () => {

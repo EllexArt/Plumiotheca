@@ -13,6 +13,9 @@ if (!TEST_DB_NAME.endsWith('_test')) {
   throw new Error(`DB_TEST_NAME doit finir par « _test » (reçu : ${TEST_DB_NAME})`);
 }
 
+/** Index des tests de réindexation complète, à part : l'échange d'index ne gêne personne. */
+export const REINDEX_TEST_INDEX = `${TEST_DB_NAME}_reindexation`;
+
 export function testDbEnv(): Record<string, string> {
   const pick = (key: string) => (process.env[key] ? { [key]: process.env[key] } : {});
   return {
