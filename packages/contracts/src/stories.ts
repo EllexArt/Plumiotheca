@@ -253,6 +253,8 @@ export const StoryQuery = z.strictObject({
   /** Longueur en mots (#32), bornes comprises. */
   motsMin: z.coerce.number().int().min(0).max(10_000_000).optional(),
   motsMax: z.coerce.number().int().min(0).max(10_000_000).optional(),
+  /** Publiées après ce moment (alertes des recherches enregistrées, #80). */
+  publieesDepuis: z.iso.datetime().optional(),
   /** Tags à inclure (#32) : l'histoire les porte tous. */
   tags: csv(TagName, 10).optional(),
   /** Relations (#79) : l'histoire les porte toutes (« Ilse/Tomas »). */
@@ -283,6 +285,7 @@ export const SearchQuery = StoryQuery.pick({
   statut: true,
   motsMin: true,
   motsMax: true,
+  publieesDepuis: true,
   tags: true,
   relations: true,
   personnages: true,

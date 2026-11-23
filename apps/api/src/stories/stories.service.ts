@@ -270,6 +270,9 @@ export class StoriesService {
     if (query.statut) qb.andWhere('story.completion = :statut', query);
     if (query.motsMin !== undefined) qb.andWhere('story.word_count >= :motsMin', query);
     if (query.motsMax !== undefined) qb.andWhere('story.word_count <= :motsMax', query);
+    if (query.publieesDepuis) {
+      qb.andWhere('story.published_at > :depuis', { depuis: new Date(query.publieesDepuis) });
+    }
     // Tous les tags demandés, et pas seulement l'un d'eux ; un synonyme vaut son tag.
     families.include.forEach((family, i) =>
       qb.andWhere(tagged(`inclure${i}`), { [`inclure${i}`]: family }),

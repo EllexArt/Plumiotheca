@@ -13,12 +13,18 @@ import type { User } from '../users/user.entity.js';
 const PUBLIC_STORY = `s.status = 'published' AND a.status = 'active'
   AND a.age_band IN ('15-17', '18+') AND a.handle IS NOT NULL`;
 
-/** Mes notifications visibles : histoire publique, chapitre toujours publié. */
+/**
+ * Mes notifications visibles : un nouveau chapitre d'une histoire publique, toujours publié
+ * (#33) ; ou de nouvelles histoires pour une recherche enregistrée (#80).
+ */
 const VISIBLE = `FROM notifications n
-  JOIN stories s ON s.id = n.story_id
-  JOIN users a ON a.id = s.author_id
-  JOIN chapters c ON c.id = n.chapter_id AND c.status = 'published'
-  WHERE n.user_id = $1 AND ${PUBLIC_STORY}`;
+  LEFT JOIN stories s ON s.id = n.story_id
+  LEFT JOIN users a ON a.id = s.author_id
+  LEFT JOIN chapters c ON c.id = n.chapter_id AND c.status = 'published'
+  LEFT JOIN saved_searches ss ON ss.id = n.saved_search_id
+  WHERE n.user_id = $1
+    AND ((n.kind = 'new_chapter' AND c.id IS NOT NULL AND ${PUBLIC_STORY})
+      OR (n.kind = 'saved_search' AND ss.id IS NOT NULL))`;
 
 /**
  * Notifications sur le site (#33). Un chapitre publié pour la première fois prévient toutes
@@ -67,35 +73,74 @@ export class NotificationsService implements OnModuleInit {
     const rows = await this.db.query<
       {
         id: string;
+        kind: 'new_chapter' | 'saved_search';
         created_at: Date;
         read_at: Date | null;
-        story_id: string;
-        story_title: string;
-        language: string;
-        chapter_id: string;
-        chapter_title: string;
-        number: number;
+        story_id: string | null;
+        story_title: string | null;
+        language: string | null;
+        chapter_id: string | null;
+        chapter_title: string | null;
+        number: number | null;
+        search_id: string | null;
+        search_name: string | null;
+        search_query: string | null;
+        alerts: boolean | null;
+        data: { count: number; storyIds: string[] } | null;
       }[]
     >(
-      `SELECT n.id, n.created_at, n.read_at, s.id AS story_id, s.title AS story_title,
-              s.language, c.id AS chapter_id, c.title AS chapter_title,
+      `SELECT n.id, n.kind, n.created_at, n.read_at, n.data, s.id AS story_id,
+              s.title AS story_title, s.language, c.id AS chapter_id, c.title AS chapter_title,
               (SELECT count(*)::int FROM chapters o WHERE o.story_id = s.id
-                 AND o.status = 'published' AND o.position <= c.position) AS number
+                 AND o.status = 'published' AND o.position <= c.position) AS number,
+              ss.id AS search_id, ss.name AS search_name, ss.query AS search_query, ss.alerts
        ${VISIBLE} AND ($2::uuid IS NULL OR n.id < $2)
        ORDER BY n.id DESC
        LIMIT $3`,
       [account.id, query.apres ?? null, query.limite + 1],
     );
     const page = rows.slice(0, query.limite);
+    // Histoires citées par les alertes : seulement celles toujours publiques.
+    const ids = [...new Set(page.flatMap((r) => r.data?.storyIds ?? []))];
+    const stories = new Map(
+      (ids.length
+        ? await this.db.query<{ id: string; title: string; language: string }[]>(
+            `SELECT s.id, s.title, s.language FROM stories s JOIN users a ON a.id = s.author_id
+             WHERE s.id = ANY($1) AND ${PUBLIC_STORY}`,
+            [ids],
+          )
+        : []
+      ).map((r) => [r.id, r]),
+    );
     return {
-      items: page.map((r) => ({
-        id: r.id,
-        kind: 'new_chapter',
-        createdAt: r.created_at.toISOString(),
-        read: r.read_at !== null,
-        story: { id: r.story_id, title: r.story_title, language: r.language },
-        chapter: { id: r.chapter_id, number: r.number, title: r.chapter_title },
-      })),
+      items: page.map((r) =>
+        r.kind === 'saved_search'
+          ? {
+              id: r.id,
+              kind: 'saved_search' as const,
+              createdAt: r.created_at.toISOString(),
+              read: r.read_at !== null,
+              search: {
+                id: r.search_id!,
+                name: r.search_name!,
+                query: r.search_query!,
+                alerts: r.alerts!,
+              },
+              count: r.data?.count ?? 0,
+              stories: (r.data?.storyIds ?? []).flatMap((id) => {
+                const story = stories.get(id);
+                return story ? [story] : [];
+              }),
+            }
+          : {
+              id: r.id,
+              kind: 'new_chapter' as const,
+              createdAt: r.created_at.toISOString(),
+              read: r.read_at !== null,
+              story: { id: r.story_id!, title: r.story_title!, language: r.language! },
+              chapter: { id: r.chapter_id!, number: r.number!, title: r.chapter_title! },
+            },
+      ),
       nextCursor: rows.length > query.limite ? page.at(-1)!.id : null,
     };
   }

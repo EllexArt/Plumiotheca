@@ -21,6 +21,7 @@ import { HandleRelease } from '../users/handle-release.entity.js';
 import { User } from '../users/user.entity.js';
 import { Media } from '../media/media.entity.js';
 import { Notification } from '../notifications/notification.entity.js';
+import { SavedSearchEntry } from '../notifications/saved-search.entity.js';
 import { migrations } from './migrations/index.js';
 import { SnakeNamingStrategy } from './naming.strategy.js';
 
@@ -46,6 +47,7 @@ export const entities = [
   Relationship,
   StoryCharacter,
   StoryRelationship,
+  SavedSearchEntry,
 ];
 
 /** Connexion PostgreSQL commune à l'API, à la ligne de commande et aux tests. */
