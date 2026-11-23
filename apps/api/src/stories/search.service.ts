@@ -63,6 +63,8 @@ const SETTINGS = {
     'tagKeys',
     'completion',
     'wordCount',
+    // Alertes des recherches enregistrées (#80) : publiées depuis la dernière vérification.
+    'publishedAt',
     // Relations et personnages (#79) : filtres (clés) et facettes (noms affichés).
     'relationshipKeys',
     'characterKeys',
@@ -254,6 +256,7 @@ export class SearchService implements OnModuleInit, OnApplicationBootstrap {
     if (query.statut) filter.push(`completion = ${JSON.stringify(query.statut)}`);
     if (query.motsMin !== undefined) filter.push(`wordCount >= ${query.motsMin}`);
     if (query.motsMax !== undefined) filter.push(`wordCount <= ${query.motsMax}`);
+    if (query.publieesDepuis) filter.push(`publishedAt > ${Date.parse(query.publieesDepuis)}`);
     for (const family of include) filter.push(`tagKeys IN ${JSON.stringify(family)}`);
     // Relations et personnages (#79) : tous demandés.
     for (const key of this.characters.relationKeys(query.relations ?? [])) {

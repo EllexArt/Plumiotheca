@@ -1,4 +1,6 @@
 import {
+  LENGTHS,
+  type LengthBucket,
   CharacterName,
   Completion,
   Language,
@@ -11,14 +13,8 @@ import {
 } from '@plumiotheca/contracts';
 import type { Limits } from './limits';
 
-/** Tranches de longueur (#32), en mots, bornes comprises. */
-export const LENGTHS = {
-  courte: { label: 'Moins de 5 000 mots', min: 0, max: 4_999 },
-  moyenne: { label: 'De 5 000 à 20 000 mots', min: 5_000, max: 19_999 },
-  longue: { label: 'De 20 000 à 80 000 mots', min: 20_000, max: 79_999 },
-  tres_longue: { label: 'Plus de 80 000 mots', min: 80_000, max: undefined },
-} as const;
-export type LengthBucket = keyof typeof LENGTHS;
+// Tranches de longueur et classement maximum : définis dans les contrats (alertes, #80).
+export { LENGTHS, ratingsAbove, type LengthBucket } from '@plumiotheca/contracts';
 
 export const SORT_LABELS: Record<StorySort | 'pertinence', string> = {
   pertinence: 'Pertinence',
@@ -115,12 +111,6 @@ export const hasFilters = (f: SearchFilters) =>
   f.relations.length > 0 ||
   f.personnages.length > 0 ||
   !!(f.statut || f.classementMax || f.longueur || f.tri);
-
-/** Classements au-dessus du maximum choisi : exclus. */
-export function ratingsAbove(max: Rating | undefined): Rating[] {
-  if (!max) return [];
-  return Rating.options.slice(Rating.options.indexOf(max) + 1);
-}
 
 /** Exclusions propres aux filtres (tags et avertissements majeurs exclus) ; null s'il n'y en a pas. */
 export function filterExclusions(filters: SearchFilters | undefined): Limits | null {

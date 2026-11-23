@@ -10,6 +10,8 @@ import { LibraryService } from './library.service.js';
 import { ReadingStatsController } from './reading-stats.controller.js';
 import { ReadingStatsService } from './reading-stats.service.js';
 import { ReadsService } from './reads.service.js';
+import { SavedSearchesController } from './saved-searches.controller.js';
+import { SavedSearchesService } from './saved-searches.service.js';
 import { MySelectionsController, SelectionsController } from './selections.controller.js';
 import { SelectionsService } from './selections.service.js';
 import { MyStoriesController, SearchController, StoriesController } from './stories.controller.js';
@@ -23,6 +25,7 @@ import { StoriesService } from './stories.service.js';
     MyStoriesController,
     SearchController,
     LibraryController,
+    SavedSearchesController,
     TagGardenController,
     ReadingStatsController,
     MySelectionsController,
@@ -32,6 +35,7 @@ import { StoriesService } from './stories.service.js';
     StoriesService,
     ChaptersService,
     LibraryService,
+    SavedSearchesService,
     ReadingStatsService,
     ReadsService,
     SearchService,

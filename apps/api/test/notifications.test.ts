@@ -149,7 +149,9 @@ describe('notifications de nouveaux chapitres (#33)', () => {
     await shelve(ctx, reader, storyId, 'to_read');
     await chapter(ctx, author, storyId, 'Deux');
     await chapter(ctx, author, storyId, 'Trois');
-    expect((await mine(ctx, reader)).items.map((n) => n.chapter.number)).toEqual([3, 2]);
+    expect(
+      (await mine(ctx, reader)).items.map((n) => n.kind === 'new_chapter' && n.chapter.number),
+    ).toEqual([3, 2]);
 
     await ctx.http
       .post(`/api/histoires/${storyId}/depublication`)
@@ -185,7 +187,10 @@ describe('notifications de nouveaux chapitres (#33)', () => {
           .expect(200)
       ).body,
     );
-    expect(first.items.map((n) => n.chapter.title)).toEqual(['Quatre', 'Trois']);
+    expect(first.items.map((n) => n.kind === 'new_chapter' && n.chapter.title)).toEqual([
+      'Quatre',
+      'Trois',
+    ]);
     const second = NotificationPage.parse(
       (
         await ctx.http

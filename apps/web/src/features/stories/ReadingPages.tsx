@@ -37,6 +37,7 @@ import {
 } from './filters';
 import { SearchFiltersPanel } from './SearchFiltersPanel';
 import { SmartSearch, type SearchInput } from './SmartSearch';
+import { SaveSearchButton } from '../searches/SavedSearches';
 import { limitReasons, useLimits } from './limits';
 import { useReadingPreferences } from './readingPreferences';
 import { ReadingProgress } from './ReadingProgress';
@@ -344,6 +345,7 @@ export function ExplorePage() {
           <Link to="/">Voir toutes les histoires</Link>
         </p>
       )}
+      <SaveSearchButton />
       {/* Nombre de résultats, annoncé en direct (recherche et filtres) : le focus reste en place. */}
       <output className={styles.meta}>
         {stories.isSuccess && total !== undefined

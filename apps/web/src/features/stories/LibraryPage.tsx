@@ -9,6 +9,7 @@ import styles from './Reading.module.css';
 import { StoryCard } from './ReadingPages';
 import { ReadingStatsSection } from './ReadingStatsPanel';
 import { MySelections } from './SelectionPages';
+import { SavedSearchesSection } from '../searches/SavedSearches';
 import { ShelfSelect } from './ShelfSelect';
 
 const EMPTY: Record<Shelf, string> = {
@@ -29,6 +30,7 @@ export function LibraryPage() {
         <ShelfSection key={shelf} shelf={shelf} />
       ))}
       <MySelections />
+      <SavedSearchesSection />
       <p>
         <Link to="/">Trouver une histoire dans Explorer</Link> ·{' '}
         <Link to="/sur-cet-appareil">Histoires téléchargées sur cet appareil</Link>
