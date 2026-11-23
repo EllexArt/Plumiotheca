@@ -15,6 +15,10 @@ import styles from './Layout.module.css';
 import { AppearanceSync, useAppearance } from './appearance';
 import type { ThemeChoice } from './theme';
 import { useUnreadNotifications } from '../features/notifications/api';
+import { AppStatus } from './AppStatus';
+import { useIsGardener } from '../features/tags/api';
+import { forgetOutbox } from '../features/offline/outbox';
+import { OutboxSync } from '../features/offline/OutboxSync';
 
 // Le logo garde l'identité Lueur, quelle que soit l'ambiance choisie (#77).
 const Plume = () => (
@@ -69,10 +73,14 @@ function AccountMenu() {
   // Texte non enregistré dans l'onglet : la déconnexion l'effacerait, on demande d'abord (#147).
   const [confirming, setConfirming] = useState(false);
 
+  // Jardiniers et jardinières des tags (#78) : leur page dans le menu.
+  const gardener = useIsGardener();
   const signout = () => {
     queryClient.clear();
     clearBackups();
     forgetReadings();
+    // Lectures hors ligne pas encore envoyées (#35) : rien ne reste au nom du compte.
+    forgetOutbox();
     void auth.signoutRedirect();
   };
 
@@ -99,6 +107,11 @@ function AccountMenu() {
           <DropdownMenu.Item asChild className={styles.menuItem}>
             <Link to="/compte">Paramètres du compte</Link>
           </DropdownMenu.Item>
+          {gardener && (
+            <DropdownMenu.Item asChild className={styles.menuItem}>
+              <Link to="/jardinage">Jardinage des tags</Link>
+            </DropdownMenu.Item>
+          )}
           <DropdownMenu.Separator className={styles.separator} />
           <DropdownMenu.Label className={styles.menuLabel}>Thème</DropdownMenu.Label>
           <DropdownMenu.RadioGroup
@@ -282,6 +295,8 @@ export function Layout() {
       <Header />
       <main id="contenu" ref={main} tabIndex={-1} className={styles.main}>
         <SigninError />
+        <AppStatus />
+        <OutboxSync />
         <AccountGate>
           <Outlet />
         </AccountGate>

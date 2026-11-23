@@ -13,6 +13,7 @@ import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import {
   AcceptCharter,
   SetEmailDigest,
+  SetReadingStats,
   ChangeHandle,
   FirstVisit,
   Handle,
@@ -102,6 +103,16 @@ export class AccountController {
     @Body({ schema: ReadingLimits }) input: ReadingLimits,
   ): Promise<MyAccount> {
     return this.accounts.view(await this.accounts.setLimits(account, input));
+  }
+
+  /** Bilan de lecture (#34) : l'afficher ou non (le désactiver efface le temps mesuré). */
+  @Put('bilan')
+  @ApiOkResponse({ standardSchema: MyAccount })
+  async setReadingStats(
+    @CurrentAccount() account: User,
+    @Body({ schema: SetReadingStats }) input: SetReadingStats,
+  ): Promise<MyAccount> {
+    return this.accounts.view(await this.accounts.setReadingStats(account, input.readingStats));
   }
 
   /** E-mail récapitulatif des notifications (#33) : jamais, chaque jour, chaque semaine. */

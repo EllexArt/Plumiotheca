@@ -239,7 +239,11 @@ describe('première visite', () => {
     expect(screen.queryByRole('textbox', { name: /Votre pseudonyme/ })).toBeNull();
     expect(screen.queryByRole('checkbox', { name: /J’ai lu la charte/ })).toBeNull();
     // Le changement du formulaire est annoncé (zone d'état toujours présente).
-    expect(screen.getByRole('status')).toHaveTextContent(/nous ne gardons que votre réponse/);
+    expect(
+      screen
+        .getAllByRole('status')
+        .some((zone) => /nous ne gardons que votre réponse/.test(zone.textContent ?? '')),
+    ).toBe(true);
     await expectAccessible();
 
     // Réponse définitive : sans confirmation, rien n'est envoyé.

@@ -24,6 +24,8 @@ import { useLibraryStatus, useSavePosition } from './library';
 import { AddToSelection, PublicShelves } from './SelectionPages';
 import { ShelfSelect } from './ShelfSelect';
 import { useResume, useTrackPosition } from './readingPosition';
+import { useReadingTimer } from './readingStats';
+import { useMyAccount } from '../account/api';
 import styles from './Reading.module.css';
 import { LimitsPanel } from './LimitsPanel';
 import {
@@ -38,6 +40,8 @@ import { SmartSearch, type SearchInput } from './SmartSearch';
 import { limitReasons, useLimits } from './limits';
 import { useReadingPreferences } from './readingPreferences';
 import { ReadingProgress } from './ReadingProgress';
+import { DownloadPanel } from '../offline/OfflinePages';
+import { isUnreachable } from '../offline/downloads';
 import { ReadingSettings } from './ReadingSettings';
 
 const missing = {
@@ -88,7 +92,7 @@ export function AuthorLink({ author }: { author: StorySummary['author'] }) {
 function StoryTags({ story }: { story: StorySummary }) {
   const warnings = warningsText(story.majorWarnings);
   return (
-    <ul className={styles.tags} aria-label="Classement, avertissements et tags">
+    <ul className={styles.tags} aria-label="Classement, avertissements, relations et tags">
       {story.rating && (
         <li>
           <Tag kind="rating">{ratingLabel[story.rating]}</Tag>
@@ -106,6 +110,18 @@ function StoryTags({ story }: { story: StorySummary }) {
           </Tag>
         </li>
       ) : null}
+      {/* Relations (#79) avant les tags : c'est souvent ce qu'on cherche en premier. */}
+      {story.relationships.map((relation) => (
+        <li key={`relation-${relation}`}>
+          <Link
+            to={`/?relations=${encodeURIComponent(relation)}`}
+            className={styles.tagLink}
+            lang={story.language}
+          >
+            <span className="visually-hidden">Histoires avec la relation</span> {relation}
+          </Link>
+        </li>
+      ))}
       {story.tags.map((tag) => (
         <li key={tag}>
           <Link to={`/?tag=${encodeURIComponent(tag)}`} className={styles.tagLink}>
@@ -316,6 +332,7 @@ export function ExplorePage() {
           onChange={changeFilters}
           suggestedTags={shownTags}
           searching={!!q}
+          facets={stories.data?.pages[0]?.facets}
         />
       </details>
       <details className={styles.limitsDetails}>
@@ -416,6 +433,7 @@ export function StoryPage() {
             <ShelfSelect storyId={s.id} shelf={library.data.entry?.shelf ?? null} />
           )}
           {auth.isAuthenticated && <AddToSelection storyId={s.id} />}
+          <DownloadPanel story={s} />
         </div>
 
         <div className={styles.main}>
@@ -443,6 +461,20 @@ export function StoryPage() {
             </div>
           </dl>
           <StoryTags story={s} />
+          {s.characters.length > 0 && (
+            <p className={styles.meta}>
+              Personnages :{' '}
+              {s.characters.map((character, i) => (
+                <span key={character}>
+                  {i > 0 && ', '}
+                  <Link to={`/?personnages=${encodeURIComponent(character)}`} lang={s.language}>
+                    {character}
+                  </Link>
+                </span>
+              ))}
+              .
+            </p>
+          )}
           {s.majorWarnings && !s.majorWarnings.length && (
             <p className={styles.meta}>Aucun avertissement majeur.</p>
           )}
@@ -493,11 +525,16 @@ export function ReaderPage() {
   const library = useLibraryStatus(storyId);
   const { mutate: savePosition } = useSavePosition(storyId);
   const known = library.data?.entry?.chapterId;
-  const tracking = opened && signedIn && library.isSuccess;
+  // Hors ligne (#35) : Mes lectures ne répond pas, mais la position est gardée pour plus tard.
+  const tracking =
+    opened && signedIn && (library.isSuccess || (library.isError && isUnreachable(library.error)));
   useEffect(() => {
     if (tracking && known !== chapterId) savePosition({ chapterId, blockId: null });
   }, [tracking, known, chapterId, savePosition]);
   useTrackPosition(article, tracking, (blockId) => savePosition({ chapterId, blockId }));
+  // Bilan de lecture (#34) : temps de lecture, s'il est activé.
+  const account = useMyAccount();
+  useReadingTimer(tracking && (account.data?.readingStats ?? false));
   const resume = (useLocation().state as { reprise?: string | null } | null)?.reprise;
   useResume(resume, opened);
   const title = chapter.data

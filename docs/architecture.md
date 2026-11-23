@@ -18,7 +18,7 @@ Trois piliers guident les choix techniques :
 
 Maquettes de référence : canevas « Plumiotheca — pistes d'identité », pages _Web — ordinateur_, _Web — écrire_, _Web — communauté_ et _Web — mobile_.
 
-- **Web d'abord** : Plumiotheca est un site web _responsive_ (ordinateur, tablette, téléphone), conçu en priorité pour l'ordinateur. Pas d'application native à installer depuis un magasin ; une PWA (installable depuis le navigateur, lecture hors ligne) viendra plus tard.
+- **Web d'abord** : Plumiotheca est un site web _responsive_ (ordinateur, tablette, téléphone), conçu en priorité pour l'ordinateur. Pas d'application native à installer depuis un magasin : le site s'installe depuis le navigateur (PWA, #35), et les histoires téléchargées se lisent hors ligne.
 - **Identité « Lampe de chevet »** : Young Serif (titres), Literata (lecture), Figtree (interface). Palette par défaut _Lueur_ en clair et en sombre ; _Bougie_, _Indigo et lune_ et _Encre et rouille_ sont des ambiances au choix (#77).
 - **Métaphore de bibliothèque dans le visuel, mots simples dans l'interface** : livres en cours montrés de dos, sélections présentées comme des étagères, mais les libellés restent « Mes lectures », « Explorer », « Univers », « Écrire ».
 - **La lecture d'abord** : aucune annotation dans le texte. Un repère discret en marge (bulle + nombre) indique les passages commentés ; les échanges s'ouvrent dans un panneau ou sont regroupés en fin de chapitre. Les repères peuvent être masqués.
@@ -251,7 +251,7 @@ Pensée pour les lectrices et lecteurs de fanfiction (référence : AO3).
 | Composants accessibles | Radix UI (primitives sans style)                                                                                                             |
 | Formulaires            | React Hook Form + zod (mêmes schémas que l'API)                                                                                              |
 | Auth                   | `react-oidc-context`                                                                                                                         |
-| PWA                    | Service worker pour la lecture hors ligne (plus tard)                                                                                        |
+| PWA                    | Service worker (vite-plugin-pwa, Workbox) : interface gardée hors ligne, pages en « réseau d'abord » ; jamais l'API ni Keycloak (#35)        |
 
 ```
 apps/web/src/

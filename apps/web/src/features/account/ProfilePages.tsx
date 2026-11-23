@@ -32,6 +32,7 @@ import {
 } from './api';
 import styles from './ProfilePages.module.css';
 import { EmailDigestPanel } from '../notifications/NotificationsPage';
+import { ReadingStatsSetting } from '../stories/ReadingStatsPanel';
 
 /** Texte libre en paragraphes (lignes vides) et retours à la ligne, sans HTML. */
 function Paragraphs({ text }: { text: string }) {
@@ -164,6 +165,10 @@ export function AccountSettingsPage() {
       <section aria-labelledby="limites" className={styles.section}>
         <h2 id="limites">Mes limites</h2>
         <LimitsPanel />
+      </section>
+      <section aria-labelledby="bilan-lecture" className={styles.section}>
+        <h2 id="bilan-lecture">Bilan de lecture</h2>
+        <ReadingStatsSetting />
       </section>
       <section aria-labelledby="notifications" className={styles.section}>
         <h2 id="notifications">Notifications</h2>

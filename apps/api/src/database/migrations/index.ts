@@ -8,7 +8,11 @@ import { HorodatagesMilliseconde1791477431997 } from './1791477431997-Horodatage
 import { Selections1792253380573 } from './1792253380573-Selections.js';
 import { SaisieIntelligente1792254000000 } from './1792254000000-SaisieIntelligente.js';
 import { Notifications1793021640920 } from './1793021640920-Notifications.js';
-import { ReindexationsSuivies1793030000000 } from './1793030000000-ReindexationsSuivies.js';
+import { BilanLecture1793174828634 } from './1793174828634-BilanLecture.js';
+import { TagsSansEspaces1793900000000 } from './1793900000000-TagsSansEspaces.js';
+import { JournalJardinage1794399731014 } from './1794399731014-JournalJardinage.js';
+import { PersonnagesRelations1794846473500 } from './1794846473500-PersonnagesRelations.js';
+import { ReindexationsSuivies1795000000000 } from './1795000000000-ReindexationsSuivies.js';
 import { MesLectures1792252868090 } from './1792252868090-MesLectures.js';
 import { Apparence1792251152107 } from './1792251152107-Apparence.js';
 import { Limites1792250556806 } from './1792250556806-Limites.js';
@@ -35,5 +39,9 @@ export const migrations = [
   Selections1792253380573,
   SaisieIntelligente1792254000000,
   Notifications1793021640920,
-  ReindexationsSuivies1793030000000,
+  BilanLecture1793174828634,
+  TagsSansEspaces1793900000000,
+  JournalJardinage1794399731014,
+  PersonnagesRelations1794846473500,
+  ReindexationsSuivies1795000000000,
 ];

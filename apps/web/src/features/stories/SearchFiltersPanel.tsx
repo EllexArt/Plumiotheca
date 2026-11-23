@@ -1,8 +1,14 @@
-import { Completion, MajorWarning, normalizeTag, Rating } from '@plumiotheca/contracts';
+import {
+  Completion,
+  MajorWarning,
+  normalizeTag,
+  Rating,
+  type StoryFacets,
+} from '@plumiotheca/contracts';
 import { Button } from '../../shared/ui/Button';
 import { Checkbox, RadioGroup } from '../../shared/ui/Field';
 import { LENGTHS, NO_FILTERS, SORT_LABELS, type LengthBucket, type SearchFilters } from './filters';
-import { ratingLabel, warningLabel } from './labels';
+import { plural, ratingLabel, warningLabel } from './labels';
 import styles from './Reading.module.css';
 
 /** Langues proposées ; les noms viennent du navigateur, en français. */
@@ -25,6 +31,7 @@ export function SearchFiltersPanel({
   onChange,
   suggestedTags,
   searching,
+  facets,
 }: {
   filters: SearchFilters;
   onChange: (next: SearchFilters) => void;
@@ -32,6 +39,8 @@ export function SearchFiltersPanel({
   suggestedTags: string[];
   /** Recherche plein texte : le tri « Pertinence » est proposé (et l'est par défaut). */
   searching: boolean;
+  /** Relations et personnages des résultats, avec leur nombre d'histoires (#79). */
+  facets?: StoryFacets | undefined;
 }) {
   const set = (patch: Partial<SearchFilters>) => onChange({ ...filters, ...patch });
   const key = (tag: string) => normalizeTag(tag);
@@ -90,6 +99,20 @@ export function SearchFiltersPanel({
           <p className={styles.meta}>Aucun tag parmi les histoires affichées.</p>
         )}
       </fieldset>
+      <FacetGroup
+        legend="Relations"
+        name="relations"
+        chosen={filters.relations}
+        facets={facets?.relationships ?? []}
+        onChange={(relations) => set({ relations })}
+      />
+      <FacetGroup
+        legend="Personnages"
+        name="personnages"
+        chosen={filters.personnages}
+        facets={facets?.characters ?? []}
+        onChange={(personnages) => set({ personnages })}
+      />
       <RadioGroup
         label="Statut"
         name="statut"
@@ -188,5 +211,46 @@ export function SearchFiltersPanel({
         </Button>
       </div>
     </div>
+  );
+}
+
+/**
+ * Facette (#79) : les relations ou personnages des résultats, avec leur nombre d'histoires ;
+ * cocher en demande un (l'histoire doit les porter tous). Ceux déjà choisis restent affichés.
+ */
+function FacetGroup({
+  legend,
+  name,
+  chosen,
+  facets,
+  onChange,
+}: {
+  legend: string;
+  name: string;
+  chosen: string[];
+  facets: { name: string; stories: number }[];
+  onChange: (next: string[]) => void;
+}) {
+  const counts = new Map(facets.map((f) => [f.name, f.stories]));
+  const values = [...new Set([...chosen, ...facets.map((f) => f.name)])];
+  if (!values.length) return null;
+  return (
+    <fieldset className={styles.limits}>
+      <legend>{legend}</legend>
+      <div className={styles.limitsOptions}>
+        {values.map((value) => (
+          <Checkbox
+            key={value}
+            label={
+              counts.has(value) ? `${value} (${plural(counts.get(value)!, 'histoire')})` : value
+            }
+            name={name}
+            value={value}
+            checked={chosen.includes(value)}
+            onChange={(event) => onChange(toggled(chosen, value, event.target.checked))}
+          />
+        ))}
+      </div>
+    </fieldset>
   );
 }

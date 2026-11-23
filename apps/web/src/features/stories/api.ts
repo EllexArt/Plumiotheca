@@ -6,12 +6,15 @@ import {
   StoryDetail,
   StoryPage,
   type NewStory,
+  type StoryFacets,
   type StorySummary,
   type UpdateStory,
 } from '@plumiotheca/contracts';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from 'react-oidc-context';
 import { useApi } from '../../shared/api/useApi';
+import { isUnreachable } from '../offline/downloads';
+import { downloadedChapter, downloadedStory } from '../offline/store';
 import { exclusionsOf, LENGTHS, ratingsAbove, type SearchFilters } from './filters';
 import { useLimits } from './limits';
 
@@ -46,6 +49,8 @@ interface ListPage {
   total?: number;
   /** Histoires masquées par Mes limites (première page seulement). */
   hidden?: number;
+  /** Relations et personnages des résultats (#79, première page seulement). */
+  facets?: StoryFacets | undefined;
 }
 
 /**
@@ -64,6 +69,8 @@ export function usePublicStories(filters: StoryFilters = {}) {
   const filter = (params: URLSearchParams, search: boolean) => {
     if (!f) return;
     if (f.tags.length) params.set('tags', f.tags.join(','));
+    if (f.relations.length) params.set('relations', f.relations.join(','));
+    if (f.personnages.length) params.set('personnages', f.personnages.join(','));
     if (f.statut) params.set('statut', f.statut);
     if (f.langues.length) params.set('langues', f.langues.join(','));
     const above = ratingsAbove(f.classementMax);
@@ -97,7 +104,13 @@ export function usePublicStories(filters: StoryFilters = {}) {
         exclude(params);
         filter(params, true);
         const page = await api(SearchPage, `/recherche?${params}`, { signal });
-        return { items: page.items, next: page.nextPage, total: page.total, hidden: page.hidden };
+        return {
+          items: page.items,
+          next: page.nextPage,
+          total: page.total,
+          hidden: page.hidden,
+          facets: page.facets,
+        };
       }
       const params = new URLSearchParams({ limite: '20' });
       exclude(params);
@@ -106,10 +119,31 @@ export function usePublicStories(filters: StoryFilters = {}) {
       if (filters.pseudonyme) params.set('pseudonyme', filters.pseudonyme);
       if (typeof pageParam === 'string') params.set('apres', pageParam);
       const page = await api(StoryPage, `/histoires?${params}`, { signal });
-      return { items: page.items, next: page.nextCursor, total: page.total, hidden: page.hidden };
+      return {
+        items: page.items,
+        next: page.nextCursor,
+        total: page.total,
+        hidden: page.hidden,
+        facets: page.facets,
+      };
     },
     getNextPageParam: (last) => last.next,
   });
+}
+
+/**
+ * Hors ligne (#35) : la copie téléchargée sur l'appareil, s'il y en a une, quand le réseau
+ * ne répond pas. Sinon, l'erreur du réseau, telle quelle.
+ */
+async function offline<T>(online: Promise<T>, local: () => Promise<T | undefined>): Promise<T> {
+  try {
+    return await online;
+  } catch (error) {
+    if (!isUnreachable(error)) throw error;
+    const copy = await local().catch(() => undefined);
+    if (copy === undefined) throw error;
+    return copy;
+  }
 }
 
 /** Fiche d'une histoire et son sommaire (brouillons compris pour son autrice ou son auteur). */
@@ -118,7 +152,14 @@ export function useStory(id: string) {
   const auth = useAuth();
   return useQuery({
     queryKey: [...storyKeys.detail(id), auth.isAuthenticated],
-    queryFn: ({ signal }) => api(StoryDetail, `/histoires/${id}`, { signal }),
+    // Même hors ligne : la copie téléchargée prend le relais (#35).
+    networkMode: 'always',
+    queryFn: ({ signal }) =>
+      offline(
+        api(StoryDetail, `/histoires/${id}`, { signal }),
+        // Copie d'une version précédente du site : complétée par le contrat (valeurs par défaut).
+        async () => StoryDetail.safeParse((await downloadedStory(id))?.story).data,
+      ),
   });
 }
 
@@ -127,8 +168,11 @@ export function useChapter(storyId: string, chapterId: string) {
   const api = useApi();
   return useQuery({
     queryKey: storyKeys.chapter(storyId, chapterId),
+    networkMode: 'always',
     queryFn: ({ signal }) =>
-      api(ChapterRead, `/histoires/${storyId}/chapitres/${chapterId}`, { signal }),
+      offline(api(ChapterRead, `/histoires/${storyId}/chapitres/${chapterId}`, { signal }), () =>
+        downloadedChapter(chapterId).then((copy) => ChapterRead.safeParse(copy).data),
+      ),
   });
 }
 

@@ -16,6 +16,9 @@ import {
   type Suggestions,
   SUGGESTIONS_PER_GROUP,
   handleKey,
+  normalizeCharacter,
+  parseRelationship,
+  relationshipKey,
   normalizeTag,
 } from '@plumiotheca/contracts';
 import { DataSource, In } from 'typeorm';
@@ -24,6 +27,7 @@ import { ApiProblem } from '../common/problem.js';
 import { CONFIG } from '../config/config.module.js';
 import type { Config } from '../config/env.js';
 import { JobsService } from '../jobs/jobs.service.js';
+import { CharactersService } from '../characters/characters.service.js';
 import { escapeLike, TagsService } from '../tags/tags.service.js';
 import { StoriesService } from './stories.service.js';
 import { publicStories } from './story-access.js';
@@ -42,7 +46,15 @@ const SEARCH_SORTS: Record<SearchQuery['tri'], string | null> = {
 
 /** Réglages de l'index : où chercher, sur quoi filtrer ; seul l'identifiant est renvoyé. */
 const SETTINGS = {
-  searchableAttributes: ['title', 'tags', 'authorName', 'authorHandle', 'summary'],
+  searchableAttributes: [
+    'title',
+    'relationships',
+    'characters',
+    'tags',
+    'authorName',
+    'authorHandle',
+    'summary',
+  ],
   filterableAttributes: [
     'language',
     'rating',
@@ -51,6 +63,11 @@ const SETTINGS = {
     'tagKeys',
     'completion',
     'wordCount',
+    // Relations et personnages (#79) : filtres (clés) et facettes (noms affichés).
+    'relationshipKeys',
+    'characterKeys',
+    'relationships',
+    'characters',
   ],
   // Tris (#32) : récentes, mises à jour, les plus lues (compteur à jour chaque nuit), longueur.
   sortableAttributes: ['publishedAt', 'updatedAt', 'readCount', 'wordCount'],
@@ -66,6 +83,13 @@ function toDocument(story: StorySummary) {
     tags: story.tags,
     // Forme normalisée des tags : pour masquer ceux de Mes limites (#81).
     tagKeys: story.tags.map(normalizeTag),
+    relationships: story.relationships,
+    characters: story.characters,
+    relationshipKeys: story.relationships.flatMap((text) => {
+      const parsed = parseRelationship(text);
+      return parsed ? [relationshipKey(parsed.kind, parsed.names)] : [];
+    }),
+    characterKeys: story.characters.map(normalizeCharacter),
     completion: story.completion,
     wordCount: story.wordCount,
     readCount: story.readCount,
@@ -88,6 +112,7 @@ const TaskState = z.object({
 const Hits = z.object({
   hits: z.array(z.object({ id: z.string() })),
   estimatedTotalHits: z.int().optional(),
+  facetDistribution: z.record(z.string(), z.record(z.string(), z.int())).optional(),
 });
 
 class MeiliError extends Error {
@@ -117,6 +142,7 @@ export class SearchService implements OnModuleInit, OnApplicationBootstrap {
     private readonly stories: StoriesService,
     private readonly jobs: JobsService,
     private readonly tags: TagsService,
+    private readonly characters: CharactersService,
   ) {}
 
   onModuleInit() {
@@ -276,6 +302,13 @@ export class SearchService implements OnModuleInit, OnApplicationBootstrap {
     if (query.motsMin !== undefined) filter.push(`wordCount >= ${query.motsMin}`);
     if (query.motsMax !== undefined) filter.push(`wordCount <= ${query.motsMax}`);
     for (const family of include) filter.push(`tagKeys IN ${JSON.stringify(family)}`);
+    // Relations et personnages (#79) : tous demandés.
+    for (const key of this.characters.relationKeys(query.relations ?? [])) {
+      filter.push(`relationshipKeys = ${JSON.stringify(key)}`);
+    }
+    for (const key of this.characters.characterKeys(query.personnages ?? [])) {
+      filter.push(`characterKeys = ${JSON.stringify(key)}`);
+    }
     const sort = SEARCH_SORTS[query.tri];
     const excluded = exclusionFilters(query, masked.flat());
     const index = `/indexes/${this.config.SEARCH_INDEX}/search`;
@@ -291,6 +324,8 @@ export class SearchService implements OnModuleInit, OnApplicationBootstrap {
           // Un de plus : y a-t-il une page suivante ?
           limit: SEARCH_PAGE_SIZE + 1,
           attributesToRetrieve: ['id'],
+          // Facettes (#79), sur la première page.
+          ...(query.page === 1 ? { facets: ['relationships', 'characters'] } : {}),
         }),
       );
       // Ce qui a été masqué, pour le dire : mêmes filtres, avertissements exclus inversés.
@@ -324,6 +359,14 @@ export class SearchService implements OnModuleInit, OnApplicationBootstrap {
       items: ids.flatMap((id) => found.get(id) ?? []),
       total: result.estimatedTotalHits ?? ids.length,
       nextPage: result.hits.length > SEARCH_PAGE_SIZE ? query.page + 1 : null,
+      ...(result.facetDistribution
+        ? {
+            facets: {
+              relationships: topFacets(result.facetDistribution.relationships),
+              characters: topFacets(result.facetDistribution.characters),
+            },
+          }
+        : {}),
       ...(hidden === undefined ? {} : { hidden }),
     };
   }
@@ -465,4 +508,12 @@ function isExcluded(query: Pick<SearchQuery, 'exclure' | 'exclureAutres'>, maske
     (story.majorWarnings ?? []).some((w) => query.exclure?.includes(w)) ||
     story.contentWarnings.some((w) => query.exclureAutres?.includes(w)) ||
     story.tags.some((t) => tags.has(normalizeTag(t)));
+}
+
+/** Les 10 valeurs les plus fréquentes d'une facette Meilisearch. */
+function topFacets(counts: Record<string, number> | undefined) {
+  return Object.entries(counts ?? {})
+    .map(([name, stories]) => ({ name, stories }))
+    .sort((a, b) => b.stories - a.stories || a.name.localeCompare(b.name, 'fr'))
+    .slice(0, 10);
 }

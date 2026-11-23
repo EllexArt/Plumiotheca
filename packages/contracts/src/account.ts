@@ -147,6 +147,8 @@ export const MyAccount = z.strictObject({
   limits: ReadingLimits.nullable(),
   /** Réglages de lecture (#28) ; null : ceux de l'appareil, ou ceux par défaut. */
   readingPreferences: ReadingPreferences.nullable(),
+  /** Bilan de lecture (#34) ; activé par défaut. */
+  readingStats: z.boolean(),
   /** E-mail récapitulatif des notifications (#33) ; « never » par défaut. */
   emailDigest: EmailDigest,
   /** Date à partir de laquelle le pseudonyme peut de nouveau changer (null : maintenant). */

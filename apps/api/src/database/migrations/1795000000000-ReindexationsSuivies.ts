@@ -4,8 +4,8 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * Réindexations suivies (#82) : la réindexation complète rejoue, après l'échange d'index,
  * les histoires réindexées pendant qu'elle tournait.
  */
-export class ReindexationsSuivies1793030000000 implements MigrationInterface {
-  name = 'ReindexationsSuivies1793030000000';
+export class ReindexationsSuivies1795000000000 implements MigrationInterface {
+  name = 'ReindexationsSuivies1795000000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
